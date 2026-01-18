@@ -1,10 +1,18 @@
+from enum import StrEnum
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
 
-from infrastructure.settings.types import Environment
-
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+
+
+class Environment(StrEnum):
+    LOCAL = "local"
+    DEVELOPMENT = "development"
+    STAGING = "staging"
+    PRODUCTION = "production"
+    TEST = "test"
+    CI = "ci"
 
 
 class ApplicationSettings(BaseSettings):

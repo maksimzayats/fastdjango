@@ -7,26 +7,30 @@ from fastapi import APIRouter, FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from configs.core import ApplicationSettings
+from configs.application import ApplicationSettings, Environment
 from delivery.http.django.factories import DjangoWSGIFactory
 from delivery.http.health.controllers import HealthController
 from delivery.http.settings import CORSSettings, HTTPSettings
 from delivery.http.user.controllers import UserController, UserTokenController
 from infrastructure.anyio.configurator import AnyIOConfigurator
-from infrastructure.settings.types import Environment
 from infrastructure.telemetry.configurator import LogfireConfigurator
 from infrastructure.telemetry.instrumentor import OpenTelemetryInstrumentor
 
 
 @dataclass
 class Lifespan:
+    _application_settings: ApplicationSettings
     _anyio_configurator: AnyIOConfigurator
     _logfire_configurator: LogfireConfigurator
 
     @asynccontextmanager
     async def __call__(self, _app: FastAPI) -> AsyncIterator[None]:
         self._anyio_configurator.configure()
-        self._logfire_configurator.configure(service_name="fastapi")
+        self._logfire_configurator.configure(
+            service_name="fastapi",
+            service_version=self._application_settings.version,
+            environment=self._application_settings.environment,
+        )
 
         yield
 

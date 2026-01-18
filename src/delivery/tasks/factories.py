@@ -2,11 +2,11 @@ from dataclasses import dataclass, field
 
 from celery import Celery
 
-from configs.core import ApplicationSettings
-from configs.infrastructure import RedisSettings
+from configs.application import ApplicationSettings
 from delivery.tasks.registry import TaskName, TasksRegistry
 from delivery.tasks.settings import CelerySettings
 from delivery.tasks.tasks.ping import PingTaskController
+from infrastructure.redis.settings import RedisSettings
 
 
 @dataclass
@@ -22,8 +22,8 @@ class CeleryAppFactory:
 
         celery_app = Celery(
             "main",
-            broker=self._redis_settings.redis_url.get_secret_value(),
-            backend=self._redis_settings.redis_url.get_secret_value(),
+            broker=self._redis_settings.url.get_secret_value(),
+            backend=self._redis_settings.url.get_secret_value(),
         )
 
         self._configure_app(celery_app=celery_app)

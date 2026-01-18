@@ -97,7 +97,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from infrastructure.settings.types import Environment
+from infrastructure.configs.types import Environment
 
 
 class OpenTelemetrySettings(BaseSettings):
@@ -109,9 +109,9 @@ class OpenTelemetrySettings(BaseSettings):
 
 
 def configure_opentelemetry(
-    service_name: str,
-    environment: Environment,
-    version: str,
+        service_name: str,
+        environment: Environment,
+        version: str,
 ) -> None:
     settings = OpenTelemetrySettings()
     if not settings.enabled:

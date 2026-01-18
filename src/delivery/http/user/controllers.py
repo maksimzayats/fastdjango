@@ -6,6 +6,7 @@ from typing import Annotated, Any
 from annotated_types import Len
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
+from throttled import rate_limiter
 
 from core.user.services.refresh_session import (
     ExpiredRefreshTokenError,
@@ -15,9 +16,10 @@ from core.user.services.refresh_session import (
 )
 from core.user.services.user import UserService
 from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from delivery.http.services.request import RequestInfoService
+from delivery.http.services.throttler import IPThrottlerFactory
 from delivery.services.jwt import JWTService
 from infrastructure.delivery.controllers import Controller
-from infrastructure.delivery.request import RequestInfoService
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,7 @@ class UserTokenController(Controller):
     _jwt_auth_factory: JWTAuthFactory
     _jwt_service: JWTService
     _request_info_service: RequestInfoService
+    _ip_throttler_factory: IPThrottlerFactory
 
     _refresh_token_service: RefreshSessionService
     _user_service: UserService
@@ -49,12 +52,14 @@ class UserTokenController(Controller):
 
     def __post_init__(self) -> None:
         self._jwt_auth = self._jwt_auth_factory()
+        self._ip_throttler = self._ip_throttler_factory(quota=rate_limiter.per_min(1))
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
             path="/v1/users/me/token",
             endpoint=self.issue_user_token,
             methods=["POST"],
+            dependencies=[Depends(self._ip_throttler)],
             response_model=TokenResponseSchema,
         )
 

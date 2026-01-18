@@ -54,6 +54,9 @@ ignore = [
     "PLR0913",
 ]
 
+[lint.isort]
+combine-as-imports = true
+
 [lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 

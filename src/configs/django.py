@@ -4,12 +4,12 @@ import dj_database_url
 from pydantic import Field, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from configs.core import (
+from configs.application import (
     ApplicationSettings,
 )
-from configs.infrastructure import AWSS3Settings
 from configs.logging import LoggingSettings
 from infrastructure.django.settings.pydantic_adapter import PydanticSettingsAdapter
+from infrastructure.s3.settings import AWSS3Settings
 
 
 class DjangoSettings(ApplicationSettings):

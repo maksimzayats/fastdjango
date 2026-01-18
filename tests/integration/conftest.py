@@ -1,6 +1,8 @@
 import pytest
+from throttled.asyncio import MemoryStore
 
 from infrastructure.punq.container import AutoRegisteringContainer
+from infrastructure.throttler.throttler import AsyncThrottlerStoreFactory
 from ioc.container import ContainerFactory
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
@@ -13,7 +15,10 @@ from tests.integration.factories import (
 @pytest.fixture(scope="function")
 def container() -> AutoRegisteringContainer:
     container_factory = ContainerFactory()
-    return container_factory()
+    container = container_factory()
+    container.register(AsyncThrottlerStoreFactory, instance=MemoryStore)
+
+    return container
 
 
 # region Factories
