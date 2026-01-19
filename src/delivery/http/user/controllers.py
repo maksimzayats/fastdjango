@@ -17,7 +17,7 @@ from core.user.services.refresh_session import (
 from core.user.services.user import UserService
 from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 from delivery.http.services.request import RequestInfoService
-from delivery.http.services.throttler import IPThrottlerFactory
+from delivery.http.services.throttler import IPThrottlerFactory, UserThrottlerFactory
 from delivery.services.jwt import JWTService
 from infrastructure.delivery.controllers import Controller
 
@@ -43,7 +43,9 @@ class UserTokenController(Controller):
     _jwt_auth_factory: JWTAuthFactory
     _jwt_service: JWTService
     _request_info_service: RequestInfoService
+
     _ip_throttler_factory: IPThrottlerFactory
+    _user_throttler_factory: UserThrottlerFactory
 
     _refresh_token_service: RefreshSessionService
     _user_service: UserService
@@ -52,14 +54,15 @@ class UserTokenController(Controller):
 
     def __post_init__(self) -> None:
         self._jwt_auth = self._jwt_auth_factory()
-        self._ip_throttler = self._ip_throttler_factory(quota=rate_limiter.per_min(1))
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
             path="/v1/users/me/token",
             endpoint=self.issue_user_token,
             methods=["POST"],
-            dependencies=[Depends(self._ip_throttler)],
+            dependencies=[
+                Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
+            ],
             response_model=TokenResponseSchema,
         )
 
@@ -67,6 +70,9 @@ class UserTokenController(Controller):
             path="/v1/users/me/token/refresh",
             endpoint=self.refresh_user_token,
             methods=["POST"],
+            dependencies=[
+                Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
+            ],
             response_model=TokenResponseSchema,
         )
 
@@ -74,7 +80,11 @@ class UserTokenController(Controller):
             path="/v1/users/me/token/revoke",
             endpoint=self.revoke_refresh_token,
             methods=["POST"],
-            dependencies=[Depends(self._jwt_auth)],
+            dependencies=[
+                Depends(self._jwt_auth),
+                Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
+                Depends(self._user_throttler_factory(quota=rate_limiter.per_min(10))),
+            ],
         )
 
     def issue_user_token(
