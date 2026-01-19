@@ -8,27 +8,11 @@ from core.user.models import User
 
 @dataclass(kw_only=True)
 class UserService:
-    def get_user_by_id(
-        self,
-        user_id: int,
-    ) -> User | None:
-        try:
-            user = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return None
+    def get_user_by_id(self, user_id: int) -> User | None:
+        return User.objects.filter(id=user_id).first()
 
-        return user
-
-    def get_active_user_by_id(
-        self,
-        user_id: int,
-    ) -> User | None:
-        try:
-            user = User.objects.get(pk=user_id, is_active=True)
-        except User.DoesNotExist:
-            return None
-
-        return user
+    def get_active_user_by_id(self, user_id: int) -> User | None:
+        return User.objects.filter(id=user_id, is_active=True).first()
 
     def get_user_by_username_and_password(
         self,
@@ -50,13 +34,7 @@ class UserService:
         username: str,
         email: str,
     ) -> User | None:
-        query = User.objects.filter(username=username) | User.objects.filter(email=email)
-        try:
-            user = query.get()
-        except User.DoesNotExist:
-            return None
-
-        return user
+        return (User.objects.filter(username=username) | User.objects.filter(email=email)).first()
 
     def is_valid_password(
         self,
