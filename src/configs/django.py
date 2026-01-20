@@ -4,12 +4,13 @@ import dj_database_url
 from pydantic import Field, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from configs.core import (
+from configs.application import (
     ApplicationSettings,
 )
-from configs.infrastructure import AWSS3Settings
 from configs.logging import LoggingSettings
-from infrastructure.django.settings.pydantic_adapter import PydanticSettingsAdapter
+from infrastructure.adapters.database.settings import DatabaseSettings
+from infrastructure.adapters.s3.settings import AWSS3Settings
+from infrastructure.frameworks.django.settings.pydantic_adapter import PydanticSettingsAdapter
 
 
 class DjangoSettings(ApplicationSettings):
@@ -62,16 +63,17 @@ class DjangoAuthSettings(BaseSettings):
     )
 
 
-class DjangoDatabaseSettings(BaseSettings):
+class DjangoDatabaseSettings(DatabaseSettings):
+    model_config = SettingsConfigDict(env_prefix="DATABASE_")
+
     default_auto_field: str = "django.db.models.BigAutoField"
     conn_max_age: int = 600
-    database_url: str = "sqlite:///db.sqlite3"
 
     @computed_field()
     def databases(self) -> dict[str, Any]:
         return {
             "default": dj_database_url.parse(
-                self.database_url,
+                self.url.get_secret_value(),
                 conn_max_age=self.conn_max_age,
             ),
         }
@@ -138,7 +140,7 @@ adapter = PydanticSettingsAdapter()
 adapter.adapt(
     DjangoSettings(),
     DjangoHttpSettings(),
-    DjangoDatabaseSettings(),
+    DjangoDatabaseSettings(),  # type: ignore[call-arg, missing-argument]
     DjangoAuthSettings(),
     DjangoSecuritySettings(),  # type: ignore[call-arg, missing-argument]
     DjangoStorageSettings(),

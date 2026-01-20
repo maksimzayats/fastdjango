@@ -6,7 +6,7 @@ from logfire.integrations.psycopg import CommenterOptions
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from infrastructure.telemetry.configurator import LogfireSettings
+from infrastructure.frameworks.logfire.configurator import LogfireSettings
 
 
 class InstrumentorSettings(BaseSettings):
@@ -17,7 +17,7 @@ class InstrumentorSettings(BaseSettings):
     )
 
 
-@dataclass
+@dataclass(kw_only=True)
 class OpenTelemetryInstrumentor:
     _instrumentor_settings: InstrumentorSettings
     _logfire_settings: LogfireSettings

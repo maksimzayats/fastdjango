@@ -41,11 +41,20 @@ class LoggingSettings(BaseSettings):
                 "opentelemetry.instrumentation.instrumentor": {
                     "level": "ERROR",
                 },
+                "botocore": {
+                    "level": "WARNING",
+                },
+                "boto3": {
+                    "level": "WARNING",
+                },
+                "s3transfer": {
+                    "level": "WARNING",
+                },
             },
         }
 
 
-@dataclass
+@dataclass(kw_only=True)
 class LoggingConfigurator:
     _settings: LoggingSettings
 

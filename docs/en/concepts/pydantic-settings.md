@@ -1,41 +1,13 @@
 # Pydantic Settings
 
-This template uses Pydantic's `BaseSettings` for configuration management. Settings classes automatically load values from environment variables, provide type validation, and integrate with the IoC container for dependency injection.
+Pydantic Settings provides type-safe configuration management by loading environment variables into validated Python objects.
 
-## How BaseSettings Works
+## The Basic Pattern
 
-Pydantic `BaseSettings` automatically loads field values from environment variables:
-
-```python
-from pydantic_settings import BaseSettings
-
-class JWTServiceSettings(BaseSettings):
-    secret_key: str      # Loaded from JWT_SECRET_KEY
-    algorithm: str = "HS256"  # Default if not in env
-```
-
-When instantiated, the settings class:
-
-1. Looks for environment variables matching field names
-2. Applies any prefix defined in `model_config`
-3. Validates and converts values to the declared types
-4. Uses defaults for missing optional fields
-
-## Environment Variable Prefixes
-
-Each settings class uses a prefix to namespace its environment variables:
-
-| Settings Class | Prefix | Example Variable |
-|----------------|--------|------------------|
-| `SecuritySettings` | `DJANGO_` | `DJANGO_SECRET_KEY` |
-| `JWTServiceSettings` | `JWT_` | `JWT_SECRET_KEY` |
-| `AWSS3Settings` | `AWS_S3_` | `AWS_S3_ENDPOINT_URL` |
-| `CelerySettings` | `CELERY_` | `CELERY_TASK_TIME_LIMIT` |
-| `CacheSettings` | `CACHE_` | `CACHE_DEFAULT_TIMEOUT` |
-
-Configure the prefix using `SettingsConfigDict`:
+Settings classes inherit from `BaseSettings`:
 
 ```python
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -44,303 +16,304 @@ class JWTServiceSettings(BaseSettings):
 
     secret_key: SecretStr
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 15
+    access_token_expire_minutes: int = 30
 ```
 
-## SecretStr for Sensitive Values
+Environment variables:
 
-Use `SecretStr` for passwords, tokens, and other sensitive data:
-
-```python
-from pydantic import SecretStr
-
-
-class SecuritySettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="DJANGO_")
-
-    debug: bool = False
-    secret_key: SecretStr  # Never accidentally logged or printed
+```bash
+JWT_SECRET_KEY=my-secret-key
+JWT_ALGORITHM=HS512
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```
 
-`SecretStr` provides:
-
-- **Masked repr**: `SecretStr('**********')` instead of actual value
-- **Explicit access**: Must call `.get_secret_value()` to get the actual string
-- **Accidental exposure prevention**: Won't appear in logs or stack traces
+Result:
 
 ```python
-settings = SecuritySettings()
-
-# Accessing the value
-print(settings.secret_key)  # SecretStr('**********')
-print(settings.secret_key.get_secret_value())  # actual-secret-value
+settings = JWTServiceSettings()
+settings.secret_key.get_secret_value()  # "my-secret-key"
+settings.algorithm  # "HS512"
+settings.access_token_expire_minutes  # 60
 ```
 
-## Computed Properties
+## Prefix Conventions
 
-Use `@computed_field` for values derived from other settings:
+Settings classes use `env_prefix` to namespace variables:
+
+| Prefix | Settings Class | Example Variables |
+|--------|---------------|-------------------|
+| `DJANGO_` | `DjangoSecuritySettings` | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG` |
+| `JWT_` | `JWTServiceSettings` | `JWT_SECRET_KEY`, `JWT_ALGORITHM` |
+| `AWS_S3_` | `AWSS3Settings` | `AWS_S3_ACCESS_KEY_ID`, `AWS_S3_BUCKET_NAME` |
+| `CORS_` | `CORSSettings` | `CORS_ALLOW_ORIGINS`, `CORS_ALLOW_METHODS` |
+| `LOGFIRE_` | `LogfireSettings` | `LOGFIRE_ENABLED`, `LOGFIRE_TOKEN` |
+| `ANYIO_` | `AnyIOSettings` | `ANYIO_THREAD_LIMITER_TOKENS` |
+| `LOGGING_` | (logging config) | `LOGGING_LEVEL` |
+
+Unprefixed variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `REDIS_URL` | Redis connection string |
+| `ENVIRONMENT` | Deployment environment |
+| `ALLOWED_HOSTS` | Django allowed hosts |
+
+## Auto-Registration in IoC
+
+The `AutoRegisteringContainer` detects `BaseSettings` subclasses and registers them with a factory:
 
 ```python
-from pydantic import computed_field
+# When resolving a settings class:
+settings = container.resolve(JWTServiceSettings)
 
-
-class JWTServiceSettings(BaseSettings):
-    access_token_expire_minutes: int = 15
-
-    @property
-    def access_token_expire(self) -> timedelta:
-        return timedelta(minutes=self.access_token_expire_minutes)
+# The container automatically:
+# 1. Detects it's a BaseSettings subclass
+# 2. Registers with factory: lambda: JWTServiceSettings()
+# 3. Settings load from environment on first access
 ```
 
-For complex computed values that should be part of the model:
+No explicit registration is needed for settings classes.
+
+## Validation
+
+Pydantic validates settings at startup:
 
 ```python
-from pydantic import computed_field
-
-
 class DatabaseSettings(BaseSettings):
-    conn_max_age: int = 600
-    database_url: str = "sqlite:///db.sqlite3"
+    model_config = SettingsConfigDict(env_prefix="DATABASE_")
 
-    @computed_field()
-    def databases(self) -> dict[str, Any]:
-        return {
-            "default": dj_database_url.parse(
-                self.database_url,
-                conn_max_age=self.conn_max_age,
-            ),
-        }
+    url: str  # Required - no default
+    pool_size: int = Field(default=5, ge=1, le=100)
+    timeout: int = Field(default=30, ge=1)
 ```
 
-## Real-World Examples
+If `DATABASE_URL` is missing, the application fails fast with a clear error:
 
-### JWT Service Settings
+```
+ValidationError: 1 validation error for DatabaseSettings
+url
+  field required
+```
+
+## Secret Handling
+
+Use `SecretStr` for sensitive values:
 
 ```python
-from datetime import timedelta
-
 from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class JWTServiceSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="JWT_")
 
-    secret_key: SecretStr
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 15
+    secret_key: SecretStr  # Won't be logged accidentally
 
-    @property
-    def access_token_expire(self) -> timedelta:
-        return timedelta(minutes=self.access_token_expire_minutes)
+
+# Access the value explicitly
+settings.secret_key.get_secret_value()
 ```
 
-Environment variables:
-
-```bash
-JWT_SECRET_KEY=your-256-bit-secret
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
-```
-
-### Celery Settings
+`SecretStr` prevents accidental logging:
 
 ```python
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class CelerySettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="CELERY_")
-
-    # Worker settings
-    worker_prefetch_multiplier: int = 1
-    worker_max_tasks_per_child: int | None = 1000
-
-    # Task execution
-    task_acks_late: bool = True
-    task_reject_on_worker_lost: bool = True
-    task_time_limit: int | None = 300
-    task_soft_time_limit: int | None = 270
-
-    # Serialization
-    task_serializer: str = "json"
-    result_serializer: str = "json"
-    accept_content: list[str] = Field(default_factory=lambda: ["json"])
+print(settings)  # secret_key='**********'
 ```
 
-### AWS S3 Settings
+## Environment Files
+
+The project loads `.env` files via `python-dotenv`:
 
 ```python
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+# src/infrastructure/frameworks/django/configurator.py
+from dotenv import load_dotenv
 
 
-class AWSS3Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="AWS_S3_")
-
-    endpoint_url: str
-    access_key_id: str
-    secret_access_key: SecretStr
-    protected_bucket_name: str = "protected"
-    public_bucket_name: str = "public"
+class DjangoConfigurator:
+    def configure(self) -> None:
+        load_dotenv()  # Loads .env file
+        # ...
 ```
 
-Environment variables:
-
-```bash
-AWS_S3_ENDPOINT_URL=http://localhost:9000
-AWS_S3_ACCESS_KEY_ID=minioadmin
-AWS_S3_SECRET_ACCESS_KEY=minioadmin
-AWS_S3_PROTECTED_BUCKET_NAME=protected
-AWS_S3_PUBLIC_BUCKET_NAME=public
-```
-
-## Registration in IoC Container
-
-Settings are registered as singletons using factory-based registration:
+For tests, `.env.test` is loaded:
 
 ```python
-# ioc/registries/core.py
-from punq import Container, Scope
+# tests/conftest.py
+from dotenv import load_dotenv
 
-
-def _register_settings(container: Container) -> None:
-    container.register(
-        ApplicationSettings,
-        factory=lambda: ApplicationSettings(),
-        scope=Scope.singleton,
-    )
-
-    container.register(
-        RedisSettings,
-        factory=lambda: RedisSettings(),
-        scope=Scope.singleton,
-    )
+load_dotenv(".env.test")
 ```
 
-```python
-# ioc/registries/infrastructure.py
-def _register_jwt(container: Container) -> None:
-    container.register(
-        JWTServiceSettings,
-        factory=lambda: JWTServiceSettings(),
-    )
-```
+## Settings in Services
 
-!!! note "Why Factory Registration?"
-    Settings use factory registration (`factory=lambda: Settings()`) rather than type-based registration because:
-
-    1. Settings load from environment at instantiation time
-    2. The factory ensures settings are created when first resolved
-    3. Type-based registration would try to auto-resolve dependencies that don't exist
-
-## Using Settings in Services
-
-Services receive settings through dependency injection:
+Inject settings into services:
 
 ```python
+@dataclass(kw_only=True)
 class JWTService:
-    def __init__(self, settings: JWTServiceSettings) -> None:
-        self._settings = settings
+    _settings: JWTServiceSettings
 
-    def issue_access_token(self, user_id: Any) -> str:
+    def issue_access_token(self, user_id: int) -> str:
         payload = {
             "sub": str(user_id),
-            "exp": datetime.now(tz=UTC) + self._settings.access_token_expire,
+            "exp": datetime.now(UTC)
+            + timedelta(minutes=self._settings.access_token_expire_minutes),
         }
-
         return jwt.encode(
-            payload=payload,
-            key=self._settings.secret_key.get_secret_value(),
+            payload,
+            self._settings.secret_key.get_secret_value(),
             algorithm=self._settings.algorithm,
         )
 ```
 
-## Nested Settings
+The IoC container resolves settings automatically.
 
-Settings can contain other settings classes:
+## Django Settings Adapter
+
+Django settings are adapted from Pydantic using `PydanticSettingsAdapter`:
 
 ```python
-class StorageSettings(BaseSettings):
-    static_url: str = "static/"
-    media_url: str = "media/"
+# src/configs/django.py
+class DjangoSecuritySettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="DJANGO_")
 
-    s3_settings: AWSS3Settings = Field(default_factory=AWSS3Settings)
+    secret_key: str
+    debug: bool = False
 
-    @computed_field()
-    def storages(self) -> dict[str, Any]:
+
+class DjangoDatabaseSettings(BaseSettings):
+    # Multiple settings combined
+    url: str = Field(alias="DATABASE_URL")
+    conn_max_age: int = 600
+
+
+# Adapter merges all settings into Django's settings dict
+adapter = PydanticSettingsAdapter(
+    DjangoSettings(),
+    DjangoSecuritySettings(),
+    DjangoDatabaseSettings(),
+    # ...
+)
+
+# In Django settings file
+adapter.adapt(locals())  # Populates locals() with settings
+```
+
+## Computed Fields
+
+Use `@computed_field` for derived settings:
+
+```python
+from pydantic import computed_field
+
+
+class DjangoStorageSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="AWS_S3_")
+
+    access_key_id: str
+    secret_access_key: SecretStr
+    bucket_name: str
+    endpoint_url: str
+    region_name: str = "us-east-1"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def storages(self) -> dict[str, dict[str, str]]:
+        """Generate Django STORAGES configuration."""
         return {
             "default": {
-                "BACKEND": "storages.backends.s3.S3Storage",
+                "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
                 "OPTIONS": {
-                    "bucket_name": self.s3_settings.protected_bucket_name,
-                    "access_key": self.s3_settings.access_key_id,
-                    "secret_key": self.s3_settings.secret_access_key.get_secret_value(),
-                    "endpoint_url": self.s3_settings.endpoint_url,
+                    "access_key": self.access_key_id,
+                    "secret_key": self.secret_access_key.get_secret_value(),
+                    "bucket_name": self.bucket_name,
+                    "endpoint_url": self.endpoint_url,
+                },
+            },
+            "staticfiles": {
+                "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
+                "OPTIONS": {
+                    "bucket_name": self.bucket_name,
+                    "endpoint_url": self.endpoint_url,
                 },
             },
         }
 ```
 
-## Validation
+## List and Complex Types
 
-Pydantic automatically validates settings values:
+Parse complex values from environment:
 
 ```python
-class CelerySettings(BaseSettings):
-    task_time_limit: int | None = 300  # Must be int or None
-    task_serializer: str = "json"       # Must be string
-    accept_content: list[str] = Field(default_factory=lambda: ["json"])  # Must be list
+class HTTPSettings(BaseSettings):
+    allowed_hosts: list[str] = ["*"]  # From ALLOWED_HOSTS="host1,host2"
+    csrf_trusted_origins: list[str] = []
+
+
+class CORSSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="CORS_")
+
+    allow_origins: list[str] = ["*"]
+    allow_methods: list[str] = ["*"]
+    allow_headers: list[str] = ["*"]
+    allow_credentials: bool = True
 ```
 
-If environment variables contain invalid values, Pydantic raises a `ValidationError` at startup with clear error messages.
+Environment:
 
-## Environment File Support
-
-Settings can load from `.env` files:
-
-```python
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="APP_",
-        env_file=".env",
-        env_file_encoding="utf-8",
-    )
+```bash
+ALLOWED_HOSTS=["localhost","127.0.0.1"]
+CORS_ALLOW_ORIGINS=["https://example.com","https://app.example.com"]
 ```
 
-## Testing with Settings
+## Best Practices
 
-Override settings in tests by registering instances:
+### Do: Group Related Settings
 
 ```python
-def test_with_custom_settings(container: Container) -> None:
-    test_settings = JWTServiceSettings(
-        secret_key=SecretStr("test-secret"),
-        algorithm="HS256",
-        access_token_expire_minutes=5,
-    )
+# All JWT settings together
+class JWTServiceSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="JWT_")
+    secret_key: SecretStr
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+```
 
-    container.register(JWTServiceSettings, instance=test_settings)
+### Do: Use Defaults for Optional Config
 
-    # Services now use test settings
-    service = container.resolve(JWTService)
+```python
+class LogfireSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="LOGFIRE_")
+
+    enabled: bool = False  # Disabled by default
+    token: SecretStr | None = None  # Optional
+```
+
+### Do: Validate at Startup
+
+```python
+# Settings validated when container creates them
+container = ContainerFactory()()
+# If any required env vars are missing, fails here
+```
+
+### Don't: Access env Vars Directly
+
+```python
+# ❌ Not type-safe, no validation
+secret = os.environ.get("JWT_SECRET_KEY")
+
+# ✅ Type-safe, validated
+secret = settings.secret_key.get_secret_value()
 ```
 
 ## Summary
 
-Pydantic Settings provides:
+Pydantic Settings:
 
-| Feature | Benefit |
-|---------|---------|
-| Environment variable loading | Configuration without code changes |
-| Type validation | Catch config errors at startup |
-| `SecretStr` | Prevent accidental secret exposure |
-| Computed properties | Derived values from base config |
-| Prefixes | Namespace isolation for different services |
-| IoC integration | Settings injected like any other dependency |
-
-Settings classes are the foundation of configuration management in this template. They ensure type safety, secure handling of secrets, and seamless integration with the dependency injection system.
+- **Loads** environment variables into typed Python objects
+- **Validates** configuration at startup
+- **Uses** prefixes for namespacing
+- **Integrates** with IoC container automatically
+- **Protects** secrets with `SecretStr`
+- **Supports** complex types and computed fields

@@ -3,7 +3,7 @@ from http import HTTPStatus
 import pytest
 
 from core.user.models import User
-from delivery.http.user.controllers import TokenResponseSchema, UserSchema
+from delivery.http.controllers.user.schemas import TokenResponseSchema, UserSchema
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
 _TEST_PASSWORD = "test-password"  # noqa: S105

@@ -1,120 +1,280 @@
 # Makefile Commands
 
-All development commands are available through the Makefile.
+Quick reference for all development commands.
 
-## Development Server
+## Development
 
 | Command | Description |
 |---------|-------------|
-| `make dev` | Run FastAPI development server with uvicorn (hot reload) |
-| `make celery-dev` | Run Celery worker with DEBUG logging and auto-restart |
-| `make celery-beat-dev` | Run Celery beat scheduler with DEBUG logging |
+| `make dev` | Start FastAPI development server with hot reload |
+| `make celery-dev` | Start Celery worker for background tasks |
+| `make celery-beat-dev` | Start Celery beat scheduler |
+
+### Examples
+
+```bash
+# Start the API server
+make dev
+
+# In another terminal, start Celery
+make celery-dev
+
+# For scheduled tasks
+make celery-beat-dev
+```
 
 ## Database
 
 | Command | Description |
 |---------|-------------|
-| `make makemigrations` | Create new database migrations |
-| `make migrate` | Apply pending database migrations |
+| `make migrate` | Apply database migrations |
+| `make makemigrations` | Create new migrations from model changes |
 
-## Static Files
+### Examples
 
-| Command | Description |
-|---------|-------------|
-| `make collectstatic` | Collect static files to storage backend |
+```bash
+# After modifying models
+make makemigrations
+
+# Apply changes to database
+make migrate
+```
 
 ## Code Quality
 
 | Command | Description |
 |---------|-------------|
-| `make format` | Format code with ruff and apply auto-fixes |
-| `make lint` | Run all linters: ruff, ty, pyrefly, mypy |
-| `make test` | Run pytest test suite |
+| `make format` | Format code with ruff |
+| `make lint` | Run all linters (ruff, ty, pyrefly, mypy) |
+| `make test` | Run tests with coverage |
+
+### Examples
+
+```bash
+# Before committing
+make format
+make lint
+
+# Run tests
+make test
+```
 
 ## Documentation
 
 | Command | Description |
 |---------|-------------|
-| `make docs` | Serve documentation locally with live reload |
-| `make docs-build` | Build documentation for deployment |
+| `make docs` | Serve documentation with live reload |
+| `make docs-build` | Build static documentation |
+
+### Examples
+
+```bash
+# Preview documentation locally
+make docs
+
+# Build for deployment
+make docs-build
+```
 
 ## Command Details
 
-### make dev
+### `make dev`
 
+Runs:
 ```bash
-uv run uvicorn delivery.http.app:app --reload --host 0.0.0.0 --port 8000
+uvicorn delivery.http.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Starts the FastAPI development server on `http://0.0.0.0:8000` with hot reload.
+- Hot reloading enabled
+- Accessible at http://localhost:8000
+- API docs at http://localhost:8000/docs
 
-### make celery-dev
+### `make celery-dev`
 
+Runs:
 ```bash
-OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run watchmedo auto-restart \
-    --directory=src \
-    --pattern='*.py' \
-    --recursive \
-    -- celery -A delivery.tasks.app worker --loglevel=DEBUG
+celery -A delivery.tasks.app:celery_app worker --loglevel=info
 ```
 
-Uses `watchmedo` to auto-restart the worker on code changes. The `OBJC_DISABLE_INITIALIZE_FORK_SAFETY` flag is required on macOS.
+- Processes background tasks
+- Requires Redis running
+- Logs to console
 
-### make celery-beat-dev
+### `make celery-beat-dev`
 
+Runs:
 ```bash
-uv run celery -A delivery.tasks.app beat --loglevel=DEBUG
+celery -A delivery.tasks.app:celery_app beat --loglevel=info
 ```
 
-Runs the periodic task scheduler.
+- Schedules periodic tasks
+- Requires Redis running
+- Must run alongside worker
 
-### make format
+### `make format`
 
+Runs:
 ```bash
-uv run ruff format .
-uv run ruff check --fix-only .
+ruff format src tests
+ruff check --fix src tests
 ```
 
-Formats code and applies safe auto-fixes.
+- Formats Python files
+- Auto-fixes lint issues where possible
 
-### make lint
+### `make lint`
 
+Runs multiple type checkers:
 ```bash
-uv run ruff check .
-uv run ty check .
-uv run pyrefly check src/
-uv run mypy src/ tests/
+ruff check src tests
+ty check src tests
+pyrefly check src tests
+mypy src tests
 ```
 
-Runs the complete linting pipeline:
+- All must pass for CI
+- `mypy --strict` is the primary checker
 
-| Tool | Purpose |
-|------|---------|
-| ruff | Fast Python linter |
-| ty | Type linter |
-| pyrefly | Additional static analysis |
-| mypy | Type checker |
+### `make test`
 
-### make test
-
+Runs:
 ```bash
-uv run pytest tests/
+pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=80
 ```
 
-Runs the test suite. Configure coverage requirements in `pyproject.toml`.
+- Requires 80%+ code coverage
+- Generates coverage report
+- Fails if coverage is below threshold
 
-### make docs
+### `make migrate`
 
+Runs:
 ```bash
-uv run mkdocs serve --livereload -f docs/mkdocs.yml
+uv run python src/manage.py migrate
 ```
 
-Serves documentation at `http://127.0.0.1:8000` with auto-reload.
+- Applies all pending migrations
+- Requires database running
 
-### make docs-build
+### `make makemigrations`
 
+Runs:
 ```bash
-uv run mkdocs build -f docs/mkdocs.yml
+uv run python src/manage.py makemigrations
 ```
 
-Builds static documentation to `docs/site/`.
+- Detects model changes
+- Creates migration files in `migrations/` directories
+
+### `make docs`
+
+Runs:
+```bash
+mkdocs serve -f docs/mkdocs.yml
+```
+
+- Serves docs at http://localhost:8000
+- Live reload on file changes
+
+### `make docs-build`
+
+Runs:
+```bash
+mkdocs build -f docs/mkdocs.yml
+```
+
+- Builds static HTML to `docs/site/`
+- Validates all links
+
+## Common Workflows
+
+### Starting Fresh
+
+```bash
+# Install dependencies
+uv sync --locked --all-groups
+
+# Copy environment
+cp .env.example .env
+
+# Start infrastructure
+docker compose up -d postgres redis minio minio-create-buckets
+
+# Run migrations
+make migrate
+
+# Start server
+make dev
+```
+
+### Before Committing
+
+```bash
+make format
+make lint
+make test
+```
+
+### Working with Celery
+
+```bash
+# Terminal 1: API
+make dev
+
+# Terminal 2: Worker
+make celery-dev
+
+# Terminal 3: Scheduler (if needed)
+make celery-beat-dev
+```
+
+### Creating a New Feature
+
+```bash
+# Create models and services
+# Then:
+make makemigrations
+make migrate
+
+# Run tests
+make test
+```
+
+## Troubleshooting
+
+### Command Not Found
+
+Ensure you have `make` installed:
+
+```bash
+# macOS
+xcode-select --install
+
+# Ubuntu/Debian
+apt-get install build-essential
+```
+
+### Permission Denied
+
+If using Docker:
+
+```bash
+sudo make <command>
+# Or fix Docker permissions
+```
+
+### Database Connection Error
+
+Ensure PostgreSQL is running:
+
+```bash
+docker compose up -d postgres
+```
+
+### Redis Connection Error
+
+Ensure Redis is running:
+
+```bash
+docker compose up -d redis
+```

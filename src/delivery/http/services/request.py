@@ -1,22 +1,11 @@
 import ipaddress
 import logging
-from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Protocol
 
 from pydantic_settings import BaseSettings
+from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
-
-
-class RequestProtocol(Protocol):
-    """Protocol for request objects that can provide user agent and IP address."""
-
-    @property
-    def headers(self) -> Mapping[str, str]: ...
-
-    @property
-    def client(self) -> tuple[str, int] | None: ...
 
 
 class RequestInfoServiceSettings(BaseSettings):
@@ -30,15 +19,15 @@ class RequestInfoServiceSettings(BaseSettings):
     """Header to look for the user agent string."""
 
 
-@dataclass
+@dataclass(kw_only=True)
 class RequestInfoService:
     _settings: RequestInfoServiceSettings
 
-    def get_user_agent(self, request: RequestProtocol) -> str:
+    def get_user_agent(self, request: Request) -> str:
         return request.headers.get(self._settings.user_agent_header, "")
 
-    def get_user_ip(self, request: RequestProtocol) -> str | None:
-        xff = request.headers.get("x-forwarded-for")
+    def get_user_ip(self, request: Request) -> str | None:
+        xff = request.headers.get(self._settings.ip_header)
 
         if self._settings.number_of_proxies == 0 or xff is None:
             client = request.client

@@ -1,19 +1,16 @@
-import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable
+from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Self
+from typing import Any
 
-_CONTROLLER_METHODS_EXCLUDE = ("register", "handle_exception")
+from infrastructure.frameworks.logfire.transaction import traced_atomic
 
 
+@dataclass(kw_only=True)
 class Controller(ABC):
-    def __new__(cls, *_args: Any, **_kwargs: Any) -> Self:
-        self = super().__new__(cls)
-
-        _wrap_methods(self)
-
-        return self
+    def __post_init__(self) -> None:
+        self._wrap_methods()
 
     @abstractmethod
     def register(self, registry: Any) -> None: ...
@@ -21,72 +18,46 @@ class Controller(ABC):
     def handle_exception(self, exception: Exception) -> Any:
         raise exception
 
+    def _wrap_methods(self) -> None:
+        for attr_name in dir(self):
+            attr = getattr(self, attr_name)
 
-class AsyncController(ABC):
-    def __new__(cls, *_args: Any, **_kwargs: Any) -> Self:
-        self = super().__new__(cls)
+            if (
+                callable(attr)
+                and not hasattr(Controller, attr_name)
+                and not attr_name.startswith("_")
+                and attr_name not in dir(Controller)
+            ):
+                setattr(self, attr_name, self._wrap_route(attr))
 
-        _wrap_async_methods(self)
+    def _wrap_route(self, method: Callable[..., Any]) -> Callable[..., Any]:
+        return self._add_exception_handler(method)
 
-        return self
+    def _add_exception_handler(self, method: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(method)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return method(*args, **kwargs)
+            except Exception as e:  # noqa: BLE001
+                return self.handle_exception(e)
 
-    @abstractmethod
-    def register(self, registry: Any) -> None: ...
-
-    async def handle_exception(self, exception: Exception) -> Any:
-        raise exception
-
-
-def _wrap_methods(controller: Controller) -> None:
-    for attr_name in dir(controller):
-        attr = getattr(controller, attr_name)
-        if (
-            callable(attr)
-            and not attr_name.startswith("_")
-            and attr_name not in _CONTROLLER_METHODS_EXCLUDE
-        ):
-            setattr(
-                controller,
-                attr_name,
-                _wrap_route(attr, controller=controller),
-            )
+        return wrapper
 
 
-def _wrap_route[F: Callable[..., Any]](method: F, controller: Controller) -> F:
-    @wraps(method)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return method(*args, **kwargs)
-        except Exception as e:  # noqa: BLE001
-            return controller.handle_exception(e)
+@dataclass(kw_only=True)
+class TransactionController(Controller, ABC):
+    def _wrap_route(self, method: Callable[..., Any]) -> Callable[..., Any]:
+        method = self._add_transaction(method)
+        return super()._wrap_route(method)
 
-    return wrapper  # type: ignore[return-value]
+    def _add_transaction(self, method: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(method)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            with traced_atomic(
+                "controller transaction",
+                controller=type(self).__name__,
+                method=method.__name__,  # type: ignore[unresolved-attribute]
+            ):
+                return method(*args, **kwargs)
 
-
-def _wrap_async_methods(controller: AsyncController) -> None:
-    for attr_name in dir(controller):
-        attr = getattr(controller, attr_name)
-        if (
-            inspect.iscoroutinefunction(attr)
-            and not attr_name.startswith("_")
-            and attr_name not in _CONTROLLER_METHODS_EXCLUDE
-        ):
-            setattr(
-                controller,
-                attr_name,
-                _wrap_async_route(attr, controller=controller),
-            )
-
-
-def _wrap_async_route[F: Callable[..., Coroutine[Any, Any, Any]]](
-    method: F,
-    controller: AsyncController,
-) -> F:
-    @wraps(method)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return await method(*args, **kwargs)
-        except Exception as e:  # noqa: BLE001
-            return await controller.handle_exception(e)
-
-    return wrapper  # type: ignore[return-value]
+        return wrapper

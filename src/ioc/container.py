@@ -1,7 +1,7 @@
 from configs.logging import LoggingConfigurator
-from infrastructure.django.configurator import DjangoConfigurator
-from infrastructure.punq.container import AutoRegisteringContainer
-from infrastructure.telemetry.instrumentor import OpenTelemetryInstrumentor
+from infrastructure.frameworks.django.configurator import DjangoConfigurator
+from infrastructure.frameworks.logfire.instrumentor import OpenTelemetryInstrumentor
+from infrastructure.frameworks.punq.auto_registering import AutoRegisteringContainer
 
 
 class ContainerFactory:

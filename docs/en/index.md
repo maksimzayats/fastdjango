@@ -1,16 +1,25 @@
 # Fast Django
 
-A production-ready **FastAPI** application template with **Django ORM**, admin panel, and **Celery** background tasks — featuring dependency injection and comprehensive observability.
+A production-ready Django + FastAPI + Celery template with dependency injection, type safety, and modern Python practices.
+
+## Why Fast Django?
+
+This template provides a solid foundation for building scalable Python applications by combining:
+
+- **Django** for ORM, admin panel, and authentication
+- **FastAPI** for high-performance REST APIs
+- **Celery** for background task processing
+- **punq** for dependency injection
+- **Pydantic** for validation and settings management
+- **Logfire** for observability (OpenTelemetry-based)
 
 ## Key Features
 
-- **FastAPI HTTP Layer** - High-performance async API with automatic OpenAPI documentation
-- **Django ORM & Admin** - Battle-tested ORM and admin panel for data management
-- **Service Layer Architecture** - Clean separation between controllers and business logic
-- **Dependency Injection** - Testable, loosely-coupled components using punq
-- **Background Tasks** - Celery with Redis broker and typed task registry
-- **Observability** - Logfire/OpenTelemetry integration for tracing and logging
-- **Type Safety** - Full type hints with mypy strict mode
+- **Service Layer Architecture**: Clean separation between HTTP controllers and database operations
+- **Auto-Registration IoC**: Minimal boilerplate dependency injection with automatic wiring
+- **Type Safety**: Full `mypy --strict` compatibility with Python 3.14+
+- **Test Isolation**: Per-test container instances with easy mocking
+- **Unified Controller Pattern**: Same pattern for HTTP endpoints and Celery tasks
 
 ## Quick Links
 
@@ -20,7 +29,7 @@ A production-ready **FastAPI** application template with **Django ORM**, admin p
 
     ---
 
-    Set up your development environment and run the template in 5 minutes
+    Get up and running in minutes
 
     [:octicons-arrow-right-24: Quick Start](getting-started/quick-start.md)
 
@@ -28,76 +37,49 @@ A production-ready **FastAPI** application template with **Django ORM**, admin p
 
     ---
 
-    Build a complete Todo List feature from scratch
+    Learn by building a complete feature
 
-    [:octicons-arrow-right-24: Start Tutorial](tutorial/index.md)
+    [:octicons-arrow-right-24: Build a Todo List](tutorial/index.md)
 
 -   :material-lightbulb: **Concepts**
 
     ---
 
-    Understand the architectural patterns used in this template
+    Understand the architecture
 
-    [:octicons-arrow-right-24: Learn Concepts](concepts/index.md)
+    [:octicons-arrow-right-24: Core Concepts](concepts/index.md)
 
--   :material-book-open-variant: **How-To Guides**
+-   :material-clipboard-list: **How-To Guides**
 
     ---
 
-    Step-by-step guides for common tasks
+    Solve specific problems
 
-    [:octicons-arrow-right-24: Browse Guides](how-to/index.md)
+    [:octicons-arrow-right-24: How-To Guides](how-to/index.md)
 
 </div>
 
-## Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Entry Points                             │
-├─────────────────────────────────┬───────────────────────────────┤
-│           HTTP API              │         Celery Worker         │
-│          (FastAPI)              │                               │
-├─────────────────────────────────┴───────────────────────────────┤
-│                   Controllers (delivery/)                       │
-│           HTTP Controllers │ Task Controllers                   │
-├─────────────────────────────────────────────────────────────────┤
-│                      Services (core/)                           │
-│              Business Logic │ Database Operations               │
-├─────────────────────────────────────────────────────────────────┤
-│                    IoC Container (ioc/)                         │
-│                   Dependency Resolution                         │
-├─────────────────────────────────────────────────────────────────┤
-│                   Infrastructure Layer                          │
-│         Django ORM │ Django Admin │ Settings │ JWT              │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Note:** FastAPI handles all HTTP requests. Django provides the ORM for database operations and the admin panel for data management.
-
 ## The Golden Rule
 
-Controllers **never** access models directly. All database operations go through services:
+This template enforces a strict architectural boundary:
 
 ```
 Controller → Service → Model
+
+✅ Controller imports Service
+✅ Service imports Model
+❌ Controller imports Model (NEVER)
 ```
 
-This ensures:
-
-- **Testability** - Mock services in tests instead of patching ORM calls
-- **Reusability** - Services can be shared across HTTP and Celery controllers
-- **Maintainability** - Business logic stays in one place
+Controllers handle HTTP/Celery concerns. Services contain business logic and database operations. Models define data structures.
 
 ## Requirements
 
 - Python 3.14+
-- PostgreSQL (or SQLite for development)
-- Redis (for Celery and caching)
-- Docker & Docker Compose (recommended)
+- Docker and Docker Compose
+- uv (Python package manager)
 
-## Next Steps
+## Getting Help
 
-1. **New to the template?** Start with the [Quick Start](getting-started/quick-start.md) guide
-2. **Want to understand the architecture?** Read the [Concepts](concepts/index.md) section
-3. **Ready to build?** Follow the [Tutorial](tutorial/index.md) to create a complete feature
+- [GitHub Issues](https://github.com/MaksimZayats/fastdjango/issues) - Report bugs or request features
+- [Project Structure](getting-started/project-structure.md) - Understand the codebase organization

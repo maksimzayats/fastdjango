@@ -7,11 +7,11 @@ from celery.worker import WorkController
 from fastapi.testclient import TestClient
 
 from core.user.models import User
+from core.user.services.jwt import JWTService
 from delivery.http.factories import FastAPIFactory
-from delivery.services.jwt import JWTService
 from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
 from delivery.tasks.registry import TasksRegistry
-from infrastructure.punq.container import AutoRegisteringContainer
+from infrastructure.frameworks.punq.auto_registering import AutoRegisteringContainer
 
 
 class BaseFactory(ABC):
@@ -55,7 +55,7 @@ class TestClientFactory(ContainerBasedFactory):
         return TestClient(
             app=app,
             headers=headers,
-            base_url="http://testserver/api",
+            base_url="http://testserver",
             **kwargs,
         )
 

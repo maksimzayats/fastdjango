@@ -22,14 +22,14 @@ from unittest.mock import MagicMock
 import pytest
 
 from core.product.services import ProductService, ProductNotFoundError
-from infrastructure.punq.container import AutoRegisteringContainer
+from infrastructure.frameworks.punq import AutoRegisteringContainer
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
 
 @pytest.mark.django_db(transaction=True)
 def test_with_mocked_service(
-    container: AutoRegisteringContainer,
-    user_factory: TestUserFactory,
+        container: AutoRegisteringContainer,
+        user_factory: TestUserFactory,
 ) -> None:
     # Step 1: Create mock with spec (type safety)
     mock_service = MagicMock(spec=ProductService)

@@ -1,71 +1,65 @@
 # Add a New Domain
 
-This guide walks you through adding a new business domain to your application. We will use "products" as an example domain.
+Create a complete feature domain with model, service, and HTTP API.
+
+## Goal
+
+Add a new domain (e.g., `product`, `order`, `comment`) with all required components.
 
 ## Prerequisites
 
-- Understanding of the [Service Layer Architecture](../concepts/service-layer.md)
-- Familiarity with the [Controller Pattern](../concepts/controller-pattern.md)
+- Development environment set up
+- Understanding of [Service Layer](../concepts/service-layer.md)
 
-## Complete Checklist
+## Checklist
 
-### Step 1: Create the Domain Directory Structure
+- [ ] Create Django app in `core/<domain>/`
+- [ ] Add to `installed_apps` in settings
+- [ ] Create model in `models.py`
+- [ ] Create service in `services.py`
+- [ ] Create controller directory in `delivery/http/controllers/<domain>/`
+- [ ] Create schemas in `schemas.py`
+- [ ] Create controller in `controllers.py`
+- [ ] Register controller in factory
+- [ ] Create admin in `admin.py`
+- [ ] Run migrations
+- [ ] Write tests
 
-Create the domain directory in `src/core/`:
+## Step-by-Step
+
+### 1. Create the Domain Directory
 
 ```bash
-mkdir -p src/core/products
-touch src/core/products/__init__.py
+mkdir -p src/core/product
+touch src/core/product/__init__.py
 ```
 
-### Step 2: Create the Django App Configuration
+### 2. Register with Django
 
-Create `src/core/products/apps.py`:
-
-```python
-from django.apps import AppConfig
-
-
-class ProductsConfig(AppConfig):
-    default_auto_field = "django.db.models.BigAutoField"
-    name = "core.products"
-    label = "products"
-```
-
-### Step 3: Add to Installed Apps
-
-Edit `src/core/configs/core.py` and add the new app to the `installed_apps` tuple in `ApplicationSettings`:
+Edit `src/configs/django.py`:
 
 ```python
-class ApplicationSettings(BaseSettings):
-    # ... existing fields ...
+class DjangoSettings(BaseSettings):
     installed_apps: tuple[str, ...] = (
-        "django.contrib.admin",
-        "django.contrib.auth",
-        "django.contrib.contenttypes",
-        "django.contrib.sessions",
-        "django.contrib.messages",
-        "django.contrib.staticfiles",
-        "core.user.apps.UserConfig",
-        "core.products.apps.ProductsConfig",  # Add this line
+        # ... existing apps ...
+        "core.product",  # Add new domain
     )
 ```
 
-!!! note "Pydantic Settings"
-    The `installed_apps` is a Pydantic field that gets adapted to Django's `INSTALLED_APPS` via `PydanticSettingsAdapter`.
+### 3. Create the Model
 
-### Step 4: Create the Domain Model
-
-Create `src/core/products/models.py`:
+Create `src/core/product/models.py`:
 
 ```python
+# src/core/product/models.py
 from django.db import models
 
 
 class Product(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -73,23 +67,29 @@ class Product(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"Product(id={self.pk}, name={self.name})"
+        return self.name
 ```
 
-### Step 5: Create the Service with Domain Exceptions
+### 4. Create the Service
 
-Create `src/core/products/services.py`:
+Create `src/core/product/services.py`:
 
 ```python
+# src/core/product/services.py
+from dataclasses import dataclass
+from decimal import Decimal
+
 from django.db import transaction
 
-from core.products.models import Product
+from core.exceptions import ApplicationError
+from core.product.models import Product
 
 
-class ProductNotFoundError(Exception):
-    """Raised when a product is not found."""
+class ProductNotFoundError(ApplicationError):
+    """Raised when a product cannot be found."""
 
 
+@dataclass(kw_only=True)
 class ProductService:
     def get_product_by_id(self, product_id: int) -> Product:
         try:
@@ -97,171 +97,125 @@ class ProductService:
         except Product.DoesNotExist as e:
             raise ProductNotFoundError(f"Product {product_id} not found") from e
 
-    def list_products(self) -> list[Product]:
-        return list(Product.objects.all())
+    def list_products(self, *, active_only: bool = True) -> list[Product]:
+        queryset = Product.objects.all()
+        if active_only:
+            queryset = queryset.filter(is_active=True)
+        return list(queryset)
 
     @transaction.atomic
     def create_product(
         self,
+        *,
         name: str,
-        description: str,
-        price: float,
+        description: str = "",
+        price: Decimal,
     ) -> Product:
         return Product.objects.create(
             name=name,
             description=description,
             price=price,
         )
-
-    @transaction.atomic
-    def update_product(
-        self,
-        product_id: int,
-        name: str | None = None,
-        description: str | None = None,
-        price: float | None = None,
-    ) -> Product:
-        product = self.get_product_by_id(product_id)
-
-        if name is not None:
-            product.name = name
-        if description is not None:
-            product.description = description
-        if price is not None:
-            product.price = price
-
-        product.save()
-        return product
-
-    @transaction.atomic
-    def delete_product(self, product_id: int) -> None:
-        product = self.get_product_by_id(product_id)
-        product.delete()
 ```
 
-!!! warning "Service Layer Rule"
-    Services are the **only** place where you should import and use Django models directly. Controllers must never import models.
-
-### Step 6: Register the Service in IoC
-
-Edit `src/ioc/registries/core.py`:
-
-```python
-from punq import Container, Scope
-
-from core.products.services import ProductService
-# ... other imports ...
-
-
-def _register_services(container: Container) -> None:
-    # ... existing registrations ...
-    container.register(ProductService, scope=Scope.singleton)
-```
-
-### Step 7: Create the Controller
-
-Create the controller directory and file:
+### 5. Create the Controller Directory
 
 ```bash
-mkdir -p src/delivery/http/products
-touch src/delivery/http/products/__init__.py
+mkdir -p src/delivery/http/controllers/product
+touch src/delivery/http/controllers/product/__init__.py
 ```
 
-Create `src/delivery/http/products/controllers.py`:
+### 6. Create Schemas
+
+Create `src/delivery/http/controllers/product/schemas.py`:
 
 ```python
-from dataclasses import dataclass, field
-from http import HTTPStatus
-from typing import Any
+# src/delivery/http/controllers/product/schemas.py
+from datetime import datetime
+from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from core.products.services import ProductNotFoundError, ProductService
-from infrastructure.delivery.controllers import Controller
-from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+
+class CreateProductRequestSchema(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    description: str = Field(default="", max_length=1000)
+    price: Decimal = Field(..., gt=0, decimal_places=2)
 
 
 class ProductSchema(BaseModel):
     id: int
     name: str
     description: str
-    price: float
+    price: Decimal
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+```
+
+### 7. Create the Controller
+
+Create `src/delivery/http/controllers/product/controllers.py`:
+
+```python
+# src/delivery/http/controllers/product/controllers.py
+from dataclasses import dataclass
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from core.product.services import ProductNotFoundError, ProductService
+from delivery.http.auth.jwt import JWTAuthFactory
+from delivery.http.controllers.product.schemas import (
+    CreateProductRequestSchema,
+    ProductSchema,
+)
+from infrastructure.delivery.controllers import TransactionController
 
 
-class CreateProductRequest(BaseModel):
-    name: str
-    description: str = ""
-    price: float
-
-
-class UpdateProductRequest(BaseModel):
-    name: str | None = None
-    description: str | None = None
-    price: float | None = None
-
-
-@dataclass
-class ProductController(Controller):
-    _jwt_auth_factory: JWTAuthFactory
+@dataclass(kw_only=True)
+class ProductController(TransactionController):
     _product_service: ProductService
-    _jwt_auth: JWTAuth = field(init=False)
+    _jwt_auth_factory: JWTAuthFactory
 
     def __post_init__(self) -> None:
-        self._jwt_auth = self._jwt_auth_factory()
+        self._staff_auth = self._jwt_auth_factory(require_staff=True)
+        super().__post_init__()
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
-            path="/v1/products/",
-            methods=["GET"],
+            path="/v1/products",
             endpoint=self.list_products,
-            dependencies=[Depends(self._jwt_auth)],
+            methods=["GET"],
             response_model=list[ProductSchema],
         )
         registry.add_api_route(
-            path="/v1/products/",
-            methods=["POST"],
-            endpoint=self.create_product,
-            dependencies=[Depends(self._jwt_auth)],
-            response_model=ProductSchema,
-        )
-        registry.add_api_route(
             path="/v1/products/{product_id}",
-            methods=["GET"],
             endpoint=self.get_product,
-            dependencies=[Depends(self._jwt_auth)],
+            methods=["GET"],
             response_model=ProductSchema,
         )
         registry.add_api_route(
-            path="/v1/products/{product_id}",
-            methods=["PATCH"],
-            endpoint=self.update_product,
-            dependencies=[Depends(self._jwt_auth)],
+            path="/v1/products",
+            endpoint=self.create_product,
+            methods=["POST"],
             response_model=ProductSchema,
-        )
-        registry.add_api_route(
-            path="/v1/products/{product_id}",
-            methods=["DELETE"],
-            endpoint=self.delete_product,
-            status_code=HTTPStatus.NO_CONTENT,
-            dependencies=[Depends(self._jwt_auth)],
+            status_code=status.HTTP_201_CREATED,
+            dependencies=[Depends(self._staff_auth)],  # Staff only
         )
 
-    def list_products(
-        self,
-        request: AuthenticatedRequest,
-    ) -> list[ProductSchema]:
+    def list_products(self) -> list[ProductSchema]:
         products = self._product_service.list_products()
         return [
             ProductSchema.model_validate(p, from_attributes=True)
             for p in products
         ]
 
-    def create_product(
-        self,
-        request: AuthenticatedRequest,
-        body: CreateProductRequest,
-    ) -> ProductSchema:
+    def get_product(self, product_id: int) -> ProductSchema:
+        product = self._product_service.get_product_by_id(product_id)
+        return ProductSchema.model_validate(product, from_attributes=True)
+
+    def create_product(self, body: CreateProductRequestSchema) -> ProductSchema:
         product = self._product_service.create_product(
             name=body.name,
             description=body.description,
@@ -269,212 +223,140 @@ class ProductController(Controller):
         )
         return ProductSchema.model_validate(product, from_attributes=True)
 
-    def get_product(
-        self,
-        request: AuthenticatedRequest,
-        product_id: int,
-    ) -> ProductSchema:
-        product = self._product_service.get_product_by_id(product_id)
-        return ProductSchema.model_validate(product, from_attributes=True)
-
-    def update_product(
-        self,
-        request: AuthenticatedRequest,
-        product_id: int,
-        body: UpdateProductRequest,
-    ) -> ProductSchema:
-        product = self._product_service.update_product(
-            product_id=product_id,
-            name=body.name,
-            description=body.description,
-            price=body.price,
-        )
-        return ProductSchema.model_validate(product, from_attributes=True)
-
-    def delete_product(
-        self,
-        request: AuthenticatedRequest,
-        product_id: int,
-    ) -> None:
-        self._product_service.delete_product(product_id)
-
     def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, ProductNotFoundError):
             raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND,
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail=str(exception),
             ) from exception
-
         return super().handle_exception(exception)
 ```
 
-### Step 8: Register the Controller in IoC
+### 8. Register the Controller
 
-Edit `src/ioc/registries/delivery.py`:
-
-```python
-from punq import Container, Scope
-
-from delivery.http.products.controllers import ProductController
-# ... other imports ...
-
-
-def _register_http_controllers(container: Container) -> None:
-    # ... existing registrations ...
-    container.register(ProductController, scope=Scope.singleton)
-```
-
-### Step 9: Update FastAPIFactory
-
-Edit `src/delivery/http/factories.py` to include the new controller:
+Edit `src/delivery/http/factories.py`:
 
 ```python
-from dataclasses import dataclass
-
-from fastapi import APIRouter, FastAPI
-
-from delivery.http.products.controllers import ProductController
-# ... other imports ...
+# Add import at the top
+from delivery.http.controllers.product.controllers import ProductController
 
 
-@dataclass
+@dataclass(kw_only=True)
 class FastAPIFactory:
-    _settings: ApplicationSettings
-    _health_controller: HealthController
-    _user_token_controller: UserTokenController
-    _user_controller: UserController
-    _product_controller: ProductController  # Add this
+    # ... existing controller fields ...
+    _product_controller: ProductController  # Add this field
 
-    def __call__(self) -> FastAPI:
-        app = FastAPI(
-            title="Fast Django",
-            debug=self._settings.debug,
-        )
+    def _register_controllers(self, app: FastAPI) -> None:
+        # ... existing controller registrations ...
 
-        # All controllers register to single api_router with /api prefix
-        api_router = APIRouter(prefix="/api")
-        self._health_controller.register(api_router)
-        self._user_controller.register(api_router)
-        self._user_token_controller.register(api_router)
-        self._product_controller.register(api_router)  # Add this
-        app.include_router(api_router)
-
-        return app
+        # Register ProductController
+        product_router = APIRouter(tags=["product"])
+        self._product_controller.register(product_router)
+        app.include_router(product_router)
 ```
 
-!!! note "Simplified Example"
-    This example is simplified for clarity. The production implementation in `src/delivery/http/factories.py` includes additional configuration for middleware, CORS, telemetry, and lifespan management.
+The controller is declared as a dataclass field and auto-resolved by the IoC container.
 
-### Step 10: Create and Run Migrations
+### 9. Create Admin
+
+Create `src/core/product/admin.py`:
+
+```python
+# src/core/product/admin.py
+from django.contrib import admin
+
+from core.product.models import Product
+
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ["name", "price", "is_active", "created_at"]
+    list_filter = ["is_active", "created_at"]
+    search_fields = ["name", "description"]
+    ordering = ["-created_at"]
+```
+
+### 10. Run Migrations
 
 ```bash
-# Create migrations
 make makemigrations
-
-# Apply migrations
 make migrate
 ```
 
-### Step 11: Create Tests
+### 11. Write Tests
 
-Create test directory and files:
-
-```bash
-mkdir -p tests/integration/http/products
-touch tests/integration/http/products/__init__.py
-```
-
-Create `tests/integration/http/products/test_products.py`:
+Create `tests/integration/http/v1/test_v1_products.py`:
 
 ```python
+# tests/integration/http/v1/test_v1_products.py
+from decimal import Decimal
 from http import HTTPStatus
 
 import pytest
 
-from core.products.models import Product
+from core.product.models import Product
+from core.user.models import User
 from tests.integration.factories import TestClientFactory, TestUserFactory
+
+
+@pytest.fixture
+def staff_user(user_factory: TestUserFactory) -> User:
+    return user_factory(username="staff", password="pass", is_staff=True)
 
 
 @pytest.fixture
 def product() -> Product:
     return Product.objects.create(
         name="Test Product",
-        description="A test product",
-        price=99.99,
+        price=Decimal("9.99"),
     )
 
 
 @pytest.mark.django_db(transaction=True)
-def test_list_products(
-    test_client_factory: TestClientFactory,
-    user_factory: TestUserFactory,
-    product: Product,
-) -> None:
-    user = user_factory()
-    with test_client_factory(auth_for_user=user) as test_client:
-        response = test_client.get("/api/v1/products/")
+class TestProductController:
+    def test_list_products(
+        self,
+        test_client_factory: TestClientFactory,
+        product: Product,
+    ) -> None:
+        with test_client_factory() as client:
+            response = client.get("/v1/products")
 
-    assert response.status_code == HTTPStatus.OK
-    data = response.json()
-    assert len(data) == 1
-    assert data[0]["name"] == product.name
+        assert response.status_code == HTTPStatus.OK
+        assert len(response.json()) == 1
 
+    def test_create_product_staff_only(
+        self,
+        test_client_factory: TestClientFactory,
+        staff_user: User,
+    ) -> None:
+        with test_client_factory(auth_for_user=staff_user) as client:
+            response = client.post(
+                "/v1/products",
+                json={"name": "New Product", "price": "19.99"},
+            )
 
-@pytest.mark.django_db(transaction=True)
-def test_create_product(
-    test_client_factory: TestClientFactory,
-    user_factory: TestUserFactory,
-) -> None:
-    user = user_factory()
-    with test_client_factory(auth_for_user=user) as test_client:
-        response = test_client.post(
-            "/api/v1/products/",
-            json={
-                "name": "New Product",
-                "description": "A new product",
-                "price": 49.99,
-            },
-        )
-
-    assert response.status_code == HTTPStatus.OK
-    data = response.json()
-    assert data["name"] == "New Product"
-
-
-@pytest.mark.django_db(transaction=True)
-def test_get_product_not_found(
-    test_client_factory: TestClientFactory,
-    user_factory: TestUserFactory,
-) -> None:
-    user = user_factory()
-    with test_client_factory(auth_for_user=user) as test_client:
-        response = test_client.get("/api/v1/products/999")
-
-    assert response.status_code == HTTPStatus.NOT_FOUND
+        assert response.status_code == HTTPStatus.CREATED
 ```
 
-### Step 12: Run Tests
+## File Summary
 
-```bash
-make test
-```
+| Action | File |
+|--------|------|
+| Create | `src/core/product/__init__.py` |
+| Create | `src/core/product/models.py` |
+| Create | `src/core/product/services.py` |
+| Create | `src/core/product/admin.py` |
+| Create | `src/delivery/http/controllers/product/__init__.py` |
+| Create | `src/delivery/http/controllers/product/schemas.py` |
+| Create | `src/delivery/http/controllers/product/controllers.py` |
+| Modify | `src/configs/django.py` |
+| Modify | `src/delivery/http/factories.py` |
+| Create | `tests/integration/http/v1/test_v1_products.py` |
 
-## Summary
+## Verification
 
-You have now added a complete new domain with:
-
-- [x] Django model in `core/products/models.py`
-- [x] Service layer in `core/products/services.py`
-- [x] Domain exceptions (`ProductNotFoundError`)
-- [x] HTTP controller in `delivery/http/products/controllers.py`
-- [x] IoC registrations for service and controller
-- [x] API routes with authentication and rate limiting
-- [x] Integration tests
-
-The data flow follows the architecture:
-
-```
-HTTP Request -> Controller -> Service -> Model -> Database
-```
-
-Controllers never import models directly - they only interact with services.
+1. Start the server: `make dev`
+2. Check the API docs: http://localhost:8000/docs
+3. Verify the new endpoints appear
+4. Run tests: `make test`

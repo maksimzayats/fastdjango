@@ -1,365 +1,259 @@
 # Development Environment
 
-Configure your development environment for the best experience with Fast Django.
+This guide covers the tools and configuration for an optimal development experience.
 
-## IDE Setup
+## Code Quality Tools
 
-### Visual Studio Code
+The project uses multiple tools for code quality. All are configured in `pyproject.toml` and `ruff.toml`.
 
-VS Code provides excellent Python support with the right extensions.
+### Formatting: Ruff
 
-#### Recommended Extensions
-
-Install these extensions for the best experience:
-
-- **Python** (`ms-python.python`) - Core Python support
-- **Pylance** (`ms-python.vscode-pylance`) - Fast, feature-rich language server
-- **Ruff** (`charliermarsh.ruff`) - Fast linting and formatting
-- **Even Better TOML** (`tamasfe.even-better-toml`) - TOML file support
-
-#### Workspace Settings
-
-Create or update `.vscode/settings.json`:
-
-```json
-{
-  "python.defaultInterpreterPath": ".venv/bin/python",
-  "python.analysis.typeCheckingMode": "strict",
-  "python.analysis.extraPaths": ["src", "typings"],
-
-  "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff",
-    "editor.formatOnSave": true,
-    "editor.codeActionsOnSave": {
-      "source.fixAll.ruff": "explicit",
-      "source.organizeImports.ruff": "explicit"
-    }
-  },
-
-  "files.exclude": {
-    "**/__pycache__": true,
-    "**/*.pyc": true,
-    ".mypy_cache": true,
-    ".pytest_cache": true,
-    ".ruff_cache": true
-  }
-}
-```
-
-### PyCharm / IntelliJ IDEA
-
-PyCharm provides built-in support for most features.
-
-#### Project Configuration
-
-1. **Set Python Interpreter**
-   - Go to `Settings` > `Project` > `Python Interpreter`
-   - Select the interpreter from `.venv/bin/python`
-
-2. **Configure Source Roots**
-   - Right-click `src/` directory
-   - Select `Mark Directory as` > `Sources Root`
-   - Right-click `typings/` directory
-   - Select `Mark Directory as` > `Sources Root`
-
-3. **Enable Django Support**
-   - Go to `Settings` > `Languages & Frameworks` > `Django`
-   - Enable Django support
-   - Set Django project root to the repository root
-   - Set Settings to `configs.django`
-
-4. **Configure Ruff**
-   - Go to `Settings` > `Tools` > `Ruff`
-   - Enable Ruff as external tool
-   - Configure format on save
-
-## Type Checking
-
-The project uses multiple type checkers for comprehensive coverage.
-
-### mypy
-
-mypy is the primary type checker, configured in `pyproject.toml`:
-
-```toml
-[tool.mypy]
-python_version = "3.14"
-strict = true
-mypy_path = "typings"
-plugins = ["mypy_django_plugin.main"]
-```
-
-Run mypy manually:
+[Ruff](https://docs.astral.sh/ruff/) handles code formatting and linting.
 
 ```bash
-uv run mypy src/ tests/
+# Format code
+make format
+
+# Or directly
+ruff format src tests
+ruff check --fix src tests
 ```
 
-### ty
+### Type Checking
 
-ty is a fast type checker that complements mypy:
+The project is configured for strict type checking. You can use any of the following type checkers:
 
-```bash
-uv run ty check .
-```
+| Tool | Command | Configuration |
+|------|---------|---------------|
+| **mypy** | `mypy src tests` | `mypy.ini` |
+| **ty** | `ty check src tests` | Built-in |
+| **pyrefly** | `pyrefly check src tests` | Built-in |
 
-### pyrefly
-
-pyrefly provides additional static analysis:
-
-```bash
-uv run pyrefly check src/
-```
-
-### Running All Type Checkers
-
-Use the lint command to run all checks:
+Why three type checkers? Different tools catch different issues. Use the one you prefer, but the CI pipeline uses `mypy --strict`.
 
 ```bash
+# Run all linting tools
 make lint
 ```
 
-This runs:
+### Pre-commit Hooks
 
-1. `ruff check .` - Linting
-2. `ty check .` - Type checking (ty)
-3. `pyrefly check src/` - Static analysis
-4. `mypy src/ tests/` - Type checking (mypy)
-
-## Linting with Ruff
-
-[Ruff](https://docs.astral.sh/ruff/) is an extremely fast Python linter and formatter.
-
-### Format Code
+The project includes pre-commit hooks that run automatically before each commit:
 
 ```bash
-make format
+# Install hooks
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
 ```
 
-This runs:
+Hooks include:
+
+- Ruff formatting and linting
+- Trailing whitespace removal
+- YAML/TOML validation
+- Large file detection
+
+## IDE Configuration
+
+### VS Code
+
+Recommended extensions:
+
+- **Python** (Microsoft)
+- **Ruff** (Astral Software)
+- **Mypy Type Checker** (Microsoft)
+
+Create `.vscode/settings.json`:
+
+```json
+{
+    "python.defaultInterpreterPath": ".venv/bin/python",
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        }
+    },
+    "python.analysis.typeCheckingMode": "strict",
+    "mypy-type-checker.args": ["--config-file=mypy.ini"],
+    "ruff.configurationPreference": "filesystemFirst"
+}
+```
+
+### PyCharm
+
+1. **Set interpreter**: Point to `.venv/bin/python`
+2. **Enable Ruff**: Settings → Plugins → Install "Ruff"
+3. **Configure mypy**: Settings → Tools → External Tools → Add mypy
+4. **Mark source root**: Right-click `src/` → Mark Directory as → Sources Root
+
+## Environment Variables
+
+### Local Development
+
+The `.env` file is loaded automatically. Copy from example:
 
 ```bash
-uv run ruff format .
-uv run ruff check --fix-only .
+cp .env.example .env
 ```
 
-### Check Without Fixing
+Key variables for development:
 
 ```bash
-uv run ruff check .
+# Django
+DJANGO_SECRET_KEY=development-secret-key-change-in-production
+DJANGO_DEBUG=true
+
+# Database
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# Logging
+LOGGING_LEVEL=DEBUG
+
+# Observability (optional)
+LOGFIRE_ENABLED=false
 ```
 
-!!! tip "Editor Integration"
-    With the Ruff VS Code extension, formatting happens automatically on save. This is the recommended workflow.
+### Test Environment
 
-## Pre-commit Hooks with Prek
-
-This project uses [prek](https://github.com/j178/prek), a Rust-based drop-in replacement for pre-commit that runs significantly faster while using less disk space. Prek is fully compatible with standard `.pre-commit-config.yaml` files and requires no configuration changes.
-
-### Why Prek?
-
-- **Speed**: 10x faster than pre-commit due to parallel hook execution and Rust implementation
-- **No Python dependency**: A single binary with no runtime requirements
-- **Full compatibility**: Works with existing `.pre-commit-config.yaml` without modifications
-- **Built-in hooks**: Native Rust implementations of common hooks (check-yaml, check-json, etc.)
-
-### Installation
-
-Prek is included in the project's dev dependencies. Install it along with other dependencies:
+Tests use `.env.test` which is loaded automatically by pytest:
 
 ```bash
-uv sync --locked --all-extras --dev
+# tests/conftest.py loads .env.test
 ```
 
-Then install the git hooks in your repository:
+## Running the Application
+
+### Development Servers
 
 ```bash
-uv run prek install
+# FastAPI (HTTP API)
+make dev
+# Equivalent to: uvicorn delivery.http.app:app --reload --host 0.0.0.0 --port 8000
+
+# Celery Worker
+make celery-dev
+# Equivalent to: celery -A delivery.tasks.app:celery_app worker --loglevel=info
+
+# Celery Beat (Scheduler)
+make celery-beat-dev
+# Equivalent to: celery -A delivery.tasks.app:celery_app beat --loglevel=info
 ```
 
-!!! tip "Migrating from pre-commit"
-    If you previously had pre-commit installed, use `uv run prek install -f` to force reinstallation and overwrite existing hooks.
-
-### Configuration
-
-The hooks are defined in `.pre-commit-config.yaml`:
-
-```yaml
-repos:
-  - repo: builtin
-    hooks:
-      - id: check-yaml
-      - id: check-json
-      - id: check-toml
-      - id: end-of-file-fixer
-      - id: check-added-large-files
-
-  - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.9.24
-    hooks:
-      - id: uv-lock
-```
-
-The `builtin` repository uses prek's native Rust implementations, which are faster than their Python equivalents.
-
-### What the Hooks Do
-
-| Hook | Purpose |
-|------|---------|
-| `check-yaml` | Validates YAML syntax |
-| `check-json` | Validates JSON syntax |
-| `check-toml` | Validates TOML syntax |
-| `end-of-file-fixer` | Ensures files end with newline |
-| `check-added-large-files` | Prevents committing large files |
-| `uv-lock` | Ensures `uv.lock` is up to date |
-
-### Running Manually
-
-Run hooks on all files:
+### Database Operations
 
 ```bash
-uv run prek run --all-files
+# Create migrations
+make makemigrations
+
+# Apply migrations
+make migrate
+
+# Or using Django manage.py directly
+uv run python src/manage.py makemigrations
+uv run python src/manage.py migrate
 ```
-
-Run specific hooks:
-
-```bash
-uv run prek run check-yaml check-json
-```
-
-Run on files changed since last commit:
-
-```bash
-uv run prek run --last-commit
-```
-
-### Useful Commands
-
-| Command | Description |
-|---------|-------------|
-| `uv run prek run --all-files` | Run all hooks on entire codebase |
-| `uv run prek run --last-commit` | Run on files changed in last commit |
-| `uv run prek list` | List all available hooks |
-| `uv run prek autoupdate` | Update hook versions to latest |
-| `uv run prek validate-config` | Validate configuration file |
 
 ## Testing
 
 ### Running Tests
 
 ```bash
+# Run all tests with coverage
 make test
-```
 
-This runs pytest with coverage:
+# Run specific test file
+pytest tests/integration/http/v1/test_v1_users.py
 
-```bash
-uv run pytest tests/
+# Run with verbose output
+pytest -v tests/
+
+# Run only unit tests
+pytest tests/unit/
+
+# Run with coverage report
+pytest --cov=src --cov-report=html tests/
 ```
 
 ### Test Configuration
 
-Tests are configured in `pyproject.toml`:
+Tests require:
 
-```toml
-[tool.pytest.ini_options]
-minversion = "9.0"
-DJANGO_SETTINGS_MODULE = "configs.django"
-addopts = "--exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
-testpaths = ["tests"]
-```
+- PostgreSQL running (for integration tests)
+- Redis running (for Celery tests)
 
-Key settings:
+The test fixtures automatically:
 
-- **`--exitfirst`** - Stop on first failure for faster feedback
-- **`--cov=src`** - Measure coverage for `src/` directory
-- **`--cov-fail-under=80`** - Require 80% minimum coverage
-
-### Coverage Report
-
-After running tests, open the HTML coverage report:
-
-```bash
-open htmlcov/index.html
-```
-
-## Environment Variables
-
-### Local Development
-
-Copy the example file and customize:
-
-```bash
-cp .env.example .env
-```
-
-### Test Environment
-
-Tests use `.env.test` which is loaded automatically by `tests/conftest.py`.
-
-!!! warning "Secrets"
-    Never commit `.env` files with real secrets. The `.gitignore` excludes `.env` but not `.env.example`.
-
-## Useful Commands
-
-| Command | Description |
-|---------|-------------|
-| `make dev` | Run development server |
-| `make celery-dev` | Run Celery worker |
-| `make celery-beat-dev` | Run Celery beat scheduler |
-| `make format` | Format code with Ruff |
-| `make lint` | Run all linters and type checkers |
-| `make test` | Run tests with coverage |
-| `make makemigrations` | Create new migrations |
-| `make migrate` | Apply migrations |
-| `make docs` | Serve documentation locally |
+- Create isolated containers per test
+- Roll back database transactions
+- Clean up test data
 
 ## Debugging
 
-### VS Code Debugging
+### FastAPI Debug Mode
 
-Create `.vscode/launch.json`:
+With `DJANGO_DEBUG=true`, the API documentation is available at:
 
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Django: Runserver",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/src/manage.py",
-      "args": ["runserver"],
-      "django": true,
-      "env": {
-        "DJANGO_DEBUG": "true"
-      }
-    },
-    {
-      "name": "Pytest: Current File",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "pytest",
-      "args": ["${file}", "-vv"],
-      "env": {
-        "DJANGO_SETTINGS_MODULE": "configs.django"
-      }
-    }
-  ]
-}
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+### Logging
+
+Set `LOGGING_LEVEL=DEBUG` for verbose logging:
+
+```bash
+LOGGING_LEVEL=DEBUG make dev
 ```
 
-### PyCharm Debugging
+### Celery Debugging
 
-1. Create a Django Server run configuration
-2. Set the script to `src/manage.py`
-3. Set parameters to `runserver`
-4. Enable Django support in the configuration
+For detailed Celery logs:
+
+```bash
+celery -A delivery.tasks.app:celery_app worker --loglevel=debug
+```
+
+## Docker Development
+
+### Start All Services
+
+```bash
+# Infrastructure only
+docker compose up -d postgres redis minio minio-create-buckets
+
+# Run migrations
+docker compose up migrations collectstatic
+
+# Full stack (including app)
+docker compose up -d
+```
+
+### View Logs
+
+```bash
+# All services
+docker compose logs -f
+
+# Specific service
+docker compose logs -f postgres
+```
+
+### Reset Database
+
+```bash
+docker compose down -v  # Remove volumes
+docker compose up -d postgres
+docker compose up migrations
+```
 
 ## Next Steps
 
-With your environment configured, you are ready to:
-
-- **[Tutorial: Build a Todo List](../tutorial/index.md)** - Learn by building
-- **[Add a New Domain](../how-to/add-new-domain.md)** - Create your first feature
-- **[Service Layer](../concepts/service-layer.md)** - Understand the architecture
+- [Tutorial](../tutorial/index.md) - Learn by building a feature
+- [Concepts](../concepts/index.md) - Understand the architecture

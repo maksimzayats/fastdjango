@@ -12,6 +12,7 @@ class JWTServiceSettings(BaseSettings):
 
     secret_key: SecretStr
     algorithm: str = "HS256"
+    typ: str = "at+jwt"
     access_token_expire_minutes: int = 15
 
     @property
@@ -19,7 +20,7 @@ class JWTServiceSettings(BaseSettings):
         return timedelta(minutes=self.access_token_expire_minutes)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class JWTService:
     EXPIRED_SIGNATURE_ERROR = jwt.ExpiredSignatureError
     INVALID_TOKEN_ERROR = jwt.InvalidTokenError
@@ -36,7 +37,7 @@ class JWTService:
             "sub": str(user_id),
             "exp": iat + self._settings.access_token_expire,
             "iat": iat,
-            "typ": "at+jwt",
+            "typ": self._settings.typ,
             **payload_kwargs,
         }
 

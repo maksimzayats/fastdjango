@@ -1,72 +1,97 @@
 # Tutorial: Build a Todo List
 
-This hands-on tutorial guides you through building a complete **Todo List** feature using Fast Django. You will learn the core architectural patterns while creating a real, working feature.
+Learn the architecture by building a complete feature from scratch.
 
 ## What You'll Build
 
-By the end of this tutorial, you will have built:
+In this tutorial, you'll create a fully-featured Todo List with:
 
-- **Todo Model** - A Django model to store todo items with user ownership
-- **TodoService** - A service layer encapsulating all database operations
-- **HTTP API** - RESTful endpoints for CRUD operations using FastAPI
-- **Celery Task** - A background task to clean up completed todos
-- **Admin Interface** - Django admin for managing todos
-- **Tests** - Integration tests with IoC override capability
+- Django model with user ownership
+- Service layer for business logic
+- REST API with JWT authentication
+- Background task for cleanup
+- Observability with Logfire
+- Comprehensive tests
 
-## Architecture Overview
+## Prerequisites
 
-The feature follows the template's layered architecture:
+Before starting, ensure you have:
+
+- Completed the [Quick Start](../getting-started/quick-start.md)
+- The development server running
+- Basic familiarity with Django and FastAPI
+
+## Tutorial Steps
+
+| Step | What You'll Learn |
+|------|-------------------|
+| [1. Model & Service](01-model-and-service.md) | Create the Todo model and service layer |
+| [2. IoC Registration](02-ioc-registration.md) | Understand automatic dependency injection |
+| [3. HTTP API](03-http-api.md) | Build REST endpoints with authentication |
+| [4. Celery Tasks](04-celery-tasks.md) | Add background task processing |
+| [5. Observability](05-observability.md) | Configure logging and tracing |
+| [6. Testing](06-testing.md) | Write integration tests |
+
+## The Golden Rule
+
+Throughout this tutorial, we follow the core architectural principle:
 
 ```
-HTTP Request
-     |
-     v
-+-----------------+
-|   Controller    |  <-- Handles HTTP, validation, auth
-+-----------------+
-     |
-     v
-+-----------------+
-|    Service      |  <-- Business logic, domain rules
-+-----------------+
-     |
-     v
-+-----------------+
-|     Model       |  <-- Data persistence (Django ORM)
-+-----------------+
+Controller → Service → Model
+
+✅ Controller imports Service
+✅ Service imports Model
+❌ Controller imports Model (NEVER)
 ```
 
 This separation ensures:
 
-- **Testability** - Each layer can be tested in isolation
-- **Maintainability** - Business logic stays independent of delivery mechanism
-- **Flexibility** - The same service works for HTTP and Celery
+- **Testability**: Services can be tested without HTTP concerns
+- **Reusability**: The same service works for HTTP, Celery, and CLI
+- **Maintainability**: Clear boundaries make code easier to understand
 
-## Prerequisites
+## Architecture Overview
 
-Before starting this tutorial, make sure you have:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        HTTP Request                         │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     TodoController                          │
+│  • Validates request data (Pydantic schemas)                │
+│  • Calls service methods                                    │
+│  • Returns response schemas                                 │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      TodoService                            │
+│  • Contains business logic                                  │
+│  • Performs database operations                             │
+│  • Raises domain exceptions                                 │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       Todo Model                            │
+│  • Defines database schema                                  │
+│  • Django ORM model                                         │
+└─────────────────────────────────────────────────────────────┘
+```
 
-- [x] Completed the [Quick Start](../getting-started/quick-start.md) guide
-- [x] Development environment running (PostgreSQL, Redis)
-- [x] Understanding of Python type hints and Pydantic
+## Time to Complete
 
-## Tutorial Steps
+Each step takes approximately 15-30 minutes. The complete tutorial covers:
 
-| Step | Title | What You'll Learn |
-|------|-------|-------------------|
-| [Step 1](01-model-and-service.md) | Model & Service | Django models, service layer pattern, domain exceptions |
-| [Step 2](02-ioc-registration.md) | IoC Registration | Dependency injection with punq, container configuration |
-| [Step 3](03-http-api.md) | HTTP API & Admin | Sync controllers, Pydantic schemas, thread pool parallelism, admin |
-| [Step 4](04-celery-tasks.md) | Celery Tasks | Task controllers, background jobs, task registry |
-| [Step 5](05-observability.md) | Observability | Structured logging, metrics, health checks |
-| [Step 6](06-testing.md) | Testing | Integration tests, IoC overrides, test factories |
+- Domain modeling and migrations
+- Service layer patterns
+- HTTP controllers and authentication
+- Background task processing
+- Observability setup
+- Testing patterns
 
-## Getting Help
+## Let's Begin
 
-If you encounter issues:
-
-1. Check that all services are running: `docker compose ps`
-2. Review logs: `docker compose logs -f`
-3. Ensure environment variables are set correctly in `.env`
-
-Let's get started with [Step 1: Model & Service](01-model-and-service.md)!
+Ready to start? Head to [Step 1: Model & Service](01-model-and-service.md).

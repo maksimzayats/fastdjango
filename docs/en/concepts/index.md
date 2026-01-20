@@ -1,126 +1,82 @@
-# Architecture Concepts
+# Concepts
 
-This section explains the **why** behind the architectural patterns used in this template. Understanding these concepts will help you make informed decisions when extending the application.
+Understand the architectural patterns and design decisions behind the template.
 
-!!! info "About This Section"
-    These pages follow the [Diataxis framework](https://diataxis.fr/) **Explanation** quadrant. They are understanding-oriented and focus on providing context, background, and reasoning rather than step-by-step instructions.
+## In This Section
 
-## Core Concepts
-
-The template is built around five interconnected architectural patterns:
-
-### [Service Layer](service-layer.md)
-
-The Service Layer enforces a strict separation between your delivery mechanisms (HTTP, Celery) and your business logic. This pattern ensures that:
-
-- Controllers never access database models directly
-- Business logic remains reusable across different entry points
-- Domain exceptions provide meaningful error handling
-- Testing becomes straightforward with clear boundaries
-
-### [IoC Container](ioc-container.md)
-
-Inversion of Control (IoC) using **punq** provides automatic dependency injection. The container:
-
-- Resolves dependencies based on type annotations
-- Manages component lifecycles (singleton vs transient)
-- Enables test-time substitution of any component
-- Organizes registrations by architectural layer
-
-### [Controller Pattern](controller-pattern.md)
-
-Controllers provide a unified interface for handling requests across all delivery mechanisms. The pattern includes:
-
-- Automatic exception wrapping for consistent error handling
-- Abstract `register()` method for framework integration
-- Two variants: `Controller` (sync) and `AsyncController` (async)
-- Clear separation of routing from business logic
-
-### [Factory Pattern](factory-pattern.md)
-
-Factories handle complex object construction, especially when:
-
-- Objects require configuration-based initialization
-- Caching is needed to avoid repeated construction
-- Multiple dependencies must be composed together
-- Different configurations are needed for production vs testing
-
-### [Pydantic Settings](pydantic-settings.md)
-
-Configuration management using Pydantic BaseSettings provides:
-
-- Type-safe environment variable loading
-- Automatic validation and conversion
-- Computed properties for derived values
-- Secure handling of sensitive values with `SecretStr`
-
-## Architecture Overview
-
-```
-+-------------------+     +-------------------+     +-------------------+
-|     Delivery      |     |       Core        |     |  Infrastructure   |
-+-------------------+     +-------------------+     +-------------------+
-|                   |     |                   |     |                   |
-|  HTTP Controllers |---->|    Services       |<----|  JWT Service      |
-|  Task Controllers |     |    Models         |     |  Auth Middleware  |
-|                   |     |    Exceptions     |     |  Settings         |
-|                   |     |                   |     |                   |
-+-------------------+     +-------------------+     +-------------------+
-         |                        ^                        |
-         |                        |                        |
-         v                        |                        v
-+---------------------------------------------------------------+
-|                         IoC Container                         |
-|   - Registers all components                                  |
-|   - Resolves dependencies automatically                       |
-|   - Manages singleton/transient lifecycles                    |
-+---------------------------------------------------------------+
-```
-
-## Data Flow
-
-A typical request flows through the architecture as follows:
-
-```
-HTTP Request
-     |
-     v
-+-------------+     +-------------+     +-------------+
-| Controller  |---->|   Service   |---->|    Model    |
-| (Delivery)  |     |   (Core)    |     |   (Core)    |
-+-------------+     +-------------+     +-------------+
-     |                    |                   |
-     |                    |                   v
-     |                    |              +----------+
-     |                    +------------->| Database |
-     |                                   +----------+
-     v
-+-------------+
-|  Response   |
-| (Pydantic)  |
-+-------------+
-```
-
-## Benefits of This Architecture
-
-| Benefit | How It's Achieved |
+| Concept | What You'll Learn |
 |---------|-------------------|
-| **Testability** | IoC container allows mocking any dependency |
-| **Maintainability** | Clear boundaries between layers |
-| **Reusability** | Services work across HTTP and Celery |
-| **Type Safety** | Pydantic validates all data flow |
-| **Flexibility** | Factories enable environment-specific configuration |
+| [Service Layer](service-layer.md) | Why controllers don't access models directly |
+| [IoC Container](ioc-container.md) | How dependency injection works |
+| [Controller Pattern](controller-pattern.md) | Unified handling for HTTP and Celery |
+| [Factory Pattern](factory-pattern.md) | Complex object construction |
+| [Pydantic Settings](pydantic-settings.md) | Configuration management |
 
-## When to Use Each Pattern
+## The Big Picture
 
-| Scenario | Pattern |
-|----------|---------|
-| Adding business logic | Service Layer |
-| Adding a new API endpoint | Controller Pattern |
-| Complex object construction | Factory Pattern |
-| Environment configuration | Pydantic Settings |
-| Wiring components together | IoC Container |
+The architecture follows a layered approach with clear boundaries:
 
-## Next Steps
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Delivery Layer                          │
+│  ┌─────────────────────────┐  ┌─────────────────────────┐  │
+│  │        HTTP API         │  │      Celery Tasks       │  │
+│  │      Controllers        │  │      Controllers        │  │
+│  └───────────┬─────────────┘  └───────────┬─────────────┘  │
+└──────────────┼────────────────────────────┼─────────────────┘
+               │                            │
+               ▼                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Infrastructure                           │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              IoC Container (punq)                    │   │
+│  │   Auto-registration │ Settings │ Factories           │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+               │                            │
+               ▼                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Core Layer                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                    Services                          │   │
+│  │   UserService  │  TodoService  │  JWTService        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                     Models                           │   │
+│  │      User      │     Todo      │  RefreshSession    │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
 
-Start with [Service Layer](service-layer.md) to understand the most fundamental pattern, then proceed through the other concepts in order.
+## Key Principles
+
+### 1. The Golden Rule
+
+```
+Controller → Service → Model
+
+✅ Controller imports Service
+✅ Service imports Model
+❌ Controller imports Model (NEVER)
+```
+
+This boundary ensures testability and maintainability.
+
+### 2. Dependency Injection
+
+All components receive their dependencies via constructor injection. The IoC container handles wiring automatically.
+
+### 3. Type Safety
+
+Everything is strictly typed. The codebase passes `mypy --strict`.
+
+### 4. Convention over Configuration
+
+Services are auto-registered when resolved. Settings load from environment variables automatically. Minimal boilerplate is required.
+
+## When to Read These
+
+- **New to the project?** Start with [Service Layer](service-layer.md) and [IoC Container](ioc-container.md)
+- **Building features?** Review [Controller Pattern](controller-pattern.md)
+- **Need configuration?** Check [Pydantic Settings](pydantic-settings.md)
+- **Complex construction?** Learn about [Factory Pattern](factory-pattern.md)

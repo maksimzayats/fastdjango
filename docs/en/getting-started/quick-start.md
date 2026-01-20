@@ -1,141 +1,162 @@
 # Quick Start
 
-Get Fast Django running locally in under 5 minutes.
+Get the project running in minutes.
 
 ## Prerequisites
 
-Ensure you have installed:
-
-- Python 3.14 or higher
+- Python 3.14+
 - Docker and Docker Compose
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
+- uv ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
 
-## Step 1: Clone the Repository
+## Step 1: Clone and Install Dependencies
 
 ```bash
 git clone https://github.com/MaksimZayats/fastdjango.git
 cd fastdjango
+
+# Install all dependencies (including dev tools)
+uv sync --locked --all-groups
 ```
 
 ## Step 2: Configure Environment
 
-Copy the example environment file:
-
 ```bash
+# Copy the example environment file
 cp .env.example .env
 ```
 
-The `.env.example` file contains sensible defaults for local development. You can customize these values later as needed.
+The default `.env` file is configured for local development. Key variables include:
 
-!!! note "Environment Variables"
-    The `.env` file includes the `COMPOSE_FILE` setting that combines the base Docker Compose configuration with local development overrides. This enables features like hot-reload for development.
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DATABASE_URL` | `postgresql://...` | PostgreSQL connection string |
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection string |
+| `DJANGO_SECRET_KEY` | Development key | Django security key |
+| `DJANGO_DEBUG` | `true` | Enable debug mode |
 
-## Step 3: Start Infrastructure Services
+!!! warning "Production Configuration"
+    For production, you must change `DJANGO_SECRET_KEY` and set `DJANGO_DEBUG=false`.
 
-Start PostgreSQL, Redis, and MinIO:
+## Step 3: Start Infrastructure
 
-```bash
-docker compose up -d postgres redis minio
-```
-
-!!! info "What Each Service Does"
-    - **PostgreSQL** - Primary database for storing application data
-    - **Redis** - Caching layer and Celery message broker
-    - **MinIO** - S3-compatible object storage for static files and media
-
-## Step 4: Initialize the Database
-
-Create MinIO buckets, run database migrations, and collect static files:
+Start the required services (PostgreSQL, Redis, MinIO):
 
 ```bash
-docker compose up minio-create-buckets migrations collectstatic
+docker compose up -d postgres redis minio minio-create-buckets
 ```
 
-This runs one-time setup tasks:
-
-1. Creates `public` and `protected` buckets in MinIO
-2. Applies Django database migrations
-3. Collects static files to MinIO
-
-## Step 5: Install Python Dependencies
+Verify services are running:
 
 ```bash
-uv sync --locked --all-extras --dev
+docker compose ps
 ```
 
-This installs all dependencies from the lockfile, including development tools.
+You should see `postgres`, `redis`, and `minio` containers running.
 
-## Step 6: Run the Development Server
+## Step 4: Run Migrations
+
+Apply database migrations to create the required tables:
+
+```bash
+# Using Docker (recommended)
+docker compose up migrations
+
+# Or manually
+make migrate
+```
+
+Collect static files for the admin panel:
+
+```bash
+docker compose up collectstatic
+```
+
+## Step 5: Start the Development Server
 
 ```bash
 make dev
 ```
 
-!!! success "You're Ready!"
-    The API is now running at [http://localhost:8000](http://localhost:8000)
+The FastAPI application is now available at:
 
-## Explore the API
+- **API**: http://localhost:8000
+- **API Docs**: http://localhost:8000/docs
+- **Django Admin**: http://localhost:8000/django/admin/
 
-Open the interactive API documentation:
+## Step 6: Verify Installation
 
-- **Swagger UI**: [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
-
-The documentation is auto-generated from your code and includes:
-
-- All available endpoints
-- Request/response schemas
-- Authentication requirements
-- Try-it-out functionality
-
-## Running Additional Services
-
-### Celery Worker (Background Tasks)
-
-In a separate terminal:
+Check the health endpoint:
 
 ```bash
-make celery-dev
-```
-
-### Celery Beat (Scheduled Tasks)
-
-In another terminal:
-
-```bash
-make celery-beat-dev
-```
-
-## Verify Everything Works
-
-### Health Check
-
-```bash
-curl http://localhost:8000/api/v1/health
+curl http://localhost:8000/v1/health
 ```
 
 Expected response:
+
 ```json
 {"status": "ok"}
 ```
 
-### Create a User
+## Optional: Start Celery Workers
+
+For background task processing:
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/users/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "email": "test@example.com",
-    "first_name": "Test",
-    "last_name": "User",
-    "password": "SecurePass123!"
-  }'
+# In a new terminal
+make celery-dev
+
+# For scheduled tasks (in another terminal)
+make celery-beat-dev
+```
+
+## Optional: Create a Superuser
+
+To access Django Admin:
+
+```bash
+docker compose exec app python src/manage.py createsuperuser
+```
+
+Or use the shell directly:
+
+```bash
+uv run python src/manage.py createsuperuser
+```
+
+## Common Issues
+
+### Port Already in Use
+
+If port 8000 is occupied:
+
+```bash
+# Find the process
+lsof -i :8000
+
+# Or use a different port
+uvicorn delivery.http.app:app --host 0.0.0.0 --port 8001
+```
+
+### Database Connection Error
+
+Ensure PostgreSQL is running:
+
+```bash
+docker compose ps postgres
+docker compose logs postgres
+```
+
+### Redis Connection Error
+
+Ensure Redis is running:
+
+```bash
+docker compose ps redis
+docker compose logs redis
 ```
 
 ## Next Steps
 
-Now that the project is running:
-
-1. **[Project Structure](project-structure.md)** - Understand how the codebase is organized
-2. **[Development Environment](development-environment.md)** - Configure your IDE for the best experience
-3. **[Tutorial: Build a Todo List](../tutorial/index.md)** - Learn by building a complete feature
+- [Project Structure](project-structure.md) - Understand the codebase organization
+- [Development Environment](development-environment.md) - Set up your IDE
+- [Tutorial](../tutorial/index.md) - Learn by building a feature

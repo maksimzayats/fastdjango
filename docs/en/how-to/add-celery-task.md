@@ -1,282 +1,336 @@
-# Add a Celery Task
+# Add Celery Task
 
-This guide provides a quick reference for adding a new Celery background task to your application.
+Create background tasks for asynchronous processing.
 
-## Quick Reference
+## Goal
 
-Adding a Celery task requires these steps:
+Add a new Celery task for background processing.
 
-1. Add `TaskName` enum value
-2. Create `TypedDict` for result
-3. Create `TaskController` class
-4. Add typed property to `TasksRegistry`
-5. Register controller in IoC
-6. Update `TasksRegistryFactory`
-7. (Optional) Add to beat schedule
+## Prerequisites
 
-## Step-by-Step Guide
+- Celery worker running (`make celery-dev`)
+- Understanding of [Controller Pattern](../concepts/controller-pattern.md)
 
-### Step 1: Add TaskName Enum Value
+## Checklist
+
+- [ ] Add task name to `TaskName` enum
+- [ ] Create task controller
+- [ ] Register controller in factory
+- [ ] Add task to registry (optional, for type-safe access)
+- [ ] Write tests
+
+## Step-by-Step
+
+### 1. Add Task Name
 
 Edit `src/delivery/tasks/registry.py`:
 
 ```python
+# src/delivery/tasks/registry.py
 from enum import StrEnum
 
 
 class TaskName(StrEnum):
     PING = "ping"
-    SEND_EMAIL = "send_email"  # Add your new task name
+    SEND_EMAIL = "email.send"  # Add new task
 ```
 
-### Step 2: Create TypedDict for Result
+### 2. Create Task Controller
 
-Create a new file `src/delivery/tasks/tasks/send_email.py`:
+Create `src/delivery/tasks/tasks/send_email.py`:
 
 ```python
-from typing import Literal, TypedDict
+# src/delivery/tasks/tasks/send_email.py
+from dataclasses import dataclass
+from typing import TypedDict
 
 from celery import Celery
 
-from core.notifications.services import NotificationService
+from core.email.services import EmailService
+from core.user.services.user import UserService
 from delivery.tasks.registry import TaskName
 from infrastructure.delivery.controllers import Controller
 
 
 class SendEmailResult(TypedDict):
-    status: Literal["sent", "failed"]
-    recipient: str
+    success: bool
+    message_id: str | None
 
 
+@dataclass(kw_only=True)
 class SendEmailTaskController(Controller):
-    def __init__(
-        self,
-        notification_service: NotificationService,
-    ) -> None:
-        self._notification_service = notification_service
+    """Task controller for sending emails."""
+
+    _email_service: EmailService
+    _user_service: UserService
 
     def register(self, registry: Celery) -> None:
         registry.task(name=TaskName.SEND_EMAIL)(self.send_email)
 
     def send_email(
         self,
-        recipient: str,
+        user_id: int,
         subject: str,
         body: str,
     ) -> SendEmailResult:
+        """Send an email to a user.
+
+        Args:
+            user_id: The recipient user's ID.
+            subject: Email subject line.
+            body: Email body content.
+
+        Returns:
+            Result containing success status and message ID.
+        """
+        user = self._user_service.get_user_by_id(user_id)
+
         try:
-            self._notification_service.send_email(
-                recipient=recipient,
+            message_id = self._email_service.send(
+                to=user.email,
                 subject=subject,
                 body=body,
             )
-            return SendEmailResult(status="sent", recipient=recipient)
+            return SendEmailResult(success=True, message_id=message_id)
         except Exception:
-            return SendEmailResult(status="failed", recipient=recipient)
+            return SendEmailResult(success=False, message_id=None)
 ```
 
-!!! tip "TypedDict for Type Safety"
-    Using `TypedDict` for task results enables type checking when calling `.get()` on task results.
-
-### Step 3: Add Typed Property to TasksRegistry
-
-Edit `src/delivery/tasks/registry.py`:
-
-```python
-from enum import StrEnum
-from typing import TYPE_CHECKING
-
-from celery import Task
-
-from infrastructure.celery.registry import BaseTasksRegistry
-
-if TYPE_CHECKING:
-    from delivery.tasks.tasks.ping import PingResult
-    from delivery.tasks.tasks.send_email import SendEmailResult
-
-
-class TaskName(StrEnum):
-    PING = "ping"
-    SEND_EMAIL = "send_email"
-
-
-class TasksRegistry(BaseTasksRegistry):
-    @property
-    def ping(self) -> Task[[], PingResult]:
-        return self._get_task_by_name(TaskName.PING)
-
-    @property
-    def send_email(self) -> Task[[str, str, str], SendEmailResult]:
-        return self._get_task_by_name(TaskName.SEND_EMAIL)
-```
-
-The type annotation `Task[[str, str, str], SendEmailResult]` specifies:
-
-- `[str, str, str]` - the argument types (recipient, subject, body)
-- `SendEmailResult` - the return type
-
-### Step 4: Register Controller in IoC
-
-Edit `src/ioc/registries/delivery.py`:
-
-```python
-from punq import Container, Scope
-
-from delivery.tasks.tasks.send_email import SendEmailTaskController
-# ... other imports ...
-
-
-def _register_celery_controllers(container: Container) -> None:
-    container.register(PingTaskController, scope=Scope.singleton)
-    container.register(SendEmailTaskController, scope=Scope.singleton)  # Add this
-```
-
-### Step 5: Update TasksRegistryFactory
+### 3. Register Task Controller
 
 Edit `src/delivery/tasks/factories.py`:
 
 ```python
+# src/delivery/tasks/factories.py
+# Add import
 from delivery.tasks.tasks.send_email import SendEmailTaskController
-# ... other imports ...
 
 
+@dataclass(kw_only=True)
 class TasksRegistryFactory:
-    def __init__(
-        self,
-        celery_app_factory: CeleryAppFactory,
-        ping_controller: PingTaskController,
-        send_email_controller: SendEmailTaskController,  # Add parameter
-    ) -> None:
-        self._instance: TasksRegistry | None = None
-        self._celery_app_factory = celery_app_factory
-        self._ping_controller = ping_controller
-        self._send_email_controller = send_email_controller  # Store reference
+    _celery_app_factory: CeleryAppFactory
+    _ping_controller: PingTaskController
+    _send_email_controller: SendEmailTaskController  # Add as field
+    _instance: TasksRegistry | None = field(default=None, init=False)
 
     def __call__(self) -> TasksRegistry:
         if self._instance is not None:
             return self._instance
 
         celery_app = self._celery_app_factory()
-        registry = TasksRegistry(app=celery_app)
-
+        registry = TasksRegistry(_celery_app=celery_app)
         self._ping_controller.register(celery_app)
-        self._send_email_controller.register(celery_app)  # Register task
+        self._send_email_controller.register(celery_app)  # Register it
 
         self._instance = registry
         return self._instance
 ```
 
-### Step 6: (Optional) Add to Beat Schedule
+Controllers are declared as dataclass fields and auto-resolved by the IoC container.
 
-For periodic tasks, first import `crontab` at the top of `src/delivery/tasks/factories.py`:
+### 4. Add to Registry (Optional)
+
+For type-safe task access, add to `TasksRegistry`:
+
+```python
+# src/delivery/tasks/registry.py
+from celery import Task
+
+from delivery.tasks.base import BaseTasksRegistry
+
+
+class TasksRegistry(BaseTasksRegistry):
+    @property
+    def ping(self) -> Task:
+        return self._celery_app.tasks[TaskName.PING]
+
+    @property
+    def send_email(self) -> Task:  # Add this
+        return self._celery_app.tasks[TaskName.SEND_EMAIL]
+```
+
+### 5. Call the Task
+
+From HTTP controllers or other services:
+
+```python
+@dataclass(kw_only=True)
+class UserController(TransactionController):
+    _tasks_registry: TasksRegistry
+
+    def create_user(self, body: CreateUserSchema) -> UserSchema:
+        user = self._user_service.create_user(...)
+
+        # Queue welcome email
+        self._tasks_registry.send_email.delay(
+            user_id=user.id,
+            subject="Welcome!",
+            body="Thanks for signing up.",
+        )
+
+        return UserSchema.model_validate(user, from_attributes=True)
+```
+
+### 6. Schedule the Task (Optional)
+
+For periodic tasks, add to beat schedule in `src/delivery/tasks/factories.py`:
 
 ```python
 from celery.schedules import crontab
+
+
+class CeleryAppFactory:
+    def __call__(self) -> Celery:
+        celery_app = Celery(...)
+
+        celery_app.conf.beat_schedule = {
+            "ping-every-minute": {
+                "task": TaskName.PING,
+                "schedule": 60.0,
+            },
+            # Add scheduled task
+            "send-daily-digest": {
+                "task": TaskName.SEND_EMAIL,
+                "schedule": crontab(hour=9, minute=0),  # 9:00 AM daily
+                "args": [None, "Daily Digest", "Your daily summary..."],
+            },
+        }
+
+        return celery_app
 ```
 
-Then edit the `_configure_beat_schedule` method:
+Start beat scheduler:
 
-```python
-def _configure_beat_schedule(self, celery_app: Celery) -> None:
-    celery_app.conf.beat_schedule = {
-        "ping-every-minute": {
-            "task": TaskName.PING,
-            "schedule": 60.0,
-        },
-        "send-daily-report": {
-            "task": TaskName.SEND_EMAIL,
-            "schedule": crontab(hour=9, minute=0),  # Daily at 9 AM
-            "args": [
-                "admin@example.com",
-                "Daily Report",
-                "Here is your daily report...",
-            ],
-        },
-    }
+```bash
+make celery-beat-dev
 ```
 
-## Calling the Task
-
-### From Application Code
+### 7. Write Tests
 
 ```python
-from delivery.tasks.registry import TasksRegistry
+# tests/integration/tasks/test_send_email.py
+from unittest.mock import MagicMock
 
-
-class SomeService:
-    def __init__(self, tasks_registry: TasksRegistry) -> None:
-        self._tasks = tasks_registry
-
-    def trigger_email(self, recipient: str) -> None:
-        # Async execution
-        self._tasks.send_email.delay(
-            recipient,
-            "Welcome!",
-            "Thank you for signing up.",
-        )
-```
-
-### From HTTP Controller
-
-```python
-from delivery.tasks.registry import TasksRegistry
-from infrastructure.delivery.controllers import Controller
-
-
-class NotificationController(Controller):
-    def __init__(self, tasks_registry: TasksRegistry) -> None:
-        self._tasks = tasks_registry
-
-    def send_notification(
-        self,
-        request: AuthenticatedHttpRequest,
-        body: SendNotificationRequest,
-    ) -> dict:
-        # Queue the task
-        task = self._tasks.send_email.delay(
-            body.recipient,
-            body.subject,
-            body.body,
-        )
-        return {"task_id": task.id, "status": "queued"}
-```
-
-## Testing Celery Tasks
-
-```python
 import pytest
 
+from core.email.services import EmailService
+from core.user.models import User
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
     TestTasksRegistryFactory,
+    TestUserFactory,
 )
 
 
+@pytest.fixture
+def mock_email_service(container: AutoRegisteringContainer) -> MagicMock:
+    mock = MagicMock(spec=EmailService)
+    mock.send.return_value = "msg_123"
+    container.register(EmailService, instance=mock)
+    return mock
+
+
 @pytest.mark.django_db(transaction=True)
-def test_send_email_task(
-    celery_worker_factory: TestCeleryWorkerFactory,
-    tasks_registry_factory: TestTasksRegistryFactory,
-) -> None:
-    registry = tasks_registry_factory()
+class TestSendEmailTask:
+    def test_send_email_success(
+        self,
+        celery_worker_factory: TestCeleryWorkerFactory,
+        tasks_registry_factory: TestTasksRegistryFactory,
+        user_factory: TestUserFactory,
+        mock_email_service: MagicMock,
+    ) -> None:
+        user = user_factory(email="test@example.com")
+        registry = tasks_registry_factory()
 
-    with celery_worker_factory():
-        result = registry.send_email.delay(
-            "test@example.com",
-            "Test Subject",
-            "Test Body",
-        ).get(timeout=5)
+        with celery_worker_factory():
+            result = registry.send_email.delay(
+                user_id=user.id,
+                subject="Test",
+                body="Hello",
+            ).get(timeout=10)
 
-    assert result["status"] == "sent"
-    assert result["recipient"] == "test@example.com"
+        assert result["success"] is True
+        assert result["message_id"] == "msg_123"
+        mock_email_service.send.assert_called_once_with(
+            to="test@example.com",
+            subject="Test",
+            body="Hello",
+        )
 ```
 
-## Summary Checklist
+## Task Best Practices
 
-- [ ] Add task name to `TaskName` enum in `registry.py`
-- [ ] Create `TypedDict` for result type
-- [ ] Create `TaskController` class with `register()` method
-- [ ] Add typed property to `TasksRegistry`
-- [ ] Register controller in `ioc/registries/delivery.py`
-- [ ] Update `TasksRegistryFactory` constructor and `__call__()` method
-- [ ] (Optional) Add to beat schedule for periodic execution
-- [ ] Write integration tests
+### Pass IDs, Not Objects
+
+```python
+# Good - serializable
+def send_email(self, user_id: int, ...) -> SendEmailResult:
+    user = self._user_service.get_user_by_id(user_id)
+
+# Bad - Django models aren't serializable
+def send_email(self, user: User, ...) -> SendEmailResult:
+    ...
+```
+
+### Make Tasks Idempotent
+
+```python
+def process_order(self, order_id: int) -> ProcessResult:
+    order = self._order_service.get_order_by_id(order_id)
+
+    # Check if already processed
+    if order.status == OrderStatus.PROCESSED:
+        return ProcessResult(already_processed=True)
+
+    # Process order
+    ...
+```
+
+### Handle Failures Gracefully
+
+```python
+def send_notification(self, user_id: int) -> NotifyResult:
+    try:
+        self._push_service.send(user_id, message)
+        return NotifyResult(success=True)
+    except PushServiceError as e:
+        # Log error but don't crash
+        logfire.error("Push failed", user_id=user_id, error=str(e))
+        return NotifyResult(success=False, error=str(e))
+```
+
+### Use TypedDict for Results
+
+```python
+from typing import TypedDict
+
+
+class ProcessResult(TypedDict):
+    success: bool
+    items_processed: int
+    errors: list[str]
+```
+
+## File Summary
+
+| Action | File |
+|--------|------|
+| Modify | `src/delivery/tasks/registry.py` |
+| Create | `src/delivery/tasks/tasks/send_email.py` |
+| Modify | `src/delivery/tasks/factories.py` |
+| Create | `tests/integration/tasks/test_send_email.py` |
+
+## Verification
+
+1. Start Celery worker: `make celery-dev`
+2. Trigger task in shell:
+
+```python
+from ioc.container import ContainerFactory
+from delivery.tasks.registry import TasksRegistry
+
+container = ContainerFactory()()
+registry = container.resolve(TasksRegistry)
+result = registry.send_email.delay(user_id=1, subject="Test", body="Hello")
+print(result.get(timeout=10))
+```

@@ -23,8 +23,9 @@ This skill guides you through writing tests for this codebase using the establis
 Every test gets a fresh IoC container:
 
 ```python
-from infrastructure.punq.container import AutoRegisteringContainer
+from infrastructure.frameworks.punq import AutoRegisteringContainer
 from ioc.container import ContainerFactory
+
 
 @pytest.fixture(scope="function")
 def container() -> AutoRegisteringContainer:

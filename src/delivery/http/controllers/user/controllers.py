@@ -1,12 +1,12 @@
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from http import HTTPStatus
-from typing import Annotated, Any
+from typing import Any
 
-from annotated_types import Len
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, EmailStr
+from throttled import rate_limiter
 
+from core.user.services.jwt import JWTService
 from core.user.services.refresh_session import (
     ExpiredRefreshTokenError,
     InvalidRefreshTokenError,
@@ -14,47 +14,45 @@ from core.user.services.refresh_session import (
     RefreshTokenError,
 )
 from core.user.services.user import UserService
-from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
-from delivery.services.jwt import JWTService
-from infrastructure.delivery.controllers import Controller
-from infrastructure.delivery.request import RequestInfoService
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuthFactory
+from delivery.http.controllers.user.schemas import (
+    CreateUserRequestSchema,
+    IssueTokenRequestSchema,
+    RefreshTokenRequestSchema,
+    TokenResponseSchema,
+    UserSchema,
+)
+from delivery.http.services.request import RequestInfoService
+from delivery.http.services.throttler import IPThrottlerFactory, UserThrottlerFactory
+from infrastructure.delivery.controllers import TransactionController
 
 logger = logging.getLogger(__name__)
 
 
-class IssueTokenRequestSchema(BaseModel):
-    username: str
-    password: str
-
-
-class RefreshTokenRequestSchema(BaseModel):
-    refresh_token: str
-
-
-class TokenResponseSchema(BaseModel):
-    access_token: str
-    refresh_token: str
-
-
-@dataclass
-class UserTokenController(Controller):
+@dataclass(kw_only=True)
+class UserTokenController(TransactionController):
     _jwt_auth_factory: JWTAuthFactory
     _jwt_service: JWTService
     _request_info_service: RequestInfoService
 
+    _ip_throttler_factory: IPThrottlerFactory
+    _user_throttler_factory: UserThrottlerFactory
+
     _refresh_token_service: RefreshSessionService
     _user_service: UserService
 
-    _jwt_auth: JWTAuth = field(init=False)
-
     def __post_init__(self) -> None:
         self._jwt_auth = self._jwt_auth_factory()
+        super().__post_init__()
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
             path="/v1/users/me/token",
             endpoint=self.issue_user_token,
             methods=["POST"],
+            dependencies=[
+                Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
+            ],
             response_model=TokenResponseSchema,
         )
 
@@ -62,6 +60,9 @@ class UserTokenController(Controller):
             path="/v1/users/me/token/refresh",
             endpoint=self.refresh_user_token,
             methods=["POST"],
+            dependencies=[
+                Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
+            ],
             response_model=TokenResponseSchema,
         )
 
@@ -69,7 +70,11 @@ class UserTokenController(Controller):
             path="/v1/users/me/token/revoke",
             endpoint=self.revoke_refresh_token,
             methods=["POST"],
-            dependencies=[Depends(self._jwt_auth)],
+            dependencies=[
+                Depends(self._jwt_auth),
+                Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
+                Depends(self._user_throttler_factory(quota=rate_limiter.per_min(10))),
+            ],
         )
 
     def issue_user_token(
@@ -149,33 +154,15 @@ class UserTokenController(Controller):
         return super().handle_exception(exception)
 
 
-class CreateUserRequestSchema(BaseModel):
-    email: EmailStr
-    username: Annotated[str, Len(max_length=150)]
-    first_name: Annotated[str, Len(max_length=150)]
-    last_name: Annotated[str, Len(max_length=150)]
-    password: Annotated[str, Len(max_length=128)]
-
-
-class UserSchema(BaseModel):
-    id: int
-    username: str
-    email: str
-    first_name: str
-    last_name: str
-    is_staff: bool
-    is_superuser: bool
-
-
-@dataclass
-class UserController(Controller):
+@dataclass(kw_only=True)
+class UserController(TransactionController):
     _jwt_auth_factory: JWTAuthFactory
     _user_service: UserService
-    _jwt_auth: JWTAuth = field(init=False)
 
     def __post_init__(self) -> None:
         self._jwt_auth = self._jwt_auth_factory()
         self._staff_jwt_auth = self._jwt_auth_factory(require_staff=True)
+        super().__post_init__()
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(

@@ -10,7 +10,3 @@ class AWSS3Settings(BaseSettings):
     secret_access_key: SecretStr
     protected_bucket_name: str = "protected"
     public_bucket_name: str = "public"
-
-
-class RedisSettings(BaseSettings):
-    redis_url: SecretStr

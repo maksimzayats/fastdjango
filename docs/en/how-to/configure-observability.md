@@ -1,295 +1,313 @@
 # Configure Observability
 
-This guide explains how to set up observability with Logfire (default) or replace it with other OpenTelemetry-compatible backends.
+Set up logging, tracing, and monitoring with Logfire.
 
-## Default Logfire Setup
+## Goal
 
-The template includes built-in support for [Logfire](https://pydantic.dev/logfire), a Pydantic-native observability platform.
+Enable comprehensive observability for your application.
 
-### Enable Logfire
+## Prerequisites
 
-1. Create a Logfire account at [logfire.pydantic.dev](https://logfire.pydantic.dev)
+- Application running locally
+- (Optional) Logfire account for dashboard access
 
-2. Get your project token from the Logfire dashboard
+## What Gets Instrumented
 
-3. Add environment variables to your `.env` file:
+The project auto-instruments:
+
+| Library | What's Traced |
+|---------|---------------|
+| FastAPI | HTTP requests, routes, response times |
+| Django | ORM queries, middleware |
+| Celery | Task execution, queue times |
+| Psycopg | Database queries |
+| Redis | Cache operations |
+| HTTPX | Outbound HTTP calls |
+| Pydantic | Validation |
+
+## Step-by-Step
+
+### 1. Enable Logfire
+
+Edit your `.env` file:
 
 ```bash
+# Enable Logfire
 LOGFIRE_ENABLED=true
-LOGFIRE_TOKEN=your-logfire-token-here
+
+# Your Logfire token (get from https://logfire.pydantic.dev)
+LOGFIRE_TOKEN=your-token-here
 ```
 
-### What Gets Instrumented
+!!! tip "Without Logfire Account"
+    If you don't have a Logfire account, set `LOGFIRE_ENABLED=false`. Logs will go to the console with structured output.
 
-When Logfire is enabled, these libraries are automatically instrumented:
+### 2. Set Logging Level
 
-- **Django** - HTTP requests and responses (excluding health checks)
-- **Celery** - Task execution with trace context propagation
-- **psycopg** - PostgreSQL queries with SQL comments
-- **Redis** - Redis commands
-- **requests** - Outbound HTTP requests
-- **httpx** - Async HTTP requests
-- **Pydantic** - Validation timing
+```bash
+# Options: DEBUG, INFO, WARNING, ERROR
+LOGGING_LEVEL=INFO
+```
 
-The configuration is in `src/infrastructure/otel/logfire.py`:
+For development:
+
+```bash
+LOGGING_LEVEL=DEBUG
+```
+
+### 3. Restart the Application
+
+```bash
+make dev
+```
+
+You should see Logfire initialization in the logs.
+
+## Adding Custom Logging
+
+### Basic Logging
 
 ```python
-def _instrument_libraries() -> None:
-    logfire.instrument_django(
-        excluded_urls=".*/v1/health",
-        is_sql_commentor_enabled=True,
-    )
-    logfire.instrument_celery(propagate_trace_context=True)
-    logfire.instrument_requests()
-    logfire.instrument_psycopg(
-        enable_commenter=True,
-        commenter_options=CommenterOptions(
-            db_driver=True,
-            dbapi_level=True,
-        ),
-    )
-    logfire.instrument_httpx()
-    logfire.instrument_redis()
-    logfire.instrument_pydantic()
+import logfire
+
+
+def process_order(order_id: int) -> None:
+    logfire.info("Processing order", order_id=order_id)
+
+    # ... process ...
+
+    logfire.info("Order processed", order_id=order_id, status="success")
 ```
 
-### Sensitive Data Scrubbing
+### Log Levels
 
-Logfire automatically scrubs sensitive fields. Additional patterns are configured:
+```python
+logfire.debug("Detailed debug info", data=data)    # Verbose
+logfire.info("Normal operation")                    # Standard
+logfire.warn("Unexpected but handled", attempt=2)   # Caution
+logfire.error("Operation failed", error=str(e))     # Needs attention
+```
+
+### Structured Context
+
+Always use keyword arguments for structured data:
+
+```python
+# Good - structured, searchable
+logfire.info(
+    "User action",
+    user_id=user.id,
+    action="create_order",
+    order_id=order.id,
+    amount=order.total,
+)
+
+# Bad - string interpolation
+logfire.info(f"User {user.id} created order {order.id}")
+```
+
+## Adding Custom Spans
+
+### Basic Span
+
+```python
+import logfire
+
+
+def complex_operation(items: list[Item]) -> Result:
+    with logfire.span("complex_operation", item_count=len(items)):
+        # ... process items ...
+        return result
+```
+
+### Span with Attributes
+
+```python
+def batch_process(items: list[Item]) -> BatchResult:
+    with logfire.span("batch_process") as span:
+        span.set_attribute("input_count", len(items))
+
+        processed = []
+        for item in items:
+            result = process_item(item)
+            processed.append(result)
+
+        span.set_attribute("processed_count", len(processed))
+        span.set_attribute("success_rate", len(processed) / len(items))
+
+        return BatchResult(items=processed)
+```
+
+### Nested Spans
+
+```python
+def process_order(order_id: int) -> Order:
+    with logfire.span("process_order", order_id=order_id):
+        order = self._order_service.get_order(order_id)
+
+        with logfire.span("validate_payment"):
+            self._payment_service.validate(order)
+
+        with logfire.span("update_inventory"):
+            self._inventory_service.reserve(order.items)
+
+        with logfire.span("send_confirmation"):
+            self._notification_service.send(order.user_id)
+
+        return order
+```
+
+## TransactionController Tracing
+
+`TransactionController` automatically creates spans:
+
+```python
+@dataclass(kw_only=True)
+class OrderController(TransactionController):
+    def create_order(self, body: CreateOrderSchema) -> OrderSchema:
+        # Automatically wrapped with span:
+        # "OrderController.create_order"
+        # Plus transaction management
+        ...
+```
+
+## Sensitive Data Scrubbing
+
+Logfire is configured to scrub sensitive fields:
+
+```python
+# src/infrastructure/frameworks/logfire/configurator.py
+logfire.configure(
+    scrubbing=logfire.ScrubbingOptions(
+        extra_patterns=["access_token", "refresh_token"],
+    ),
+)
+```
+
+Fields containing these patterns are replaced with `[Scrubbed]`.
+
+### Adding Custom Scrub Patterns
+
+Edit `src/infrastructure/frameworks/logfire/configurator.py`:
 
 ```python
 logfire.configure(
-    # ...
-    scrubbing=ScrubbingOptions(
+    scrubbing=logfire.ScrubbingOptions(
         extra_patterns=[
             "access_token",
             "refresh_token",
+            "password",
+            "secret",
+            "api_key",
+            "credit_card",
         ],
     ),
 )
 ```
 
-## Replacing Logfire with Other Backends
+## Health Checks
 
-To use a different OpenTelemetry backend (Jaeger, Honeycomb, Datadog, etc.), replace the Logfire configuration with the OpenTelemetry SDK.
-
-### Step 1: Install OpenTelemetry Packages
+The project includes a health endpoint at `GET /v1/health`:
 
 ```bash
-uv add opentelemetry-sdk opentelemetry-exporter-otlp
-uv add opentelemetry-instrumentation-django
-uv add opentelemetry-instrumentation-celery
-uv add opentelemetry-instrumentation-redis
-uv add opentelemetry-instrumentation-psycopg
-uv add opentelemetry-instrumentation-requests
+curl http://localhost:8000/v1/health
 ```
 
-### Step 2: Create OpenTelemetry Configuration
+Response:
 
-Replace `src/infrastructure/otel/logfire.py` with a new file `src/infrastructure/otel/opentelemetry.py`:
-
-```python
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from infrastructure.settings.types import Environment
-
-
-class OpenTelemetrySettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="OTEL_")
-
-    enabled: bool = False
-    endpoint: str = "http://localhost:4317"
-    api_key: SecretStr | None = None
-
-
-def configure_opentelemetry(
-    service_name: str,
-    environment: Environment,
-    version: str,
-) -> None:
-    settings = OpenTelemetrySettings()
-    if not settings.enabled:
-        return
-
-    resource = Resource.create({
-        "service.name": service_name,
-        "service.version": version,
-        "deployment.environment": environment,
-    })
-
-    provider = TracerProvider(resource=resource)
-
-    # Configure exporter with optional API key
-    headers = {}
-    if settings.api_key:
-        # Format depends on backend (Honeycomb, Datadog, etc.)
-        headers["x-honeycomb-team"] = settings.api_key.get_secret_value()
-
-    exporter = OTLPSpanExporter(
-        endpoint=settings.endpoint,
-        headers=headers,
-    )
-
-    provider.add_span_processor(BatchSpanProcessor(exporter))
-    trace.set_tracer_provider(provider)
-
-    _instrument_libraries()
-
-
-def _instrument_libraries() -> None:
-    from opentelemetry.instrumentation.celery import CeleryInstrumentor
-    from opentelemetry.instrumentation.django import DjangoInstrumentor
-    from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
-    from opentelemetry.instrumentation.redis import RedisInstrumentor
-    from opentelemetry.instrumentation.requests import RequestsInstrumentor
-
-    DjangoInstrumentor().instrument()
-    CeleryInstrumentor().instrument()
-    PsycopgInstrumentor().instrument()
-    RedisInstrumentor().instrument()
-    RequestsInstrumentor().instrument()
+```json
+{"status": "ok"}
 ```
 
-### Step 3: Update Infrastructure Configuration
+If database is unavailable:
 
-Edit `src/core/configs/infrastructure.py`:
-
-```python
-# Replace this import:
-# from infrastructure.otel.logfire import configure_logfire
-
-# With this:
-from infrastructure.otel.opentelemetry import configure_opentelemetry
-
-
-def configure_infrastructure(service_name: str) -> None:
-    # ... existing code ...
-
-    # Replace configure_logfire with:
-    configure_opentelemetry(
-        service_name=service_name,
-        environment=application_settings.environment,
-        version=application_settings.version,
-    )
+```json
+{"detail": "Database unavailable"}
 ```
 
-### Step 4: Configure Environment Variables
+With HTTP 503 status.
 
-For different backends:
+## Viewing Traces
 
-**Jaeger:**
-```bash
-OTEL_ENABLED=true
-OTEL_ENDPOINT=http://localhost:4317
+### With Logfire Dashboard
+
+1. Go to https://logfire.pydantic.dev
+2. Select your project
+3. View:
+   - **Traces**: Request flow through services
+   - **Logs**: Structured log entries
+   - **Metrics**: Performance measurements
+
+### Console Output
+
+When `LOGFIRE_ENABLED=false`, structured logs go to console:
+
+```
+2024-01-15 10:30:45 INFO Processing order order_id=123
+2024-01-15 10:30:46 INFO Payment validated order_id=123 amount=99.99
+2024-01-15 10:30:46 INFO Order complete order_id=123 status=success
 ```
 
-**Honeycomb:**
-```bash
-OTEL_ENABLED=true
-OTEL_ENDPOINT=https://api.honeycomb.io:443
-OTEL_API_KEY=your-honeycomb-api-key
-```
+## Environment-Specific Configuration
 
-**Datadog:**
-```bash
-OTEL_ENABLED=true
-OTEL_ENDPOINT=http://localhost:4317
-# Datadog Agent handles the rest
-```
-
-**Grafana Tempo:**
-```bash
-OTEL_ENABLED=true
-OTEL_ENDPOINT=http://tempo:4317
-```
-
-## Custom Instrumentation
-
-### Adding Custom Spans
-
-```python
-from opentelemetry import trace
-
-tracer = trace.get_tracer(__name__)
-
-
-class PaymentService:
-    def process_payment(self, amount: float) -> dict:
-        with tracer.start_as_current_span("process_payment") as span:
-            span.set_attribute("payment.amount", amount)
-
-            result = self._call_payment_gateway(amount)
-
-            span.set_attribute("payment.status", result["status"])
-            return result
-```
-
-### Adding Custom Attributes
-
-```python
-from opentelemetry import trace
-
-
-def my_endpoint(request: HttpRequest) -> Response:
-    span = trace.get_current_span()
-    span.set_attribute("user.id", request.user.id)
-    span.set_attribute("request.path", request.path)
-    # ... rest of handler
-```
-
-### Recording Exceptions
-
-```python
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
-
-
-def risky_operation() -> None:
-    span = trace.get_current_span()
-    try:
-        # ... operation that might fail
-        pass
-    except Exception as e:
-        span.record_exception(e)
-        span.set_status(Status(StatusCode.ERROR, str(e)))
-        raise
-```
-
-## Disabling Observability in Tests
-
-The template automatically disables Logfire in tests via `.env.test`:
+### Development
 
 ```bash
 LOGFIRE_ENABLED=false
+LOGGING_LEVEL=DEBUG
 ```
 
-For custom OpenTelemetry setup:
+### Staging
 
 ```bash
-OTEL_ENABLED=false
+LOGFIRE_ENABLED=true
+LOGFIRE_TOKEN=staging-token
+LOGGING_LEVEL=INFO
 ```
 
-## Summary
+### Production
 
-| Backend | Environment Variables |
-|---------|----------------------|
-| Logfire (default) | `LOGFIRE_ENABLED`, `LOGFIRE_TOKEN` |
-| Jaeger | `OTEL_ENABLED`, `OTEL_ENDPOINT` |
-| Honeycomb | `OTEL_ENABLED`, `OTEL_ENDPOINT`, `OTEL_API_KEY` |
-| Datadog | `OTEL_ENABLED`, `OTEL_ENDPOINT` (via Agent) |
-| Grafana Tempo | `OTEL_ENABLED`, `OTEL_ENDPOINT` |
+```bash
+LOGFIRE_ENABLED=true
+LOGFIRE_TOKEN=production-token
+LOGGING_LEVEL=WARNING
+```
 
-The default Logfire integration provides:
+## Celery Observability
 
-- Zero-config setup with just token
-- Automatic library instrumentation
-- Sensitive data scrubbing
-- Pydantic-native validation insights
+Celery tasks are automatically instrumented. For additional logging:
 
-For custom backends, replace the Logfire module with OpenTelemetry SDK configuration.
+```python
+import logfire
+
+
+class SendEmailTaskController(Controller):
+    def send_email(self, user_id: int, subject: str) -> SendResult:
+        logfire.info("Starting email send", user_id=user_id)
+
+        try:
+            result = self._email_service.send(...)
+            logfire.info("Email sent", user_id=user_id, message_id=result.id)
+            return SendResult(success=True)
+        except Exception as e:
+            logfire.error("Email failed", user_id=user_id, error=str(e))
+            return SendResult(success=False)
+```
+
+## Best Practices
+
+1. **Use structured logging**: Keyword arguments, not string interpolation
+2. **Add context**: Include IDs and relevant data in logs
+3. **Choose appropriate levels**: DEBUG for verbose, INFO for normal, ERROR for problems
+4. **Create spans for operations**: Helps visualize request flow
+5. **Don't log sensitive data**: Use scrubbing patterns
+6. **Log at boundaries**: Service entry/exit, external calls
+
+## Verification
+
+After configuration:
+
+1. Make some API requests
+2. Check Logfire dashboard (or console)
+3. Verify traces show expected spans
+4. Confirm sensitive data is scrubbed

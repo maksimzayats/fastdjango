@@ -1,153 +1,178 @@
 # Step 3: HTTP API & Admin
 
-In this step, you will create the HTTP API endpoints for the Todo feature using FastAPI and set up the Django admin interface.
+Expose the Todo service via REST API with JWT authentication.
 
-## Files Overview
+## What You'll Build
+
+- Pydantic request/response schemas
+- HTTP controller with CRUD endpoints
+- JWT authentication for protected routes
+- Django admin registration
+
+## Files to Create/Modify
 
 | Action | File Path |
 |--------|-----------|
-| Create | `src/delivery/http/todo/__init__.py` |
-| Create | `src/delivery/http/todo/controllers.py` |
-| Create | `src/delivery/http/todo/admin.py` |
-| Modify | `src/ioc/registries/delivery.py` |
+| Create | `src/delivery/http/controllers/todo/__init__.py` |
+| Create | `src/delivery/http/controllers/todo/schemas.py` |
+| Create | `src/delivery/http/controllers/todo/controllers.py` |
+| Create | `src/core/todo/admin.py` |
 | Modify | `src/delivery/http/factories.py` |
 
-## Step 3.1: Create the Directory Structure
+## Concept Reference
+
+> **See also:** [Controller Pattern concept](../concepts/controller-pattern.md) for details on the controller architecture.
+
+## Step 1: Create the Directory Structure
 
 ```bash
-mkdir -p src/delivery/http/todo
-touch src/delivery/http/todo/__init__.py
+mkdir -p src/delivery/http/controllers/todo
+touch src/delivery/http/controllers/todo/__init__.py
 ```
 
-## Step 3.2: Create Pydantic Schemas and Controller
+## Step 2: Define Pydantic Schemas
 
-Create the controller with request/response schemas in `src/delivery/http/todo/controllers.py`.
+Create request and response schemas in `src/delivery/http/controllers/todo/schemas.py`:
 
-!!! info "Sync Handlers"
-    All handler methods should be **synchronous** (not `async`). FastAPI automatically runs sync handlers in a thread pool using `anyio.to_thread.run_sync()`, which provides proper parallelism for Django's synchronous ORM. You can configure the thread pool size via the `ANYIO_THREAD_LIMITER_TOKENS` environment variable (default: 40 concurrent threads per worker). See `src/infrastructure/anyio/configurator.py` for details.
-
-```python title="src/delivery/http/todo/controllers.py"
-from dataclasses import dataclass, field
+```python
+# src/delivery/http/controllers/todo/schemas.py
 from datetime import datetime
-from http import HTTPStatus
+
+from pydantic import BaseModel, Field
+
+
+class CreateTodoRequestSchema(BaseModel):
+    """Request schema for creating a todo."""
+
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str = Field(default="", max_length=1000)
+
+
+class UpdateTodoRequestSchema(BaseModel):
+    """Request schema for updating a todo."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
+    completed: bool | None = None
+
+
+class TodoSchema(BaseModel):
+    """Response schema for a todo item."""
+
+    id: int
+    title: str
+    description: str
+    completed: bool
+    created_at: datetime
+    updated_at: datetime
+    user_id: int
+
+
+class TodoListSchema(BaseModel):
+    """Response schema for a list of todos."""
+
+    todos: list[TodoSchema]
+    count: int
+```
+
+Key points:
+
+- **Validation**: Field constraints ensure data integrity
+- **Separation**: Request schemas differ from response schemas
+- **Type safety**: All fields have explicit types
+
+## Step 3: Create the Controller
+
+Create `src/delivery/http/controllers/todo/controllers.py`:
+
+```python
+# src/delivery/http/controllers/todo/controllers.py
+from dataclasses import dataclass
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from core.todo.services import (
     TodoAccessDeniedError,
     TodoNotFoundError,
     TodoService,
 )
-from infrastructure.delivery.controllers import Controller
-from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from delivery.http.auth.jwt import (
+    AuthenticatedRequest,
+    JWTAuthFactory,
+)
+from delivery.http.controllers.todo.schemas import (
+    CreateTodoRequestSchema,
+    TodoListSchema,
+    TodoSchema,
+    UpdateTodoRequestSchema,
+)
+from infrastructure.delivery.controllers import TransactionController
 
 
-# ============================================================================
-# Request Schemas
-# ============================================================================
+@dataclass(kw_only=True)
+class TodoController(TransactionController):
+    """HTTP controller for todo operations."""
 
-
-class CreateTodoRequestSchema(BaseModel):
-    """Schema for creating a new todo item."""
-
-    title: str
-    description: str = ""
-
-
-# ============================================================================
-# Response Schemas
-# ============================================================================
-
-
-class TodoSchema(BaseModel):
-    """Schema for a single todo item."""
-
-    id: int
-    title: str
-    description: str
-    is_completed: bool
-    created_at: datetime
-    completed_at: datetime | None
-
-
-class TodoListSchema(BaseModel):
-    """Schema for a list of todo items."""
-
-    items: list[TodoSchema]
-    count: int
-
-
-# ============================================================================
-# Controller
-# ============================================================================
-
-
-@dataclass
-class TodoController(Controller):
-    """HTTP controller for todo operations.
-
-    All endpoints require JWT authentication. The controller uses the
-    TodoService for all data operations and never accesses models directly.
-    """
-
-    _jwt_auth_factory: JWTAuthFactory
     _todo_service: TodoService
-    _jwt_auth: JWTAuth = field(init=False)
+    _jwt_auth_factory: JWTAuthFactory
 
     def __post_init__(self) -> None:
+        # Create JWT auth dependency
         self._jwt_auth = self._jwt_auth_factory()
+        # Call parent to wrap methods with exception handling
+        super().__post_init__()
 
     def register(self, registry: APIRouter) -> None:
-        """Register all todo endpoints with the router."""
+        """Register routes with the API router."""
         registry.add_api_route(
-            path="/v1/todos/",
-            methods=["GET"],
+            path="/v1/todos",
             endpoint=self.list_todos,
+            methods=["GET"],
             response_model=TodoListSchema,
             dependencies=[Depends(self._jwt_auth)],
         )
-
         registry.add_api_route(
-            path="/v1/todos/",
-            methods=["POST"],
+            path="/v1/todos",
             endpoint=self.create_todo,
-            response_model=TodoSchema,
-            dependencies=[Depends(self._jwt_auth)],
-        )
-
-        registry.add_api_route(
-            path="/v1/todos/{todo_id}",
-            methods=["GET"],
-            endpoint=self.get_todo,
-            response_model=TodoSchema,
-            dependencies=[Depends(self._jwt_auth)],
-        )
-
-        registry.add_api_route(
-            path="/v1/todos/{todo_id}/complete",
             methods=["POST"],
-            endpoint=self.complete_todo,
+            response_model=TodoSchema,
+            status_code=status.HTTP_201_CREATED,
+            dependencies=[Depends(self._jwt_auth)],
+        )
+        registry.add_api_route(
+            path="/v1/todos/{todo_id}",
+            endpoint=self.get_todo,
+            methods=["GET"],
             response_model=TodoSchema,
             dependencies=[Depends(self._jwt_auth)],
         )
-
         registry.add_api_route(
             path="/v1/todos/{todo_id}",
-            methods=["DELETE"],
+            endpoint=self.update_todo,
+            methods=["PATCH"],
+            response_model=TodoSchema,
+            dependencies=[Depends(self._jwt_auth)],
+        )
+        registry.add_api_route(
+            path="/v1/todos/{todo_id}",
             endpoint=self.delete_todo,
+            methods=["DELETE"],
+            status_code=status.HTTP_204_NO_CONTENT,
             dependencies=[Depends(self._jwt_auth)],
         )
 
     def list_todos(
         self,
         request: AuthenticatedRequest,
+        completed: bool | None = Query(default=None),
     ) -> TodoListSchema:
         """List all todos for the authenticated user."""
-        todos = self._todo_service.list_todos_for_user(user=request.state.user)
+        user = request.state.user
+        todos = self._todo_service.list_todos_for_user(user, completed=completed)
+
         return TodoListSchema(
-            items=[
+            todos=[
                 TodoSchema.model_validate(todo, from_attributes=True)
                 for todo in todos
             ],
@@ -159,12 +184,14 @@ class TodoController(Controller):
         request: AuthenticatedRequest,
         body: CreateTodoRequestSchema,
     ) -> TodoSchema:
-        """Create a new todo for the authenticated user."""
+        """Create a new todo."""
+        user = request.state.user
         todo = self._todo_service.create_todo(
+            user,
             title=body.title,
             description=body.description,
-            user=request.state.user,
         )
+
         return TodoSchema.model_validate(todo, from_attributes=True)
 
     def get_todo(
@@ -173,22 +200,28 @@ class TodoController(Controller):
         todo_id: int,
     ) -> TodoSchema:
         """Get a specific todo by ID."""
-        todo = self._todo_service.get_todo_by_id(
-            todo_id=todo_id,
-            user=request.state.user,
-        )
+        user = request.state.user
+        todo = self._todo_service.get_todo_by_id(todo_id, user)
+
         return TodoSchema.model_validate(todo, from_attributes=True)
 
-    def complete_todo(
+    def update_todo(
         self,
         request: AuthenticatedRequest,
         todo_id: int,
+        body: UpdateTodoRequestSchema,
     ) -> TodoSchema:
-        """Mark a todo as completed."""
-        todo = self._todo_service.complete_todo(
-            todo_id=todo_id,
-            user=request.state.user,
+        """Update a todo."""
+        user = request.state.user
+
+        todo = self._todo_service.update_todo(
+            todo_id,
+            user,
+            title=body.title,
+            description=body.description,
+            completed=body.completed,
         )
+
         return TodoSchema.model_validate(todo, from_attributes=True)
 
     def delete_todo(
@@ -197,337 +230,182 @@ class TodoController(Controller):
         todo_id: int,
     ) -> None:
         """Delete a todo."""
-        self._todo_service.delete_todo(
-            todo_id=todo_id,
-            user=request.state.user,
-        )
+        user = request.state.user
+        self._todo_service.delete_todo(todo_id, user)
 
     def handle_exception(self, exception: Exception) -> Any:
-        """Convert domain exceptions to HTTP errors."""
+        """Map domain exceptions to HTTP responses."""
         if isinstance(exception, TodoNotFoundError):
             raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND,
-                detail=f"Todo with id {exception.todo_id} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(exception),
             ) from exception
 
         if isinstance(exception, TodoAccessDeniedError):
             raise HTTPException(
-                status_code=HTTPStatus.FORBIDDEN,
-                detail="You do not have permission to access this todo",
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=str(exception),
             ) from exception
 
         return super().handle_exception(exception)
 ```
 
-### Controller Anatomy
+## Key Controller Patterns
 
-Let's break down the key parts of the controller:
+### TransactionController
 
-#### Dataclass with Dependency Injection
+Extending `TransactionController` provides:
 
-```python
-@dataclass
-class TodoController(Controller):
-    _jwt_auth_factory: JWTAuthFactory
-    _todo_service: TodoService
-    _jwt_auth: JWTAuth = field(init=False)
+- **Automatic transaction wrapping**: Database operations run in atomic transactions
+- **Exception handling**: Public methods are wrapped with `handle_exception`
+- **Logfire tracing**: Spans are created for each method call
 
-    def __post_init__(self) -> None:
-        self._jwt_auth = self._jwt_auth_factory()
-```
+### JWT Authentication
 
-The container automatically injects dependencies when creating the controller. Using `@dataclass` with `field(init=False)` allows us to create the JWT auth instance after injection.
-
-#### Route Registration
+The `JWTAuthFactory` creates authentication dependencies:
 
 ```python
-def register(self, registry: APIRouter) -> None:
-    registry.add_api_route(
-        path="/v1/todos/",
-        methods=["GET"],
-        endpoint=self.list_todos,
-        response_model=TodoListSchema,
-        dependencies=[Depends(self._jwt_auth)],
-    )
+# Basic auth - any authenticated user
+self._jwt_auth = self._jwt_auth_factory()
+
+# Staff only
+self._staff_auth = self._jwt_auth_factory(require_staff=True)
+
+# Superuser only
+self._superuser_auth = self._jwt_auth_factory(require_superuser=True)
 ```
 
-Each endpoint specifies:
+### AuthenticatedRequest
 
-- **path**: The URL path
-- **methods**: HTTP methods (GET, POST, etc.)
-- **endpoint**: The handler method
-- **response_model**: The Pydantic schema for the response (for API documentation)
-- **dependencies**: FastAPI dependencies including authentication
+The `AuthenticatedRequest` type provides access to:
 
-#### Sync Handler Methods
+- `request.state.user` - The authenticated `User` instance
+- `request.state.jwt_payload` - The decoded JWT claims
+
+### Exception Mapping
+
+Override `handle_exception` to map domain exceptions to HTTP responses:
+
+| Domain Exception | HTTP Status |
+|------------------|-------------|
+| `TodoNotFoundError` | 404 Not Found |
+| `TodoAccessDeniedError` | 403 Forbidden |
+
+## Step 4: Register the Controller
+
+Modify `src/delivery/http/factories.py` to include the TodoController:
 
 ```python
-def list_todos(
-    self,
-    request: AuthenticatedRequest,  # User available via request.state.user
-) -> TodoListSchema:
-    """Sync handler - FastAPI runs in thread pool automatically."""
-    todos = self._todo_service.list_todos_for_user(user=request.state.user)
-    return TodoListSchema(...)
+# src/delivery/http/factories.py
+# Add this import at the top
+from delivery.http.controllers.todo.controllers import TodoController
+
+
+@dataclass(kw_only=True)
+class FastAPIFactory:
+    # ... existing controller fields ...
+    _todo_controller: TodoController  # Add this field
+
+    def _register_controllers(self, app: FastAPI) -> None:
+        # ... existing controller registrations ...
+
+        # Register TodoController
+        todo_router = APIRouter(tags=["todo"])
+        self._todo_controller.register(todo_router)
+        app.include_router(todo_router)
 ```
 
-Use `AuthenticatedRequest` for endpoints that require authentication. The authenticated user is available via `request.state.user`.
+The controller is declared as a dataclass field and auto-resolved by the IoC container when `FastAPIFactory` is instantiated.
 
-!!! warning "Why Sync Handlers?"
-    Django's ORM is synchronous. Using `async def` handlers with sync service calls blocks the event loop. FastAPI automatically runs sync handlers in `anyio.to_thread.run_sync()`, providing proper parallelism.
+## Step 5: Register with Django Admin
 
-    **Thread pool configuration:** Set `ANYIO_THREAD_LIMITER_TOKENS` environment variable to control concurrent threads per worker (default: 40). See `src/infrastructure/anyio/configurator.py`.
-
-!!! tip "Async Handlers (Advanced)"
-    If you need async handlers (e.g., for external async HTTP clients), use `asgiref.sync_to_async` to call services:
-
-    ```python
-    from asgiref.sync import sync_to_async
-
-    async def list_todos_async(self, request: AuthenticatedRequest) -> TodoListSchema:
-        # thread_sensitive=False for read-only operations
-        todos = await sync_to_async(
-            self._todo_service.list_todos_for_user,
-            thread_sensitive=False,  # Read-only: can run in any thread
-        )(user=user)
-        return TodoListSchema(...)
-
-    async def create_todo_async(self, request: AuthenticatedRequest, body: CreateTodoRequestSchema) -> TodoSchema:
-        # thread_sensitive=True for write operations (default)
-        todo = await sync_to_async(
-            self._todo_service.create_todo,
-            thread_sensitive=True,  # Write: must run in same thread for transaction safety
-        )(title=body.title, description=body.description, user=user)
-        return TodoSchema.model_validate(todo, from_attributes=True)
-    ```
-
-#### Exception Handling
+Create `src/core/todo/admin.py`:
 
 ```python
-def handle_exception(self, exception: Exception) -> Any:
-    if isinstance(exception, TodoNotFoundError):
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail=f"Todo with id {exception.todo_id} not found",
-        ) from exception
-    # ...
-    return super().handle_exception(exception)
-```
-
-The `handle_exception` method catches domain exceptions and converts them to HTTP exceptions. Always call `super().handle_exception(exception)` for unhandled exceptions.
-
-!!! info "Automatic Exception Wrapping"
-    The `Controller` base class automatically wraps all handler methods with exception handling. You don't need to add try/except blocks in your handlers.
-
-## Step 3.3: Create the Admin Interface
-
-Create the Django admin configuration in `src/delivery/http/todo/admin.py`:
-
-```python title="src/delivery/http/todo/admin.py"
+# src/core/todo/admin.py
 from django.contrib import admin
 
 from core.todo.models import Todo
 
 
 @admin.register(Todo)
-class TodoAdmin(admin.ModelAdmin[Todo]):
-    """Admin interface for Todo model."""
+class TodoAdmin(admin.ModelAdmin):
+    list_display = ["title", "user", "completed", "created_at", "updated_at"]
+    list_filter = ["completed", "created_at"]
+    search_fields = ["title", "description", "user__username"]
+    ordering = ["-created_at"]
+    readonly_fields = ["created_at", "updated_at"]
 
-    list_display = (
-        "id",
-        "title",
-        "user",
-        "is_completed",
-        "created_at",
-        "completed_at",
-    )
-
-    list_filter = (
-        "is_completed",
-        "created_at",
-    )
-
-    search_fields = (
-        "title",
-        "description",
-        "user__username",
-    )
-
-    readonly_fields = (
-        "created_at",
-        "completed_at",
-    )
-
-    raw_id_fields = ("user",)
+    fieldsets = [
+        (None, {"fields": ["title", "description", "completed", "user"]}),
+        ("Timestamps", {"fields": ["created_at", "updated_at"]}),
+    ]
 ```
 
-!!! note "Admin and Models"
-    Django admin is one of the acceptable places to import models directly, as documented in `CLAUDE.md`. The admin requires direct model access for its functionality.
+## Verification
 
-## Step 3.4: Register the Controller in IoC
+### Test the API
 
-Add the controller registration in `src/ioc/registries/delivery.py`.
-
-First, add the import:
-
-```python title="src/ioc/registries/delivery.py" hl_lines="4"
-from delivery.http.factories import AdminSiteFactory, FastAPIFactory, URLPatternsFactory
-from delivery.http.health.controllers import HealthController
-from delivery.http.user.controllers import UserController, UserTokenController
-from delivery.http.todo.controllers import TodoController  # Add this import
-```
-
-Then add the registration in `_register_http_controllers`:
-
-```python title="src/ioc/registries/delivery.py" hl_lines="5"
-def _register_http_controllers(container: Container) -> None:
-    container.register(HealthController, scope=Scope.singleton)
-    container.register(UserController, scope=Scope.singleton)
-    container.register(UserTokenController, scope=Scope.singleton)
-    container.register(TodoController, scope=Scope.singleton)  # Add this line
-```
-
-## Step 3.5: Update the API Factory
-
-Modify `src/delivery/http/factories.py` to include the todo controller.
-
-First, add the import:
-
-```python title="src/delivery/http/factories.py" hl_lines="4"
-from delivery.http.health.controllers import HealthController
-from delivery.http.user.controllers import UserController, UserTokenController
-from delivery.http.todo.controllers import TodoController  # Add this import
-```
-
-Then update the `FastAPIFactory` class:
-
-```python title="src/delivery/http/factories.py" hl_lines="8 14 30-31"
-@dataclass
-class FastAPIFactory:
-    _settings: ApplicationSettings
-    _health_controller: HealthController
-    _user_token_controller: UserTokenController
-    _user_controller: UserController
-    _todo_controller: TodoController  # Add this field
-
-    def __call__(self) -> FastAPI:
-        app = FastAPI(
-            title="Fast Django API",
-            debug=self._settings.debug,
-        )
-
-        router = APIRouter()
-
-        # Register controllers
-        self._health_controller.register(registry=router)
-        self._user_controller.register(registry=router)
-        self._user_token_controller.register(registry=router)
-        self._todo_controller.register(registry=router)  # Register todo controller
-
-        app.include_router(router)
-
-        return app
-```
-
-!!! note "Simplified Example"
-    This example is simplified for clarity. The production implementation in `src/delivery/http/factories.py` includes additional configuration for middleware, CORS, telemetry, and lifespan management.
-
-Finally, update the `AdminSiteFactory` to import the todo admin:
-
-```python title="src/delivery/http/factories.py" hl_lines="4"
-class AdminSiteFactory:
-    def __call__(self) -> AdminSite:
-        from delivery.http.user import admin as _user_admin  # noqa: F401, PLC0415
-        from delivery.http.todo import admin as _todo_admin  # noqa: F401, PLC0415
-
-        return default_site
-```
-
-## Step 3.6: Test the API
-
-Start the development server:
+1. Start the development server:
 
 ```bash
 make dev
 ```
 
-### API Documentation
+2. Open the API docs at http://localhost:8000/docs
 
-Visit http://localhost:8000/api/docs to see the Swagger UI with your new endpoints:
-
-- `GET /api/v1/todos/` - List all todos
-- `POST /api/v1/todos/` - Create a new todo
-- `GET /api/v1/todos/{todo_id}` - Get a specific todo
-- `POST /api/v1/todos/{todo_id}/complete` - Mark a todo as complete
-- `DELETE /api/v1/todos/{todo_id}` - Delete a todo
-
-### Test with curl
-
-First, create a user and get a token:
+3. First, create a user and get a token:
 
 ```bash
-# Create a user
-curl -X POST http://localhost:8000/api/v1/users/ \
+# Create user
+curl -X POST http://localhost:8000/v1/users/ \
   -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "email": "test@example.com",
-    "first_name": "Test",
-    "last_name": "User",
-    "password": "SecurePass123!"
-  }'
+  -d '{"username": "testuser", "email": "test@example.com", "password": "SecurePass123!"}'
 
-# Get an access token
-curl -X POST http://localhost:8000/api/v1/users/me/token \
+# Get token
+curl -X POST http://localhost:8000/v1/users/me/token \
   -H "Content-Type: application/json" \
   -d '{"username": "testuser", "password": "SecurePass123!"}'
 ```
 
-Save the `access_token` from the response, then test the todo endpoints:
+4. Use the token to create a todo:
 
 ```bash
-# Set your token
-TOKEN="your_access_token_here"
-
-# Create a todo
-curl -X POST http://localhost:8000/api/v1/todos/ \
+curl -X POST http://localhost:8000/v1/todos \
+  -H "Authorization: Bearer <your-access-token>" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"title": "Learn FastAPI", "description": "Complete the tutorial"}'
-
-# List todos
-curl -X GET http://localhost:8000/api/v1/todos/ \
-  -H "Authorization: Bearer $TOKEN"
-
-# Complete a todo (replace 1 with actual todo ID)
-curl -X POST http://localhost:8000/api/v1/todos/1/complete \
-  -H "Authorization: Bearer $TOKEN"
+  -d '{"title": "Learn Fast Django", "description": "Complete the tutorial"}'
 ```
 
-### Django Admin
-
-Visit http://localhost:8000/admin/ to manage todos through the admin interface. You'll need to create a superuser first:
+5. List todos:
 
 ```bash
-python src/manage.py createsuperuser
+curl http://localhost:8000/v1/todos \
+  -H "Authorization: Bearer <your-access-token>"
 ```
 
-## What's Next
+### Test Django Admin
 
-You have created a complete HTTP API for the Todo feature:
+1. Create a superuser:
 
-- [x] Pydantic schemas for request/response validation
-- [x] Controller with CRUD endpoints
-- [x] JWT authentication on all endpoints
-- [x] Exception handling
-- [x] Django admin interface
-- [x] IoC registration
+```bash
+uv run python src/manage.py createsuperuser
+```
 
-In the next step, you will create a Celery task to clean up old completed todos.
+2. Visit http://localhost:8000/django/admin/
 
-[Continue to Step 4: Celery Tasks](04-celery-tasks.md){ .md-button .md-button--primary }
+3. Log in and navigate to Todo admin
 
----
+## Summary
 
-!!! abstract "See Also"
-    - [Controller Pattern](../concepts/controller-pattern.md) - Deep dive into the controller pattern
+You've created:
+
+- Pydantic schemas for request/response validation
+- HTTP controller with CRUD endpoints
+- JWT authentication on all routes
+- Domain exception to HTTP status mapping
+- Django admin for management UI
+
+## Next Step
+
+In [Step 4: Celery Tasks](04-celery-tasks.md), you'll add background task processing to clean up completed todos.

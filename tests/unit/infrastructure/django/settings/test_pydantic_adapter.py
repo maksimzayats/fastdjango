@@ -1,7 +1,7 @@
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from infrastructure.django.settings.pydantic_adapter import PydanticSettingsAdapter
+from infrastructure.frameworks.django.settings.pydantic_adapter import PydanticSettingsAdapter
 
 
 def test_adapt_settings() -> None:

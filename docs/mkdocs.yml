@@ -1,6 +1,6 @@
 site_name: Fast Django
-site_url: https://template.zayats.dev
-site_description: Production-ready Django, FastAPI, and Celery application with dependency injection
+site_url: https://fastdjango.zayats.dev
+site_description: Production-ready FastAPI, Django, and Celery application with dependency injection
 repo_url: https://github.com/MaksimZayats/fastdjango
 repo_name: MaksimZayats/fastdjango
 
@@ -76,7 +76,7 @@ nav:
     - tutorial/index.md
     - "Step 1: Model & Service": tutorial/01-model-and-service.md
     - "Step 2: IoC Registration": tutorial/02-ioc-registration.md
-    - "Step 3: HTTP API & Admin": tutorial/03-http-api.md
+    - "Step 3: HTTP API": tutorial/03-http-api.md
     - "Step 4: Celery Tasks": tutorial/04-celery-tasks.md
     - "Step 5: Observability": tutorial/05-observability.md
     - "Step 6: Testing": tutorial/06-testing.md

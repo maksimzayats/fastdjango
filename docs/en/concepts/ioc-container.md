@@ -1,86 +1,114 @@
 # IoC Container
 
-Inversion of Control (IoC) is a design principle where the control of object creation is inverted from the component that needs the dependency to an external container. This template uses **punq**, a lightweight dependency injection container for Python, enhanced with **auto-registration** capabilities.
+The Inversion of Control (IoC) container manages dependency injection, automatically wiring components together.
 
 ## What is Dependency Injection?
 
-Dependency Injection (DI) is a technique where an object receives its dependencies from an external source rather than creating them itself.
-
-### Without DI (Tight Coupling)
+Without DI, components create their own dependencies:
 
 ```python
+# ❌ Without DI - hard to test, tightly coupled
 class UserController:
-    def __init__(self) -> None:
-        # Controller creates its own dependencies
-        self._user_service = UserService()  # Hard to test, hard to replace
+    def __init__(self):
+        self._user_service = UserService()  # Creates its own dependency
+        self._jwt_service = JWTService()
 ```
 
-### With DI (Loose Coupling)
+With DI, dependencies are provided externally:
 
 ```python
+# ✅ With DI - testable, loosely coupled
 class UserController:
-    def __init__(self, user_service: UserService) -> None:
-        # Dependencies are provided from outside
-        self._user_service = user_service  # Easy to test, easy to replace
+    def __init__(self, user_service: UserService, jwt_service: JWTService):
+        self._user_service = user_service
+        self._jwt_service = jwt_service
 ```
 
-The IoC container automates this process by:
+The IoC container is the "external provider" that creates and connects components.
 
-1. Reading type annotations from `__init__` signatures
-2. Resolving dependencies automatically
-3. Managing object lifecycles
+## The punq Container
 
-## Auto-Registration
+This project uses [punq](https://github.com/bobthemighty/punq), a lightweight Python DI container.
 
-The key feature of this template's IoC implementation is **auto-registration**. Instead of explicitly registering every service, the `AutoRegisteringContainer` automatically registers services when they're first resolved.
+Basic usage:
+
+```python
+from punq import Container
+
+container = Container()
+container.register(UserService)  # Register service
+service = container.resolve(UserService)  # Get instance
+```
+
+## AutoRegisteringContainer
+
+The project extends punq with `AutoRegisteringContainer` that automatically registers services when resolved:
+
+```python
+# No explicit registration needed!
+container = AutoRegisteringContainer()
+service = container.resolve(UserService)  # Auto-registered and returned
+```
 
 ### How It Works
 
-```python
-from ioc.container import ContainerFactory
+When you resolve a type that isn't registered:
 
-# Create container via factory
-container = ContainerFactory()()
-
-# No explicit registration needed - just resolve
-user_service = container.resolve(UserService)  # Auto-registered as singleton
-```
-
-When you resolve a type that hasn't been registered:
-
-1. The container inspects the class's `__init__` type annotations
-2. If it's a Pydantic `BaseSettings` subclass, it's registered with a factory (loads from env vars)
-3. Otherwise, it's registered as a singleton
-4. Dependencies are recursively auto-registered
-
-### Pydantic Settings Auto-Detection
-
-Settings classes are automatically detected and handled specially:
-
-```python
-# Pydantic Settings are auto-registered with factory pattern
-jwt_settings = container.resolve(JWTServiceSettings)  # Loads from environment
-
-# Equivalent to manually doing:
-# container.register(JWTServiceSettings, factory=lambda: JWTServiceSettings())
-```
-
-## Container Organization
-
-The container setup is minimal due to auto-registration:
+1. **Inspect `__init__`**: Check type annotations for dependencies
+2. **Resolve dependencies**: Recursively resolve each dependency
+3. **Register**: Add the type as a singleton
+4. **Return instance**: Create and return the instance
 
 ```
-ioc/
-├── container.py      # ContainerFactory and configuration
-└── registries.py     # Explicit registrations (special cases only)
+container.resolve(UserController)
+         │
+         ▼
+┌─────────────────────────────────────┐
+│ UserController not registered       │
+│ Check __init__ type annotations:    │
+│   - user_service: UserService       │
+│   - jwt_service: JWTService         │
+└─────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│ Resolve UserService (recursively)   │
+│ Resolve JWTService (recursively)    │
+└─────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│ Register UserController as          │
+│ singleton with resolved deps        │
+└─────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│ Return UserController instance      │
+└─────────────────────────────────────┘
 ```
 
-### ContainerFactory
+### Pydantic Settings Detection
 
-The `ContainerFactory` creates and configures the container:
+The container detects `BaseSettings` subclasses and registers them with a factory:
 
 ```python
-# ioc/container.py
+class JWTServiceSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="JWT_")
+    secret_key: str
+    algorithm: str = "HS256"
+
+# Auto-registered with factory: lambda: JWTServiceSettings()
+settings = container.resolve(JWTServiceSettings)
+# settings.secret_key is loaded from JWT_SECRET_KEY env var
+```
+
+## Container Factory
+
+The `ContainerFactory` creates configured containers:
+
+```python
+# src/ioc/container.py
 class ContainerFactory:
     def __call__(
         self,
@@ -91,6 +119,7 @@ class ContainerFactory:
     ) -> AutoRegisteringContainer:
         container = AutoRegisteringContainer()
 
+        # It's required to configure Django before any registrations due to model imports
         if configure_django:
             self._configure_django(container)
 
@@ -103,281 +132,200 @@ class ContainerFactory:
         self._register(container)
 
         return container
+
+    def _configure_django(self, container: AutoRegisteringContainer) -> None:
+        configurator = container.resolve(DjangoConfigurator)
+        configurator.configure(django_settings_module="configs.django")
+
+    def _configure_logging(self, container: AutoRegisteringContainer) -> None:
+        configurator = container.resolve(LoggingConfigurator)
+        configurator.configure()
+
+    def _instrument_libraries(self, container: AutoRegisteringContainer) -> None:
+        instrumentor = container.resolve(OpenTelemetryInstrumentor)
+        instrumentor.instrument_libraries()
+
+    def _register(self, container: AutoRegisteringContainer) -> None:
+        # Import registry functions here to avoid imports before setting up Django
+        from ioc.registries import Registry
+
+        registry = container.resolve(Registry)
+        registry.register(container)
 ```
 
-### Explicit Registry (Special Cases Only)
-
-Only protocol/interface mappings need explicit registration:
+Usage:
 
 ```python
-# ioc/registries.py
+container_factory = ContainerFactory()
+container = container_factory()  # Fully configured container
+```
+
+!!! note "Auto-resolved configurators"
+    Notice that configurators like `DjangoConfigurator` and `LoggingConfigurator` are resolved from the container. This ensures their dependencies (like settings classes) are properly injected.
+
+## Explicit Registration
+
+Most services don't need explicit registration. However, some cases require it:
+
+### String-Based Keys
+
+When resolving by string instead of type:
+
+```python
+# src/ioc/registries.py
+from punq import Container, Scope
+
+from delivery.http.factories import FastAPIFactory
+
+
 class Registry:
     def register(self, container: Container) -> None:
-        # Map protocols to concrete implementations
+        # Using string-based registration to avoid loading django-related code too early
         container.register(
-            ApplicationSettingsProtocol,
-            factory=lambda: container.resolve(ApplicationSettings),
+            "FastAPIFactory",
+            factory=lambda: container.resolve(FastAPIFactory),
             scope=Scope.singleton,
         )
 ```
 
-!!! note "When to Use Explicit Registration"
-    Explicit registration is only needed for:
-
-    - Protocol → concrete type mappings
-    - Named registrations (string keys)
-    - Special factory logic beyond Pydantic Settings
-
-## AutoRegisteringContainer
-
-The `AutoRegisteringContainer` extends punq's `Container` with auto-registration:
+Usage:
 
 ```python
-# infrastructure/punq/container.py
-class AutoRegisteringContainer(Container):
-    def __init__(
-        self,
-        settings_scope: Scope = Scope.singleton,
-        default_scope: Scope = Scope.singleton,
-    ) -> None:
-        super().__init__()
-        self._settings_scope = settings_scope
-        self._default_scope = default_scope
-
-    def resolve(self, service_key: type[T], **kwargs: Any) -> T:
-        self._register_if_missing(service_key)
-        return super().resolve(service_key, **kwargs)
-
-    def _register_if_missing(self, service_key: Any) -> None:
-        if self.registrations[service_key]:
-            return  # Already registered
-
-        if issubclass(service_key, BaseSettings):
-            # Pydantic Settings: use factory pattern
-            self.register(service_key, factory=lambda: service_key(), scope=self._settings_scope)
-        else:
-            # Regular class: auto-register as singleton
-            self.register(service_key, scope=self._default_scope)
-
-        # Recursively register dependencies
-        for param_type in get_annotations(service_key.__init__).values():
-            self._register_if_missing(param_type)
+factory = container.resolve("FastAPIFactory")
 ```
 
-## Scopes
+### Protocol Mappings (Example Pattern)
 
-### Singleton Scope (Default)
-
-The same instance is returned for all resolutions:
+When an interface should resolve to a concrete implementation:
 
 ```python
-# Both calls return the same instance
-service1 = container.resolve(UserService)
-service2 = container.resolve(UserService)
-assert service1 is service2  # True
-```
-
-!!! tip "When to Use Singleton"
-    Use singleton for:
-
-    - Stateless services
-    - Settings objects
-    - Connection pools
-    - Factories (they manage their own caching)
-
-### Transient Scope
-
-A new instance is created for each resolution:
-
-```python
-container.register(SomeService, scope=Scope.transient)
-
-service1 = container.resolve(SomeService)
-service2 = container.resolve(SomeService)
-assert service1 is service2  # False - different instances
-```
-
-!!! tip "When to Use Transient"
-    Use transient for:
-
-    - Request-scoped objects
-    - Objects with mutable state
-    - Objects that should not be shared
-
-## Resolution
-
-### Basic Resolution
-
-```python
-from ioc.container import ContainerFactory
-
-container = ContainerFactory()()
-user_service = container.resolve(UserService)
-```
-
-### Automatic Dependency Graph Resolution
-
-The container resolves the entire dependency graph:
-
-```python
-# When resolving UserController, the container:
-# 1. Sees UserController needs JWTAuthFactory and UserService
-# 2. Auto-registers and resolves JWTAuthFactory (which needs JWTService -> JWTServiceSettings)
-# 3. Auto-registers and resolves UserService
-# 4. Creates UserController with all dependencies
-
-controller = container.resolve(UserController)
-```
-
-```
-UserController
-    │
-    ├── JWTAuthFactory
-    │       │
-    │       └── JWTService
-    │               │
-    │               └── JWTServiceSettings (from env vars)
-    │
-    └── UserService
-```
-
-## Benefits
-
-### 1. Minimal Boilerplate
-
-No need to register every service explicitly:
-
-```python
-# Old approach (explicit registration)
-container.register(HealthService, scope=Scope.singleton)
-container.register(UserService, scope=Scope.singleton)
-container.register(ItemService, scope=Scope.singleton)
-# ... and so on for every service
-
-# New approach (auto-registration)
-# Just resolve - no registration needed
-health_service = container.resolve(HealthService)
-```
-
-### 2. Loose Coupling
-
-Components depend on protocols/abstractions rather than concrete implementations when needed:
-
-```python
-class LogfireConfigurator:
-    def __init__(
-        self,
-        application_settings: ApplicationSettingsProtocol,  # Protocol
-        logfire_settings: LogfireSettings,
-    ) -> None:
-        ...
-```
-
-### 3. Testability
-
-Any component can be replaced in tests:
-
-```python
-def test_with_mock_service(container: Container) -> None:
-    mock_service = MagicMock()
-    container.register(UserService, instance=mock_service)
-
-    # All components that depend on UserService now use the mock
-    controller = container.resolve(UserController)
-```
-
-### 4. Configuration Flexibility
-
-Different configurations for different environments:
-
-```python
-# Production: auto-registration loads from env vars
-container = ContainerFactory()()
-
-# Testing: override with test values
-container.register(
-    JWTServiceSettings,
-    instance=JWTServiceSettings(
-        secret_key=SecretStr("test-secret"),
-        algorithm="HS256",
-    ),
-)
-```
-
-### 5. Explicit Dependencies
-
-All dependencies are visible in the `__init__` signature:
-
-```python
-class UserTokenController(Controller):
-    def __init__(
-        self,
-        jwt_auth_factory: JWTAuthFactory,
-        jwt_service: JWTService,
-        refresh_token_service: RefreshSessionService,
-        user_service: UserService,
-    ) -> None:
-        # All dependencies are explicit and documented
-```
-
-## Common Patterns
-
-### Adding a New Service
-
-With auto-registration, just create the service - no registration needed:
-
-```python
-# 1. Create the service in core/
-# core/item/services.py
-class ItemService:
-    def list_items(self) -> list[Item]:
-        return list(Item.objects.all())
-
-# 2. Use it - auto-registered when first resolved
-item_service = container.resolve(ItemService)
-```
-
-### Adding a New Controller
-
-Controllers are also auto-registered:
-
-```python
-# delivery/http/item/controllers.py
-@dataclass
-class ItemController(Controller):
-    _item_service: ItemService  # Auto-injected
-
-    def register(self, registry: APIRouter) -> None:
-        registry.add_api_route(
-            path="/v1/items",
-            endpoint=self.list_items,
-            methods=["GET"],
+# Example - not in current codebase
+class Registry:
+    def register(self, container: Container) -> None:
+        container.register(
+            SettingsProtocol,
+            factory=lambda: container.resolve(ConcreteSettings),
+            scope=Scope.singleton,
         )
 ```
 
-### Mapping Protocols to Concrete Types
+!!! note
+    The current codebase only uses string-based registration for `FastAPIFactory`. Protocol mappings shown above are an example pattern you might use when abstracting interfaces.
 
-The only case requiring explicit registration:
+## Scopes
+
+The container supports different scopes:
+
+| Scope | Behavior |
+|-------|----------|
+| `singleton` | One instance per container (default) |
+| `transient` | New instance each time |
+
+Auto-registered services use singleton scope by default.
+
+## Singleton Behavior
+
+With singleton scope, resolving the same type returns the same instance:
 
 ```python
-# ioc/registries.py
-container.register(
-    ApplicationSettingsProtocol,  # Protocol type
-    factory=lambda: container.resolve(ApplicationSettings),  # Concrete implementation
-    scope=Scope.singleton,
-)
+service1 = container.resolve(UserService)
+service2 = container.resolve(UserService)
+assert service1 is service2  # Same instance
 ```
+
+This is important for stateful services and performance.
+
+## Testing with IoC
+
+### Per-Test Containers
+
+Each test gets a fresh container:
+
+```python
+@pytest.fixture(scope="function")
+def container() -> AutoRegisteringContainer:
+    return ContainerFactory()()
+```
+
+### Overriding Registrations
+
+Register mocks before resolving:
+
+```python
+def test_with_mock(container: AutoRegisteringContainer) -> None:
+    mock_service = MagicMock()
+    container.register(UserService, instance=mock_service)
+
+    controller = container.resolve(UserController)
+    # controller._user_service is the mock
+```
+
+### Test Factories
+
+Use container-based factories for test setup:
+
+```python
+class TestClientFactory(ContainerBasedFactory):
+    def __init__(self, container: AutoRegisteringContainer) -> None:
+        self._container = container
+
+    def __call__(self, auth_for_user: User | None = None) -> TestClient:
+        # Uses container to resolve dependencies
+        ...
+```
+
+## Best Practices
+
+### Do: Use Type Hints
+
+```python
+@dataclass(kw_only=True)
+class MyService:
+    _other_service: OtherService  # Resolved automatically
+```
+
+### Don't: Use `Any` or Missing Hints
+
+```python
+# ❌ Container can't resolve this
+def __init__(self, service: Any) -> None:
+    ...
+```
+
+### Do: Keep Dependencies Explicit
+
+```python
+# ✅ Clear dependencies in __init__
+@dataclass(kw_only=True)
+class OrderService:
+    _user_service: UserService
+    _payment_service: PaymentService
+```
+
+### Don't: Create Dependencies Internally
+
+```python
+# ❌ Defeats the purpose of DI
+def __init__(self) -> None:
+    self._service = UserService()
+```
+
+### Do: Use Dataclasses
+
+```python
+@dataclass(kw_only=True)
+class MyController(Controller):
+    _service: MyService
+```
+
+The `kw_only=True` ensures explicit naming when constructing.
 
 ## Summary
 
-The IoC container provides:
+The IoC container:
 
-| Feature | Benefit |
-|---------|---------|
-| Auto-registration | Zero boilerplate for most services |
-| Pydantic Settings detection | Automatic env var loading |
-| Scopes | Control over object lifecycles |
-| Test overrides | Easy mocking and stubbing |
-| Explicit dependencies | Self-documenting code |
-
-Understanding the IoC container is essential for extending this template. The auto-registration feature means you can focus on writing services and controllers without worrying about registration boilerplate.
+- **Auto-registers** services when resolved
+- **Detects** Pydantic settings and loads from environment
+- **Resolves** dependency graphs recursively
+- **Uses** singleton scope by default
+- **Enables** easy testing with overrides

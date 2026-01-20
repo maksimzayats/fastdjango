@@ -67,16 +67,18 @@ class Test<Model>Factory(ContainerBasedFactory):
 Add to `tests/integration/conftest.py`:
 
 ```python
-from infrastructure.punq.container import AutoRegisteringContainer
-from tests.integration.factories import Test<Model>Factory
+from infrastructure.frameworks.punq import AutoRegisteringContainer
+from tests.integration.factories import Test < Model > Factory
 
 
 @pytest.fixture(scope="function")
-def <model>_factory(
-    transactional_db: None,
-    container: AutoRegisteringContainer,
-) -> Test<Model>Factory:
-    return Test<Model>Factory(container=container)
+def <model > _factory(
+    transactional_db: None
+
+,
+container: AutoRegisteringContainer,
+) -> Test < Model > Factory:
+return Test < Model > Factory(container=container)
 ```
 
 ## HTTP API Test Patterns
@@ -262,23 +264,24 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from core.<domain>.services import <Domain>Service, <Domain>NotFoundError
-from infrastructure.punq.container import AutoRegisteringContainer
+from core. < domain >.services
+import < Domain > Service, < Domain > NotFoundError
+from infrastructure.frameworks.punq import AutoRegisteringContainer
 
 
 class TestWithMockedService:
     @pytest.mark.django_db(transaction=True)
     def test_handles_service_error(
-        self,
-        container: AutoRegisteringContainer,
-        user_factory: TestUserFactory,
+            self,
+            container: AutoRegisteringContainer,
+            user_factory: TestUserFactory,
     ) -> None:
         # Create mock
-        mock_service = MagicMock(spec=<Domain>Service)
-        mock_service.get_by_id.side_effect = <Domain>NotFoundError("Mocked error")
+        mock_service = MagicMock(spec= < Domain > Service)
+        mock_service.get_by_id.side_effect = < Domain > NotFoundError("Mocked error")
 
         # Override BEFORE creating test client
-        container.register(<Domain>Service, instance=mock_service)
+        container.register( < Domain > Service, instance = mock_service)
 
         # Now create client
         user = user_factory()

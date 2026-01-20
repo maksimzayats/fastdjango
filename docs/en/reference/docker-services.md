@@ -1,228 +1,318 @@
 # Docker Services
 
-The application uses Docker Compose for containerized deployment.
+Reference for container configuration and management.
 
-## Service Overview
+## Services Overview
 
-| Service | Image | Purpose | Ports |
-|---------|-------|---------|-------|
-| `api` | `base:local` | FastAPI HTTP API | 8009:8000 |
-| `celery-worker` | `base:local` | Background task processing | - |
-| `celery-beat` | `base:local` | Periodic task scheduler | - |
-| `migrations` | `base:local` | Database migrations (run-once) | - |
-| `collectstatic` | `base:local` | Static file collection (run-once) | - |
-| `postgres` | `postgres:18-alpine` | Primary database | 5432* |
-| `pgbouncer` | `edoburu/pgbouncer` | Connection pooling | - |
-| `redis` | `redis:latest` | Celery broker and cache | 6379* |
-| `minio` | `minio/minio` | S3-compatible storage | 9000, 9001 |
-| `minio-create-buckets` | `minio/mc` | Bucket initialization (run-once) | - |
+| Service | Image | Port | Purpose |
+|---------|-------|------|---------|
+| `postgres` | `postgres:17` | 5432 | Database |
+| `redis` | `redis:7` | 6379 | Cache, Celery broker |
+| `minio` | `minio/minio` | 9000, 9001 | Object storage (S3-compatible) |
 
-*Ports exposed only in local development configuration.
+## PostgreSQL
 
-## Compose Files
+### Configuration
 
-| File | Purpose |
-|------|---------|
-| `docker-compose.yaml` | Production configuration |
-| `docker-compose.local.yaml` | Local development overrides |
-
-For local development, use both files:
-
-```bash
-export COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml
+```yaml
+postgres:
+  image: postgres:17
+  environment:
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_DB: postgres
+  ports:
+    - "5432:5432"
+  volumes:
+    - postgres_data:/var/lib/postgresql/data
 ```
 
-Or set in `.env`:
+### Connection String
 
 ```bash
-COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+```
+
+### Commands
+
+```bash
+# Start
+docker compose up -d postgres
+
+# View logs
+docker compose logs -f postgres
+
+# Connect with psql
+docker compose exec postgres psql -U postgres
+
+# Stop
+docker compose stop postgres
+```
+
+## Redis
+
+### Configuration
+
+```yaml
+redis:
+  image: redis:7
+  ports:
+    - "6379:6379"
+  volumes:
+    - redis_data:/data
+```
+
+### Connection String
+
+```bash
+REDIS_URL=redis://localhost:6379/0
+```
+
+### Commands
+
+```bash
+# Start
+docker compose up -d redis
+
+# View logs
+docker compose logs -f redis
+
+# Connect with redis-cli
+docker compose exec redis redis-cli
+
+# Monitor commands
+docker compose exec redis redis-cli MONITOR
+
+# Stop
+docker compose stop redis
+```
+
+## MinIO (S3 Storage)
+
+### Configuration
+
+```yaml
+minio:
+  image: minio/minio
+  command: server /data --console-address ":9001"
+  environment:
+    MINIO_ROOT_USER: minioadmin
+    MINIO_ROOT_PASSWORD: minioadmin
+  ports:
+    - "9000:9000"  # API
+    - "9001:9001"  # Console
+  volumes:
+    - minio_data:/data
+```
+
+### Environment Variables
+
+```bash
+AWS_S3_ACCESS_KEY_ID=minioadmin
+AWS_S3_SECRET_ACCESS_KEY=minioadmin
+AWS_S3_BUCKET_NAME=static
+AWS_S3_ENDPOINT_URL=http://localhost:9000
+```
+
+### Commands
+
+```bash
+# Start
+docker compose up -d minio minio-create-buckets
+
+# View logs
+docker compose logs -f minio
+
+# Access console
+open http://localhost:9001
+
+# Stop
+docker compose stop minio
+```
+
+### Web Console
+
+Access MinIO console at http://localhost:9001
+
+- Username: `minioadmin`
+- Password: `minioadmin`
+
+## Init Containers
+
+### Migrations
+
+```yaml
+migrations:
+  build: .
+  command: python src/manage.py migrate
+  depends_on:
+    - postgres
+  environment:
+    - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+```
+
+Run:
+```bash
+docker compose up migrations
+```
+
+### Collect Static
+
+```yaml
+collectstatic:
+  build: .
+  command: python src/manage.py collectstatic --noinput
+  depends_on:
+    - minio
+  environment:
+    - AWS_S3_ENDPOINT_URL=http://minio:9000
+```
+
+Run:
+```bash
+docker compose up collectstatic
 ```
 
 ## Common Operations
 
-### Start Infrastructure
+### Start All Infrastructure
 
 ```bash
-# Start all infrastructure services
-docker compose up -d postgres redis minio
-
-# Initialize (migrations, buckets, static files)
-docker compose up minio-create-buckets migrations collectstatic
+docker compose up -d postgres redis minio minio-create-buckets
 ```
 
-### Start Application
+### Stop All Services
 
 ```bash
-# Start all services
-docker compose up -d
-
-# Start specific service
-docker compose up -d api
-docker compose up -d celery-worker
-```
-
-### View Logs
-
-```bash
-# All services
-docker compose logs -f
-
-# Specific service
-docker compose logs -f api
-docker compose logs -f celery-worker
-```
-
-### Stop Services
-
-```bash
-# Stop all
 docker compose down
-
-# Stop and remove volumes
-docker compose down -v
 ```
 
-### Rebuild
+### Reset Everything (Including Data)
 
 ```bash
-# Rebuild base image
-docker compose build base
-
-# Rebuild and restart
-docker compose up -d --build api
+docker compose down -v  # Remove volumes
+docker compose up -d postgres redis minio minio-create-buckets
+docker compose up migrations
 ```
 
-## Service Details
-
-### api
-
-FastAPI HTTP API served by Gunicorn.
-
-| Setting | Value |
-|---------|-------|
-| Workers | 4 |
-| Timeout | 120s |
-| Bind | 0.0.0.0:8000 |
-
-Production command:
+### View All Logs
 
 ```bash
-gunicorn delivery.http.app:wsgi --workers=4 --bind=0.0.0.0 --timeout=120
+docker compose logs -f
 ```
 
-Local development uses uvicorn with FastAPI (`make dev`).
+### Check Service Status
 
-### celery-worker
+```bash
+docker compose ps
+```
 
-Background task processor.
+### Restart a Service
 
-| Setting | Production | Local |
-|---------|------------|-------|
-| Concurrency | 4 | 2 |
-| Log Level | `${LOGGING_LEVEL:-INFO}` | `${LOGGING_LEVEL:-INFO}` |
-| Auto-reload | No | Yes (watchmedo) |
-
-### celery-beat
-
-Periodic task scheduler for scheduled jobs.
-
-### postgres
-
-PostgreSQL 18 database.
-
-| Setting | Value |
-|---------|-------|
-| Auth Method | scram-sha-256 |
-| Volume | `postgres_data` |
-
-### pgbouncer
-
-Connection pooler for PostgreSQL.
-
-| Setting | Value |
-|---------|-------|
-| Pool Mode | transaction |
-| Max Client Connections | 200 |
-| Default Pool Size | 25 |
-| Min Pool Size | 5 |
-| Server Lifetime | 3600s |
-| Server Idle Timeout | 600s |
-| Auth Type | scram-sha-256 |
-
-!!! info "Authentication"
-    PgBouncer is configured with `AUTH_TYPE: scram-sha-256` to match PostgreSQL's authentication method. This ensures secure password hashing between PgBouncer and PostgreSQL. Both services must use the same authentication method for connections to succeed.
-
-### redis
-
-Redis for Celery broker and Django cache.
-
-| Setting | Value |
-|---------|-------|
-| Volume | `redis_data` |
-
-### minio
-
-S3-compatible object storage.
-
-| Port | Purpose |
-|------|---------|
-| 9000 | API endpoint |
-| 9001 | Web console |
-
-### minio-create-buckets
-
-Initializes storage buckets on first run:
-
-| Bucket | Access |
-|--------|--------|
-| `protected` | Private |
-| `public` | Public read |
-
-## Networking
-
-All services connect via the `main` bridge network. Internal DNS resolves service names:
-
-| Service | Internal Hostname |
-|---------|-------------------|
-| PostgreSQL | `postgres:5432` |
-| PgBouncer | `pgbouncer:5432` |
-| Redis | `redis:6379` |
-| MinIO | `minio:9000` |
-
-Application services connect to PgBouncer (not directly to PostgreSQL) for connection pooling.
+```bash
+docker compose restart postgres
+```
 
 ## Volumes
 
-| Volume | Purpose |
-|--------|---------|
-| `postgres_data` | PostgreSQL data |
-| `redis_data` | Redis persistence |
-| `minio_data` | Object storage |
+| Volume | Service | Purpose |
+|--------|---------|---------|
+| `postgres_data` | PostgreSQL | Database files |
+| `redis_data` | Redis | Persistence |
+| `minio_data` | MinIO | Object storage |
 
-## Health Checks
+### Inspect Volume
 
-| Service | Check | Interval |
-|---------|-------|----------|
-| postgres | `pg_isready` | 10s |
-| pgbouncer | `pg_isready` | 10s |
-| minio | HTTP `/minio/health/live` | 2s |
-
-## Dependencies
-
+```bash
+docker volume inspect aiogram-django-template_postgres_data
 ```
-api
-  -> pgbouncer -> postgres
-  -> migrations -> pgbouncer
-  -> collectstatic -> minio-create-buckets -> minio
-  -> celery-worker -> redis
 
-celery-worker
-  -> pgbouncer
-  -> migrations
-  -> redis
+### Remove Volume
 
-celery-beat
-  -> pgbouncer
-  -> migrations
-  -> redis
+```bash
+docker volume rm aiogram-django-template_postgres_data
+```
+
+## Network
+
+All services connect to a shared network for inter-service communication.
+
+```yaml
+networks:
+  default:
+    name: fastdjango-network
+```
+
+Internal hostnames:
+
+- `postgres` - Database
+- `redis` - Cache
+- `minio` - Object storage
+
+## Troubleshooting
+
+### Port Already in Use
+
+```bash
+# Find process
+lsof -i :5432
+
+# Or use different port
+docker compose up -d postgres -p 5433:5432
+```
+
+### Container Won't Start
+
+```bash
+# Check logs
+docker compose logs postgres
+
+# Check status
+docker compose ps
+```
+
+### Database Connection Refused
+
+Ensure postgres is running and healthy:
+
+```bash
+docker compose ps postgres
+docker compose logs postgres
+```
+
+### MinIO Bucket Not Found
+
+Run bucket creation:
+
+```bash
+docker compose up minio-create-buckets
+```
+
+### Reset to Clean State
+
+```bash
+docker compose down -v
+docker compose up -d postgres redis minio minio-create-buckets
+docker compose up migrations collectstatic
+```
+
+## Production Considerations
+
+For production deployments:
+
+1. **Use managed services**: AWS RDS, ElastiCache, S3
+2. **Set strong passwords**: Don't use defaults
+3. **Enable persistence**: Configure backup strategies
+4. **Use health checks**: Add to compose file
+5. **Set resource limits**: Memory and CPU limits
+
+Example health check:
+
+```yaml
+postgres:
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
 ```

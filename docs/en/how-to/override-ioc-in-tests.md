@@ -1,262 +1,289 @@
 # Override IoC in Tests
 
-This guide explains how to mock services and dependencies in integration tests by overriding IoC container registrations.
+Mock dependencies for isolated testing.
 
-## How Test Isolation Works
+## Goal
 
-Each test function receives a fresh IoC container through the `container` fixture. This allows you to override specific registrations without affecting other tests.
+Replace real services with mocks in tests to:
+
+- Test components in isolation
+- Control service behavior
+- Avoid external dependencies
+
+## Prerequisites
+
+- Understanding of [IoC Container](../concepts/ioc-container.md)
+- pytest fixtures set up
+
+## The Pattern
+
+Register a mock before creating test factories:
+
+```python
+from unittest.mock import MagicMock
+
+def test_with_mock(container: AutoRegisteringContainer) -> None:
+    # 1. Create mock
+    mock_service = MagicMock()
+
+    # 2. Register mock in container
+    container.register(MyService, instance=mock_service)
+
+    # 3. Create test client (uses container with mock)
+    test_client_factory = TestClientFactory(container=container)
+
+    # 4. Test - controller now uses mock
+    with test_client_factory() as client:
+        response = client.get("/v1/endpoint")
+```
+
+## Step-by-Step Examples
+
+### Mock a Service
+
+```python
+from unittest.mock import MagicMock
+
+import pytest
+
+from core.payment.services import PaymentService
+from tests.integration.factories import TestClientFactory
+
+
+@pytest.mark.django_db(transaction=True)
+def test_checkout_with_mock_payment(
+    container: AutoRegisteringContainer,
+) -> None:
+    # Create mock payment service
+    mock_payment = MagicMock(spec=PaymentService)
+    mock_payment.process_payment.return_value = {"status": "success", "id": "pay_123"}
+
+    # Register mock
+    container.register(PaymentService, instance=mock_payment)
+
+    # Create test client with mocked container
+    test_client_factory = TestClientFactory(container=container)
+
+    with test_client_factory() as client:
+        response = client.post(
+            "/v1/checkout",
+            json={"cart_id": 1, "payment_method": "card"},
+        )
+
+    # Verify mock was called
+    mock_payment.process_payment.assert_called_once()
+    assert response.status_code == 200
+```
+
+### Mock a Service with Specific Return Values
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_product_with_mock_inventory(
+    container: AutoRegisteringContainer,
+    user: User,
+) -> None:
+    # Mock inventory service
+    mock_inventory = MagicMock(spec=InventoryService)
+    mock_inventory.check_stock.return_value = 100
+    mock_inventory.reserve_stock.return_value = True
+
+    container.register(InventoryService, instance=mock_inventory)
+
+    test_client_factory = TestClientFactory(container=container)
+
+    with test_client_factory(auth_for_user=user) as client:
+        response = client.post(
+            "/v1/orders",
+            json={"product_id": 1, "quantity": 5},
+        )
+
+    # Verify stock was checked and reserved
+    mock_inventory.check_stock.assert_called_with(product_id=1)
+    mock_inventory.reserve_stock.assert_called_with(product_id=1, quantity=5)
+```
+
+### Mock to Raise Exceptions
+
+```python
+from core.email.services import EmailService, EmailDeliveryError
+
+
+@pytest.mark.django_db(transaction=True)
+def test_handles_email_failure(
+    container: AutoRegisteringContainer,
+    user: User,
+) -> None:
+    # Mock email service to fail
+    mock_email = MagicMock(spec=EmailService)
+    mock_email.send_email.side_effect = EmailDeliveryError("SMTP connection failed")
+
+    container.register(EmailService, instance=mock_email)
+
+    test_client_factory = TestClientFactory(container=container)
+
+    with test_client_factory(auth_for_user=user) as client:
+        response = client.post(
+            "/v1/users/me/password-reset",
+            json={"email": "user@example.com"},
+        )
+
+    # Should handle gracefully, not expose internal error
+    assert response.status_code == 500  # Or whatever your error handling returns
+```
+
+### Mock Settings
+
+```python
+from core.feature.settings import FeatureSettings
+
+
+@pytest.mark.django_db(transaction=True)
+def test_with_feature_flag_enabled(
+    container: AutoRegisteringContainer,
+) -> None:
+    # Create mock settings
+    mock_settings = MagicMock(spec=FeatureSettings)
+    mock_settings.new_feature_enabled = True
+    mock_settings.feature_limit = 100
+
+    container.register(FeatureSettings, instance=mock_settings)
+
+    test_client_factory = TestClientFactory(container=container)
+
+    with test_client_factory() as client:
+        response = client.get("/v1/feature")
+
+    assert response.status_code == 200
+    # Feature should be available
+```
+
+### Using pytest Fixtures for Common Mocks
 
 ```python
 # tests/integration/conftest.py
-from ioc.container import ContainerFactory
-from infrastructure.punq.container import AutoRegisteringContainer
-
-@pytest.fixture(scope="function")
-def container() -> AutoRegisteringContainer:
-    container_factory = ContainerFactory()
-    return container_factory()
-```
-
-The `scope="function"` ensures a new container is created for each test.
-
-## Basic Pattern
-
-### Step 1: Create a Mock Service
-
-```python
 from unittest.mock import MagicMock
 
 import pytest
 
-from core.products.services import ProductService
-
 
 @pytest.fixture
-def mock_product_service() -> MagicMock:
-    mock = MagicMock(spec=ProductService)
-    mock.get_product_by_id.return_value = MagicMock(
-        id=1,
-        name="Mocked Product",
-        description="This is a mock",
-        price=99.99,
-    )
+def mock_external_api(container: AutoRegisteringContainer) -> MagicMock:
+    """Fixture providing a mocked external API client."""
+    mock = MagicMock(spec=ExternalAPIClient)
+    mock.fetch_data.return_value = {"data": "mocked"}
+    container.register(ExternalAPIClient, instance=mock)
     return mock
+
+
+# Usage in tests
+@pytest.mark.django_db(transaction=True)
+def test_uses_external_api(
+    test_client_factory: TestClientFactory,
+    mock_external_api: MagicMock,
+    user: User,
+) -> None:
+    mock_external_api.fetch_data.return_value = {"special": "value"}
+
+    with test_client_factory(auth_for_user=user) as client:
+        response = client.get("/v1/external-data")
+
+    assert response.json()["data"]["special"] == "value"
 ```
 
-### Step 2: Override the Registration
+## Testing with Real Services
+
+Sometimes you want to test with real services but control the data:
 
 ```python
-from infrastructure.punq.container import AutoRegisteringContainer
-
-
-def test_with_mocked_service(
-    container: AutoRegisteringContainer,
-    mock_product_service: MagicMock,
+@pytest.mark.django_db(transaction=True)
+def test_with_real_service(
     test_client_factory: TestClientFactory,
-    user_factory: TestUserFactory,
+    user: User,
 ) -> None:
-    # Override the service registration BEFORE creating factories
-    container.register(ProductService, instance=mock_product_service)
+    # Create real test data
+    Product.objects.create(name="Test", price=10.00, stock=50)
 
-    # Now create the test client - it will use the mocked service
-    user = user_factory()
-    with test_client_factory(auth_for_user=user) as test_client:
-        response = test_client.get("/v1/products/1")
+    # Test with real service (no mocking)
+    with test_client_factory(auth_for_user=user) as client:
+        response = client.get("/v1/products")
 
     assert response.status_code == 200
-    assert response.json()["name"] == "Mocked Product"
-
-    # Verify the mock was called
-    mock_product_service.get_product_by_id.assert_called_once_with(1)
+    assert len(response.json()) == 1
 ```
 
-## Complete Example: Mocking JWTService
+## Testing Celery Tasks
 
-Here is a full example that mocks the JWT service to test authentication behavior:
+For Celery tasks, mock at the service level:
 
 ```python
-from http import HTTPStatus
-from unittest.mock import MagicMock
-
-import pytest
-
-from delivery.services.jwt import JWTService
-from infrastructure.punq.container import AutoRegisteringContainer
-from tests.integration.factories import TestClientFactory, TestUserFactory
-
-
-@pytest.fixture
-def mock_jwt_service() -> MagicMock:
-    mock = MagicMock(spec=JWTService)
-    # Configure the mock to return a specific payload
-    mock.decode_token.return_value = {"sub": 1, "exp": 9999999999}
-    mock.issue_access_token.return_value = "mocked-access-token"
-    return mock
-
-
 @pytest.mark.django_db(transaction=True)
-def test_jwt_decoding_with_mock(
-    container: AutoRegisteringContainer,
-    mock_jwt_service: MagicMock,
-    test_client_factory: TestClientFactory,
-    user_factory: TestUserFactory,
-) -> None:
-    # Register the mock BEFORE creating factories
-    container.register(JWTService, instance=mock_jwt_service)
-
-    # Create user and test client
-    user = user_factory()
-    with test_client_factory() as test_client:
-        # Make authenticated request
-        response = test_client.get(
-            "/v1/users/me",
-            headers={"Authorization": "Bearer any-token-will-work"},
-        )
-
-    # The mock returns sub=1, but our test user might have a different ID
-    # This test verifies the JWT decoding flow, not the user lookup
-    mock_jwt_service.decode_token.assert_called_once_with(token="any-token-will-work")
-```
-
-## Testing Error Scenarios
-
-Override services to simulate error conditions:
-
-```python
-from core.products.services import ProductNotFoundError, ProductService
-from infrastructure.punq.container import AutoRegisteringContainer
-
-
-@pytest.mark.django_db(transaction=True)
-def test_product_not_found_error(
-    container: AutoRegisteringContainer,
-    test_client_factory: TestClientFactory,
-    user_factory: TestUserFactory,
-) -> None:
-    # Create a mock that raises an exception
-    mock_service = MagicMock(spec=ProductService)
-    mock_service.get_product_by_id.side_effect = ProductNotFoundError("Product 999 not found")
-
-    container.register(ProductService, instance=mock_service)
-
-    user = user_factory()
-    with test_client_factory(auth_for_user=user) as test_client:
-        response = test_client.get("/v1/products/999")
-
-    assert response.status_code == HTTPStatus.NOT_FOUND
-    assert "not found" in response.json()["detail"].lower()
-```
-
-## Mocking External Services
-
-For services that make external API calls:
-
-```python
-from unittest.mock import MagicMock, patch
-
-import pytest
-
-from infrastructure.punq.container import AutoRegisteringContainer
-
-
-class PaymentGateway:
-    def charge(self, amount: float, card_token: str) -> dict:
-        # Real implementation calls external API
-        ...
-
-
-@pytest.fixture
-def mock_payment_gateway() -> MagicMock:
-    mock = MagicMock(spec=PaymentGateway)
-    mock.charge.return_value = {
-        "transaction_id": "txn_123",
-        "status": "success",
-    }
-    return mock
-
-
-@pytest.mark.django_db(transaction=True)
-def test_payment_processing(
-    container: AutoRegisteringContainer,
-    mock_payment_gateway: MagicMock,
-    test_client_factory: TestClientFactory,
-    user_factory: TestUserFactory,
-) -> None:
-    container.register(PaymentGateway, instance=mock_payment_gateway)
-
-    user = user_factory()
-    with test_client_factory(auth_for_user=user) as test_client:
-        response = test_client.post(
-            "/v1/payments/",
-            json={"amount": 100.00, "card_token": "tok_test"},
-        )
-
-    assert response.status_code == HTTPStatus.OK
-    mock_payment_gateway.charge.assert_called_once_with(100.00, "tok_test")
-```
-
-## Important Considerations
-
-!!! warning "Order Matters"
-    Always override IoC registrations **before** creating factories or test clients. The factories resolve dependencies at creation time.
-
-```python
-# Correct order
-container.register(ProductService, instance=mock_service)  # 1. Override first
-with test_client_factory() as test_client:  # 2. Then create client
-    response = test_client.get("/v1/products/1")
-
-# Wrong order - mock will not be used
-with test_client_factory() as test_client:  # Client created with real service
-    container.register(ProductService, instance=mock_service)  # Too late!
-```
-
-!!! tip "Use spec Parameter"
-    Always use `MagicMock(spec=ServiceClass)` to ensure your mock has the same interface as the real service. This catches typos in method names.
-
-## Testing Celery Tasks with Mocks
-
-Override services for Celery task tests:
-
-```python
-from unittest.mock import MagicMock
-
-import pytest
-
-from core.notifications.services import NotificationService
-from infrastructure.punq.container import AutoRegisteringContainer
-from tests.integration.factories import TestCeleryWorkerFactory, TestTasksRegistryFactory
-
-
-@pytest.mark.django_db(transaction=True)
-def test_notification_task_with_mock(
+def test_task_with_mock(
     container: AutoRegisteringContainer,
     celery_worker_factory: TestCeleryWorkerFactory,
     tasks_registry_factory: TestTasksRegistryFactory,
 ) -> None:
-    # Mock the notification service
-    mock_notification = MagicMock(spec=NotificationService)
-    mock_notification.send_email.return_value = True
-    container.register(NotificationService, instance=mock_notification)
+    # Mock the service used by the task
+    mock_service = MagicMock(spec=NotificationService)
+    container.register(NotificationService, instance=mock_service)
 
-    # Create registry and start worker
     registry = tasks_registry_factory()
 
     with celery_worker_factory():
-        result = registry.send_notification.delay(
-            user_id=1,
-            message="Hello",
-        ).get(timeout=5)
+        registry.send_notification.delay(user_id=1).get(timeout=10)
 
-    assert result["status"] == "sent"
-    mock_notification.send_email.assert_called_once()
+    mock_service.send.assert_called_once()
+```
+
+## Best Practices
+
+### Do: Use `spec` Parameter
+
+```python
+# Good - validates mock usage matches real interface
+mock = MagicMock(spec=PaymentService)
+
+# Bad - no validation, can call non-existent methods
+mock = MagicMock()
+```
+
+### Do: Register Mocks Before Creating Factories
+
+```python
+# Correct order
+container.register(Service, instance=mock)
+test_client_factory = TestClientFactory(container=container)
+
+# Wrong - factory already created with real service
+test_client_factory = TestClientFactory(container=container)
+container.register(Service, instance=mock)  # Too late!
+```
+
+### Do: Use Fixture Order
+
+```python
+# container fixture must come first
+def test_something(
+    container: AutoRegisteringContainer,  # First - creates container
+    test_client_factory: TestClientFactory,  # Uses container
+    user: User,  # Uses database
+) -> None:
+    ...
+```
+
+### Don't: Mutate Shared State
+
+```python
+# Bad - modifies shared mock affecting other tests
+mock_service.some_attribute = "changed"
+
+# Good - create fresh mock per test
+mock_service = MagicMock(spec=Service)
 ```
 
 ## Summary
 
-1. Use function-scoped `container` fixture for test isolation
-2. Override registrations with `container.register(Service, instance=mock)`
-3. Always override **before** creating factories or test clients
-4. Use `MagicMock(spec=ServiceClass)` for type-safe mocks
-5. Configure mock return values and side effects for different scenarios
-6. Use `assert_called_once()` and similar methods to verify interactions
+1. Create mocks with `MagicMock(spec=RealClass)`
+2. Register mocks in container before creating factories
+3. Use fixtures for commonly mocked services
+4. Verify mock interactions with `assert_called_*` methods

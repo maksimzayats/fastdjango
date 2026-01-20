@@ -1,226 +1,285 @@
 # Step 2: IoC Registration
 
-In this step, you will register the `TodoService` in the IoC (Inversion of Control) container so it can be automatically injected into controllers.
+Understand how the dependency injection container automatically wires your services.
 
-## Files Overview
+## What You'll Learn
 
-| Action | File Path |
-|--------|-----------|
-| Modify | `src/ioc/registries/core.py` |
+- How `AutoRegisteringContainer` works
+- When explicit registration is needed
+- How to resolve dependencies
 
-## Understanding the Container
+## Concept Reference
 
-The template uses [punq](https://github.com/bobthemighty/punq), a lightweight dependency injection container for Python. The container is configured in `src/ioc/container.py` and organized into registries by layer:
+> **See also:** [IoC Container concept](../concepts/ioc-container.md) for detailed explanation.
 
-```
-src/ioc/
-├── container.py          # Main container factory
-└── registries/
-    ├── core.py           # Domain services and settings
-    ├── delivery.py       # Controllers and factories
-    └── infrastructure.py # Cross-cutting concerns (JWT, auth)
-```
+## Understanding Auto-Registration
 
-### Registration Flow
+The project uses an `AutoRegisteringContainer` that automatically registers services when they're first resolved. This means:
 
-When the application starts, it creates a container and registers all dependencies:
+**You don't need to register `TodoService` anywhere.**
 
-```python
-# src/ioc/container.py (simplified)
-def get_container() -> Container:
-    container = Container()
-    register_core(container)           # Services, settings
-    register_infrastructure(container) # JWT, auth
-    register_delivery(container)       # Controllers
-    return container
-```
+When code requests `TodoService` from the container, it's automatically registered as a singleton.
 
-## Step 2.1: Register TodoService
+## How It Works
 
-Open `src/ioc/registries/core.py` and add the `TodoService` registration.
+### Step 1: Container Creation
 
-First, add the import at the top of the file:
-
-```python title="src/ioc/registries/core.py" hl_lines="5"
-from punq import Container, Scope
-
-from configs.core import ApplicationSettings
-from core.health.services import HealthService
-from core.todo.services import TodoService  # Add this import
-from core.user.services.user import UserService
-```
-
-Then add the registration in the `_register_services` function:
-
-```python title="src/ioc/registries/core.py" hl_lines="4"
-def _register_services(container: Container) -> None:
-    container.register(HealthService, scope=Scope.singleton)
-    container.register(UserService, scope=Scope.singleton)
-    container.register(TodoService, scope=Scope.singleton)  # Add this line
-```
-
-### Complete Updated File
-
-Here is the complete `src/ioc/registries/core.py` after the changes:
-
-```python title="src/ioc/registries/core.py"
-from punq import Container, Scope
-
-from configs.core import ApplicationSettings
-from core.health.services import HealthService
-from core.todo.services import TodoService
-from core.user.services.user import UserService
-
-
-def register_core(container: Container) -> None:
-    _register_settings(container)
-    _register_services(container)
-
-
-def _register_settings(container: Container) -> None:
-    container.register(
-        ApplicationSettings,
-        factory=lambda: ApplicationSettings(),
-        scope=Scope.singleton,
-    )
-
-
-def _register_services(container: Container) -> None:
-    container.register(HealthService, scope=Scope.singleton)
-    container.register(UserService, scope=Scope.singleton)
-    container.register(TodoService, scope=Scope.singleton)
-```
-
-## Understanding Registration Options
-
-The `container.register()` method supports several patterns:
-
-### Type-Based Registration (Recommended)
+The container is created in `src/ioc/container.py`:
 
 ```python
-container.register(TodoService, scope=Scope.singleton)
+# src/ioc/container.py
+class ContainerFactory:
+    def __call__(
+        self,
+        *,
+        configure_django: bool = True,
+        configure_logging: bool = True,
+        instrument_libraries: bool = True,
+    ) -> AutoRegisteringContainer:
+        container = AutoRegisteringContainer()
+
+        if configure_django:
+            self._configure_django(container)
+
+        if configure_logging:
+            self._configure_logging(container)
+
+        if instrument_libraries:
+            self._instrument_libraries(container)
+
+        self._register(container)
+
+        return container
+
+    def _configure_django(self, container: AutoRegisteringContainer) -> None:
+        configurator = container.resolve(DjangoConfigurator)
+        configurator.configure(django_settings_module="configs.django")
+
+    def _register(self, container: AutoRegisteringContainer) -> None:
+        from ioc.registries import Registry
+
+        registry = container.resolve(Registry)
+        registry.register(container)
 ```
 
-The container automatically:
+!!! note
+    Configuration classes like `DjangoConfigurator` are resolved from the container, ensuring their dependencies are properly injected.
 
-1. Inspects `TodoService.__init__` for dependencies
-2. Resolves each dependency from the container
-3. Creates an instance with the resolved dependencies
+### Step 2: Auto-Registration Logic
 
-Since `TodoService` has no constructor dependencies, punq creates it with no arguments.
+When you resolve a service that isn't registered, the container:
 
-### Factory-Based Registration
-
-For services that require special initialization:
+1. Inspects the class's `__init__` method for type hints
+2. Recursively resolves any dependencies
+3. Registers the service as a singleton
+4. Returns the instance
 
 ```python
-container.register(
-    ApplicationSettings,
-    factory=lambda: ApplicationSettings(),
-    scope=Scope.singleton,
-)
+# What happens internally when you resolve TodoService
+container.resolve(TodoService)
+
+# The container sees TodoService has no dependencies (empty __init__)
+# It registers TodoService as a singleton
+# It creates an instance and returns it
 ```
 
-Use factories when:
+### Step 3: Dependency Resolution
 
-- The service loads configuration from environment variables
-- You need custom initialization logic
-- The service requires arguments not managed by the container
-
-### Instance/Factory Registration for Protocols
-
-For mapping protocols to concrete implementations:
+If a service has dependencies, they're resolved recursively:
 
 ```python
-container.register(
-    ApplicationSettingsProtocol,
-    factory=lambda: container.resolve(ApplicationSettings),
-    scope=Scope.singleton,
-)
-```
-
-Use this pattern when:
-
-- You need to register a specific implementation for a protocol
-- The instance is pre-created (e.g., a configuration object)
-
-## Scopes
-
-The container supports two scopes:
-
-| Scope | Behavior |
-|-------|----------|
-| `Scope.singleton` | One instance shared across the application |
-| `Scope.transient` | New instance created for each resolution |
-
-!!! tip "When to Use Each Scope"
-    - **Singleton**: Services that maintain state or are expensive to create
-    - **Transient**: Services that should be fresh for each request
-
-For most services in this template, `Scope.singleton` is appropriate because:
-
-- Services are stateless (they don't store request-specific data)
-- Creating new instances adds unnecessary overhead
-- Django ORM handles database connections separately
-
-## Step 2.2: Verify Registration
-
-You can verify the registration works by testing in the Django shell:
-
-```bash
-python src/manage.py shell
-```
-
-```python
->>> from ioc.container import get_container
->>> from core.todo.services import TodoService
->>>
->>> container = get_container()
->>> service = container.resolve(TodoService)
->>> print(service)
-<core.todo.services.TodoService object at 0x...>
->>>
->>> # Verify singleton behavior
->>> service2 = container.resolve(TodoService)
->>> print(service is service2)
-True
-```
-
-!!! success "Registration Complete"
-    If you see `True`, the service is properly registered as a singleton.
-
-## How Dependency Resolution Works
-
-When a controller depends on `TodoService`, the container automatically provides it:
-
-```python
+# Example: A controller with dependencies
+@dataclass(kw_only=True)
 class TodoController(Controller):
-    def __init__(self, todo_service: TodoService) -> None:
-        self._todo_service = todo_service
+    _todo_service: TodoService  # This gets auto-resolved
+
+# When resolving TodoController:
+# 1. Container sees _todo_service: TodoService
+# 2. Container resolves TodoService (auto-registered if needed)
+# 3. Container creates TodoController with TodoService instance
 ```
 
-The resolution chain works like this:
+## What Gets Auto-Registered
 
-1. Container sees `TodoController` needs `TodoService`
-2. Container looks up `TodoService` in its registrations
-3. Container creates (or retrieves singleton) `TodoService`
-4. Container creates `TodoController` with the resolved service
+| Type | Registration | Scope |
+|------|--------------|-------|
+| Regular classes | Automatically when first resolved | Singleton |
+| Pydantic `BaseSettings` | Automatically with factory | Singleton |
+| Protocols/Interfaces | Must be explicit | Explicit |
+| String-based keys | Must be explicit | Explicit |
 
-This automatic wiring eliminates manual dependency management and makes testing easier.
+## Pydantic Settings Auto-Detection
 
-## What's Next
+Settings classes that inherit from `BaseSettings` are detected automatically:
 
-You have registered `TodoService` in the IoC container:
+```python
+# src/core/user/services/jwt.py
+class JWTServiceSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="JWT_")
 
-- [x] Added import for `TodoService`
-- [x] Registered as a singleton
-- [x] Verified resolution works
+    secret_key: str
+    algorithm: str = "HS256"
+```
 
-In the next step, you will create the HTTP API controller that uses this service.
+When resolved, the container:
 
-[Continue to Step 3: HTTP API & Admin](03-http-api.md){ .md-button .md-button--primary }
+1. Detects it's a `BaseSettings` subclass
+2. Registers with a factory: `lambda: JWTServiceSettings()`
+3. The settings load from environment variables automatically
 
----
+```python
+# This just works - settings loaded from env
+jwt_settings = container.resolve(JWTServiceSettings)
+print(jwt_settings.secret_key)  # From JWT_SECRET_KEY env var
+```
 
-!!! abstract "See Also"
-    - [IoC Container](../concepts/ioc-container.md) - Deep dive into dependency injection with punq
+## Explicit Registration
+
+Some cases require explicit registration in `src/ioc/registries.py`:
+
+### String-Based Keys
+
+When resolving by string instead of type:
+
+```python
+# src/ioc/registries.py
+from punq import Container, Scope
+
+from delivery.http.factories import FastAPIFactory
+
+
+class Registry:
+    def register(self, container: Container) -> None:
+        # Using string-based registration to avoid loading django-related code too early
+        container.register(
+            "FastAPIFactory",
+            factory=lambda: container.resolve(FastAPIFactory),
+            scope=Scope.singleton,
+        )
+```
+
+Usage:
+
+```python
+# Resolve by string
+factory = container.resolve("FastAPIFactory")
+```
+
+### Protocol Mappings (Example)
+
+When an interface should map to a concrete implementation:
+
+```python
+# Example pattern - not currently used in this codebase
+class Registry:
+    def register(self, container: Container) -> None:
+        container.register(
+            MyProtocol,
+            factory=lambda: container.resolve(ConcreteImplementation),
+            scope=Scope.singleton,
+        )
+```
+
+## Verifying Registration
+
+You can verify the container works correctly:
+
+```python
+# In a Python shell
+from ioc.container import ContainerFactory
+from core.todo.services import TodoService
+
+# Create container
+container = ContainerFactory()()
+
+# Resolve service - auto-registered
+service = container.resolve(TodoService)
+
+# Resolve again - same instance (singleton)
+service2 = container.resolve(TodoService)
+assert service is service2  # Same object
+```
+
+## The Registration Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    container.resolve(T)                     │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+                    ┌───────────────────┐
+                    │ Is T registered?  │
+                    └─────────┬─────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              │                               │
+              ▼ Yes                           ▼ No
+    ┌─────────────────┐            ┌─────────────────────────┐
+    │ Return existing │            │ Check T's __init__ for  │
+    │    instance     │            │    type annotations     │
+    └─────────────────┘            └───────────┬─────────────┘
+                                               │
+                                               ▼
+                                   ┌─────────────────────────┐
+                                   │ Recursively resolve     │
+                                   │     dependencies        │
+                                   └───────────┬─────────────┘
+                                               │
+                                               ▼
+                                   ┌─────────────────────────┐
+                                   │ Register T as singleton │
+                                   │   and return instance   │
+                                   └─────────────────────────┘
+```
+
+## Best Practices
+
+### Do: Use Type Hints
+
+The container relies on type hints for dependency resolution:
+
+```python
+@dataclass(kw_only=True)
+class MyService:
+    _user_service: UserService  # Resolved automatically
+    _jwt_settings: JWTServiceSettings  # Settings loaded from env
+```
+
+### Don't: Use `Any` Types
+
+```python
+# Bad - container can't resolve this
+def __init__(self, service: Any) -> None:
+    self._service = service
+```
+
+### Do: Keep `__init__` Simple
+
+```python
+# Good - dependencies are injected
+@dataclass(kw_only=True)
+class MyController(Controller):
+    _todo_service: TodoService
+```
+
+### Don't: Create Dependencies in `__init__`
+
+```python
+# Bad - defeats the purpose of DI
+def __init__(self) -> None:
+    self._todo_service = TodoService()
+```
+
+## Summary
+
+You've learned:
+
+- The container auto-registers services when resolved
+- Pydantic Settings load from environment variables automatically
+- Only protocols and string-based keys need explicit registration
+- Dependencies are resolved recursively via type hints
+
+## Next Step
+
+In [Step 3: HTTP API](03-http-api.md), you'll create REST endpoints for the todo service.
