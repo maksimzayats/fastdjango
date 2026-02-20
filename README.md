@@ -22,6 +22,7 @@ featuring dependency injection, type-safe configuration, and comprehensive obser
 from django.db import transaction
 from core.todo.models import Todo
 
+
 class TodoService:
     def get_todo_by_id(self, todo_id: int) -> Todo | None:
         return Todo.objects.filter(id=todo_id).first()
@@ -46,10 +47,12 @@ from core.todo.services import TodoService
 from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 from infrastructure.delivery.controllers import Controller
 
+
 class TodoSchema(BaseModel):
     id: int
     title: str
     completed: bool
+
 
 @dataclass
 class TodoController(Controller):
@@ -163,8 +166,8 @@ Expected response:
 
 Full documentation is available at [fastdjango.zayats.dev](https://fastdjango.zayats.dev).
 
-| Section                                                                                         | Description                                |
-|-------------------------------------------------------------------------------------------------|--------------------------------------------|
+| Section                                                                                           | Description                                |
+|---------------------------------------------------------------------------------------------------|--------------------------------------------|
 | [Quick Start](https://fastdjango.zayats.dev/getting-started/quick-start/)                         | Get running in 5 minutes                   |
 | [Project Structure](https://fastdjango.zayats.dev/getting-started/project-structure/)             | Understand the codebase organization       |
 | [Development Environment](https://fastdjango.zayats.dev/getting-started/development-environment/) | IDE setup and tooling                      |
@@ -182,7 +185,7 @@ Full documentation is available at [fastdjango.zayats.dev](https://fastdjango.za
 | Task Queue      | Celery 5.x        | [docs.celeryq.dev](https://docs.celeryq.dev/en/stable/)                                    |
 | Validation      | Pydantic 2.x      | [docs.pydantic.dev](https://docs.pydantic.dev/latest/)                                     |
 | Settings        | Pydantic Settings | [docs.pydantic.dev/settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) |
-| IoC Container   | diwire            | [pypi.org/project/diwire](https://pypi.org/project/diwire/)                                  |
+| IoC Container   | diwire            | [pypi.org/project/diwire](https://pypi.org/project/diwire/)                                |
 | Observability   | Logfire           | [Logfire docs](https://logfire.pydantic.dev/docs/)                                         |
 | Package Manager | uv                | [docs.astral.sh/uv](https://docs.astral.sh/uv/)                                            |
 
