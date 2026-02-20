@@ -131,11 +131,11 @@ class ItemService:
 
 ### Registering Services
 
-Services are **auto-registered** by the IoC container - no explicit registration needed. When a service is resolved, the `Container` automatically registers it as a singleton based on its `__init__` type annotations.
+Services are **auto-wired** by the IoC container - no explicit registration needed. When a service is resolved, `diwire` builds the dependency graph from constructor type annotations and caches scoped instances at the app root scope.
 
 ```python
 # No registration needed - just resolve the service
-item_service = container.resolve(ItemService)  # Auto-registered as singleton
+item_service = container.resolve(ItemService)
 ```
 
 Manual registration is optional and uses native `diwire` APIs (`add`, `add_factory`, `add_instance`).
@@ -184,7 +184,7 @@ The `Container` automatically registers services when resolved:
 
 ```python
 # No explicit registration needed - just resolve
-user_service = container.resolve(UserService)  # Auto-registered as singleton
+user_service = container.resolve(UserService)
 
 # Pydantic Settings are auto-detected and registered with factory
 jwt_settings = container.resolve(JWTServiceSettings)  # Loads from env vars
