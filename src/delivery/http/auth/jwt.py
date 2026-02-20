@@ -1,24 +1,25 @@
 from dataclasses import dataclass
 from http import HTTPStatus
-from typing import Any, Protocol, cast
+from typing import Any, cast
 
 from asgiref.sync import sync_to_async
 from fastapi import HTTPException
 from fastapi.requests import Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from starlette.datastructures import State
 
 from core.user.models import User
 from core.user.services.jwt import JWTService
 from core.user.services.user import UserService
 
 
-class AuthenticatedRequestState(Protocol):
+class AuthenticatedRequestState(State):
     jwt_payload: dict[str, Any]
     user: User
 
 
 class AuthenticatedRequest(Request):
-    state: AuthenticatedRequestState  # type: ignore[bad-override, assignment]
+    state: AuthenticatedRequestState
 
 
 @dataclass(kw_only=True)
