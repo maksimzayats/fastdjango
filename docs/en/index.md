@@ -9,7 +9,7 @@ This template provides a solid foundation for building scalable Python applicati
 - **Django** for ORM, admin panel, and authentication
 - **FastAPI** for high-performance REST APIs
 - **Celery** for background task processing
-- **punq** for dependency injection
+- **diwire** for dependency injection
 - **Pydantic** for validation and settings management
 - **Logfire** for observability (OpenTelemetry-based)
 

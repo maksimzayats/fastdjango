@@ -7,7 +7,7 @@ featuring dependency injection, type-safe configuration, and comprehensive obser
 
 - **HTTP API** — [FastAPI](https://fastapi.tiangolo.com/) with automatic OpenAPI documentation
 - **Background Tasks** — [Celery](https://docs.celeryq.dev/en/stable/) with beat scheduler
-- **Dependency Injection** — [punq](https://github.com/bobthemighty/punq) IoC container
+- **Dependency Injection** — [diwire](https://pypi.org/project/diwire/) IoC container
 - **Type-Safe Config** — [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) with
   validation
 - **Observability** — [Logfire](https://logfire.pydantic.dev/docs/) (OpenTelemetry) integration
@@ -182,7 +182,7 @@ Full documentation is available at [fastdjango.zayats.dev](https://fastdjango.za
 | Task Queue      | Celery 5.x        | [docs.celeryq.dev](https://docs.celeryq.dev/en/stable/)                                    |
 | Validation      | Pydantic 2.x      | [docs.pydantic.dev](https://docs.pydantic.dev/latest/)                                     |
 | Settings        | Pydantic Settings | [docs.pydantic.dev/settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) |
-| IoC Container   | punq              | [github.com/bobthemighty/punq](https://github.com/bobthemighty/punq)                       |
+| IoC Container   | diwire            | [pypi.org/project/diwire](https://pypi.org/project/diwire/)                                  |
 | Observability   | Logfire           | [Logfire docs](https://logfire.pydantic.dev/docs/)                                         |
 | Package Manager | uv                | [docs.astral.sh/uv](https://docs.astral.sh/uv/)                                            |
 

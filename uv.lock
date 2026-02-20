@@ -330,6 +330,15 @@ wheels = [
 ]
 
 [[package]]
+name = "diwire"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d6/ee/1bb70814770416234d93a8c92ff3d49300448129b3164e72dfb0f346c61c/diwire-1.1.0.tar.gz", hash = "sha256:81f1bef6407a1ec3b4abf81485abed4852f36b47b5dd02c865c0c585b35045a1", size = 319911, upload-time = "2026-02-20T05:15:53.348Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4d/2d/e2b642d15e3e2551c871e83dad6d582563d3d855b41ef6cf1adb516d0b70/diwire-1.1.0-py3-none-any.whl", hash = "sha256:ece9a2c81180bd007473cf63d2feb0393460c1c570aa695c4bce3cf759b8980f", size = 81920, upload-time = "2026-02-20T05:15:52.039Z" },
+]
+
+[[package]]
 name = "dj-database-url"
 version = "3.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -464,6 +473,7 @@ dependencies = [
     { name = "celery" },
     { name = "celery-types" },
     { name = "colorlog" },
+    { name = "diwire" },
     { name = "dj-database-url" },
     { name = "django" },
     { name = "django-storages", extra = ["s3"] },
@@ -473,7 +483,6 @@ dependencies = [
     { name = "httpx" },
     { name = "logfire", extra = ["celery", "django", "fastapi", "httpx", "psycopg", "redis", "requests"] },
     { name = "psycopg", extra = ["binary"] },
-    { name = "punq" },
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
@@ -512,6 +521,7 @@ requires-dist = [
     { name = "celery", specifier = ">=5.6.2" },
     { name = "celery-types", specifier = ">=0.24.0" },
     { name = "colorlog", specifier = ">=6.10.1" },
+    { name = "diwire", specifier = ">=1.1.0" },
     { name = "dj-database-url", specifier = ">=3.1.0" },
     { name = "django", specifier = ">6" },
     { name = "django-storages", extras = ["s3"], specifier = ">=1.14.6" },
@@ -521,7 +531,6 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "logfire", extras = ["fastapi", "django", "celery", "requests", "psycopg", "httpx", "redis"], specifier = ">=4.18.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.2" },
-    { name = "punq", specifier = ">=0.7.0" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "pyjwt", specifier = ">=2.10.1" },
@@ -1391,15 +1400,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fa/d0/c20f4e668e89494972e551c31be2a0016e3f50d552d7ae9ac07086407599/psycopg_binary-3.3.2-cp314-cp314-musllinux_1_2_riscv64.whl", hash = "sha256:1586e220be05547c77afc326741dd41cc7fba38a81f9931f616ae98865439678", size = 3928660, upload-time = "2025-12-06T17:34:46.757Z" },
     { url = "https://files.pythonhosted.org/packages/0f/e1/99746c171de22539fd5eb1c9ca21dc805b54cfae502d7451d237d1dbc349/psycopg_binary-3.3.2-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:458696a5fa5dad5b6fb5d5862c22454434ce4fe1cf66ca6c0de5f904cbc1ae3e", size = 4239169, upload-time = "2025-12-06T17:34:49.751Z" },
     { url = "https://files.pythonhosted.org/packages/72/f7/212343c1c9cfac35fd943c527af85e9091d633176e2a407a0797856ff7b9/psycopg_binary-3.3.2-cp314-cp314-win_amd64.whl", hash = "sha256:04bb2de4ba69d6f8395b446ede795e8884c040ec71d01dd07ac2b2d18d4153d1", size = 3642122, upload-time = "2025-12-06T17:34:52.506Z" },
-]
-
-[[package]]
-name = "punq"
-version = "0.7.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e6/f1/c31e86ce1ab85837d8e6a6868163bae3afaef01c49d45f1bfa479c1a5b90/punq-0.7.0.tar.gz", hash = "sha256:bb7a6cc75a2e7d51b861b0e11f4830a12617b3ee33dbced9ce2be6a98ba39d63", size = 7254, upload-time = "2023-11-06T10:45:19.945Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/92/6a/c89602766d4416371eb801c3de89eda45fcea4435836ba7c01d1da88d47a/punq-0.7.0-py3-none-any.whl", hash = "sha256:7e0aca446c36a73674ec3fc078ec5e90e7a172ee349537d075ff20d73c3b1810", size = 7719, upload-time = "2023-11-06T10:45:18.118Z" },
 ]
 
 [[package]]

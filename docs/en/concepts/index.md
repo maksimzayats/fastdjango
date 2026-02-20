@@ -29,7 +29,7 @@ The architecture follows a layered approach with clear boundaries:
 ┌─────────────────────────────────────────────────────────────┐
 │                    Infrastructure                           │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │              IoC Container (punq)                    │   │
+│  │              IoC Container (diwire)                    │   │
 │  │   Auto-registration │ Settings │ Factories           │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
