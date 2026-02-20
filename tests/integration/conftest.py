@@ -16,7 +16,7 @@ from tests.integration.factories import (
 def container() -> Container:
     container_factory = ContainerFactory()
     container = container_factory()
-    container.add_factory(lambda: MemoryStore(), provides=AsyncThrottlerStoreFactory)  # noqa: PLW0108
+    container.add_instance(lambda: MemoryStore(), provides=AsyncThrottlerStoreFactory)  # noqa: PLW0108
 
     return container
 
