@@ -223,10 +223,10 @@ from tests.integration.factories import (
 
 
 @pytest.fixture
-def mock_email_service(container: AutoRegisteringContainer) -> MagicMock:
+def mock_email_service(container: Container) -> MagicMock:
     mock = MagicMock(spec=EmailService)
     mock.send.return_value = "msg_123"
-    container.register(EmailService, instance=mock)
+    container.add_instance(mock, provides=EmailService)
     return mock
 
 

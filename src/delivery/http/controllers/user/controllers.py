@@ -14,7 +14,10 @@ from core.user.services.refresh_session import (
     RefreshTokenError,
 )
 from core.user.services.user import UserService
-from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuthFactory
+from delivery.http.auth.jwt import (
+    AuthenticatedRequest,
+    JWTAuthFactory,
+)
 from delivery.http.controllers.user.schemas import (
     CreateUserRequestSchema,
     IssueTokenRequestSchema,

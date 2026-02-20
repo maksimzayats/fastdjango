@@ -551,7 +551,7 @@ Each test gets a fresh container. Fixtures are function-scoped by default:
 
 ```python
 @pytest.fixture(scope="function")
-def container() -> AutoRegisteringContainer:
+def container() -> Container:
     return ContainerFactory()()
 ```
 

@@ -1,7 +1,7 @@
 import pytest
+from diwire import Container
 from throttled.asyncio import MemoryStore
 
-from infrastructure.frameworks.punq.auto_registering import AutoRegisteringContainer
 from infrastructure.frameworks.throttled.throttler import AsyncThrottlerStoreFactory
 from ioc.container import ContainerFactory
 from tests.integration.factories import (
@@ -13,10 +13,10 @@ from tests.integration.factories import (
 
 
 @pytest.fixture(scope="function")
-def container() -> AutoRegisteringContainer:
+def container() -> Container:
     container_factory = ContainerFactory()
     container = container_factory()
-    container.register(AsyncThrottlerStoreFactory, instance=MemoryStore)
+    container.add_instance(lambda: MemoryStore(), provides=AsyncThrottlerStoreFactory)  # noqa: PLW0108
 
     return container
 
@@ -25,25 +25,25 @@ def container() -> AutoRegisteringContainer:
 
 
 @pytest.fixture(scope="function")
-def test_client_factory(container: AutoRegisteringContainer) -> TestClientFactory:
+def test_client_factory(container: Container) -> TestClientFactory:
     return TestClientFactory(container=container)
 
 
 @pytest.fixture(scope="function")
 def user_factory(
     transactional_db: None,
-    container: AutoRegisteringContainer,
+    container: Container,
 ) -> TestUserFactory:
     return TestUserFactory(container=container)
 
 
 @pytest.fixture(scope="function")
-def celery_worker_factory(container: AutoRegisteringContainer) -> TestCeleryWorkerFactory:
+def celery_worker_factory(container: Container) -> TestCeleryWorkerFactory:
     return TestCeleryWorkerFactory(container=container)
 
 
 @pytest.fixture(scope="function")
-def tasks_registry_factory(container: AutoRegisteringContainer) -> TestTasksRegistryFactory:
+def tasks_registry_factory(container: Container) -> TestTasksRegistryFactory:
     return TestTasksRegistryFactory(container=container)
 
 

@@ -1,114 +1,48 @@
 # IoC Container
 
-The Inversion of Control (IoC) container manages dependency injection, automatically wiring components together.
+The Inversion of Control (IoC) container manages dependency injection and automatically wires object graphs from type hints.
 
 ## What is Dependency Injection?
 
-Without DI, components create their own dependencies:
+Without DI, classes create dependencies directly:
 
 ```python
-# ❌ Without DI - hard to test, tightly coupled
 class UserController:
-    def __init__(self):
-        self._user_service = UserService()  # Creates its own dependency
+    def __init__(self) -> None:
+        self._user_service = UserService()
         self._jwt_service = JWTService()
 ```
 
 With DI, dependencies are provided externally:
 
 ```python
-# ✅ With DI - testable, loosely coupled
 class UserController:
-    def __init__(self, user_service: UserService, jwt_service: JWTService):
+    def __init__(self, user_service: UserService, jwt_service: JWTService) -> None:
         self._user_service = user_service
         self._jwt_service = jwt_service
 ```
 
-The IoC container is the "external provider" that creates and connects components.
+## The `diwire` Container
 
-## The punq Container
-
-This project uses [punq](https://github.com/bobthemighty/punq), a lightweight Python DI container.
-
-Basic usage:
+This project uses [`diwire`](https://pypi.org/project/diwire/). The container is configured to recursively auto-register missing dependencies.
 
 ```python
-from punq import Container
+from diwire import Container
 
 container = Container()
-container.register(UserService)  # Register service
-service = container.resolve(UserService)  # Get instance
+service = container.resolve(UserService)
 ```
 
-## AutoRegisteringContainer
-
-The project extends punq with `AutoRegisteringContainer` that automatically registers services when resolved:
-
-```python
-# No explicit registration needed!
-container = AutoRegisteringContainer()
-service = container.resolve(UserService)  # Auto-registered and returned
-```
-
-### How It Works
-
-When you resolve a type that isn't registered:
-
-1. **Inspect `__init__`**: Check type annotations for dependencies
-2. **Resolve dependencies**: Recursively resolve each dependency
-3. **Register**: Add the type as a singleton
-4. **Return instance**: Create and return the instance
-
-```
-container.resolve(UserController)
-         │
-         ▼
-┌─────────────────────────────────────┐
-│ UserController not registered       │
-│ Check __init__ type annotations:    │
-│   - user_service: UserService       │
-│   - jwt_service: JWTService         │
-└─────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│ Resolve UserService (recursively)   │
-│ Resolve JWTService (recursively)    │
-└─────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│ Register UserController as          │
-│ singleton with resolved deps        │
-└─────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│ Return UserController instance      │
-└─────────────────────────────────────┘
-```
-
-### Pydantic Settings Detection
-
-The container detects `BaseSettings` subclasses and registers them with a factory:
-
-```python
-class JWTServiceSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="JWT_")
-    secret_key: str
-    algorithm: str = "HS256"
-
-# Auto-registered with factory: lambda: JWTServiceSettings()
-settings = container.resolve(JWTServiceSettings)
-# settings.secret_key is loaded from JWT_SECRET_KEY env var
-```
+`resolve(UserService)` recursively builds and caches dependencies in the app root scope.
 
 ## Container Factory
 
-The `ContainerFactory` creates configured containers:
+`src/ioc/container.py` creates and configures the container:
 
 ```python
-# src/ioc/container.py
+from diwire import Container, DependencyRegistrationPolicy, MissingPolicy
+
+
 class ContainerFactory:
     def __call__(
         self,
@@ -116,10 +50,12 @@ class ContainerFactory:
         configure_django: bool = True,
         configure_logging: bool = True,
         instrument_libraries: bool = True,
-    ) -> AutoRegisteringContainer:
-        container = AutoRegisteringContainer()
+    ) -> Container:
+        container = Container(
+            missing_policy=MissingPolicy.REGISTER_RECURSIVE,
+            dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE,
+        )
 
-        # It's required to configure Django before any registrations due to model imports
         if configure_django:
             self._configure_django(container)
 
@@ -129,203 +65,91 @@ class ContainerFactory:
         if instrument_libraries:
             self._instrument_libraries(container)
 
-        self._register(container)
-
         return container
-
-    def _configure_django(self, container: AutoRegisteringContainer) -> None:
-        configurator = container.resolve(DjangoConfigurator)
-        configurator.configure(django_settings_module="configs.django")
-
-    def _configure_logging(self, container: AutoRegisteringContainer) -> None:
-        configurator = container.resolve(LoggingConfigurator)
-        configurator.configure()
-
-    def _instrument_libraries(self, container: AutoRegisteringContainer) -> None:
-        instrumentor = container.resolve(OpenTelemetryInstrumentor)
-        instrumentor.instrument_libraries()
-
-    def _register(self, container: AutoRegisteringContainer) -> None:
-        # Import registry functions here to avoid imports before setting up Django
-        from ioc.registries import Registry
-
-        registry = container.resolve(Registry)
-        registry.register(container)
 ```
 
-Usage:
+## Bootstrap Module for `FastAPIFactory`
+
+The HTTP wiring creates the container in a bootstrap module, where `ContainerFactory` is invoked at import time:
 
 ```python
-container_factory = ContainerFactory()
-container = container_factory()  # Fully configured container
+# src/delivery/http/bootstrap.py
+from ioc.container import ContainerFactory
+
+_container_factory = ContainerFactory()
+container = _container_factory()
 ```
 
-!!! note "Auto-resolved configurators"
-    Notice that configurators like `DjangoConfigurator` and `LoggingConfigurator` are resolved from the container. This ensures their dependencies (like settings classes) are properly injected.
-
-## Explicit Registration
-
-Most services don't need explicit registration. However, some cases require it:
-
-### String-Based Keys
-
-When resolving by string instead of type:
+Then the app entrypoint uses ordinary top-level imports (no delayed/lazy import behavior):
 
 ```python
-# src/ioc/registries.py
-from punq import Container, Scope
-
+from delivery.http.bootstrap import container
 from delivery.http.factories import FastAPIFactory
 
-
-class Registry:
-    def register(self, container: Container) -> None:
-        # Using string-based registration to avoid loading django-related code too early
-        container.register(
-            "FastAPIFactory",
-            factory=lambda: container.resolve(FastAPIFactory),
-            scope=Scope.singleton,
-        )
+api_factory = container.resolve(FastAPIFactory)
 ```
 
-Usage:
+This keeps startup explicit and centralized in `bootstrap.py`.
+
+## Registration APIs
+
+Most services need no manual registration, but when needed use native `diwire` APIs:
 
 ```python
-factory = container.resolve("FastAPIFactory")
+# Register a concrete class for itself
+container.add(UserService)
+
+# Register a factory for an abstraction
+container.add_factory(lambda: container.resolve(UserService), provides=UserServiceProtocol)
+
+# Register an existing instance/mock
+container.add_instance(mock_service, provides=UserService)
 ```
 
-### Protocol Mappings (Example Pattern)
+## Lifetime and Scope
 
-When an interface should resolve to a concrete implementation:
+`Scope` and `Lifetime` are `diwire` concepts, but this project does not pass
+`root_scope` or `default_lifetime` to `Container()`.
+
+The container setup in this codebase uses these `Container()` constructor options:
+
+- `missing_policy=MissingPolicy.REGISTER_RECURSIVE`
+- `dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE`
 
 ```python
-# Example - not in current codebase
-class Registry:
-    def register(self, container: Container) -> None:
-        container.register(
-            SettingsProtocol,
-            factory=lambda: container.resolve(ConcreteSettings),
-            scope=Scope.singleton,
-        )
+from diwire import Container, DependencyRegistrationPolicy, MissingPolicy
+
+container = Container(
+    missing_policy=MissingPolicy.REGISTER_RECURSIVE,
+    dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE,
+)
 ```
 
-!!! note
-    The current codebase only uses string-based registration for `FastAPIFactory`. Protocol mappings shown above are an example pattern you might use when abstracting interfaces.
+`Scope`/`Lifetime` behavior therefore comes from `diwire` defaults unless you
+explicitly override it when creating `Container()`.
 
-## Scopes
+## Pydantic Settings Integration
 
-The container supports different scopes:
-
-| Scope | Behavior |
-|-------|----------|
-| `singleton` | One instance per container (default) |
-| `transient` | New instance each time |
-
-Auto-registered services use singleton scope by default.
-
-## Singleton Behavior
-
-With singleton scope, resolving the same type returns the same instance:
+`diwire` resolves `BaseSettings` subclasses directly, so settings classes can be injected without custom wrappers.
 
 ```python
-service1 = container.resolve(UserService)
-service2 = container.resolve(UserService)
-assert service1 is service2  # Same instance
+jwt_settings = container.resolve(JWTServiceSettings)
 ```
 
-This is important for stateful services and performance.
+## Testing Overrides
 
-## Testing with IoC
-
-### Per-Test Containers
-
-Each test gets a fresh container:
+Each test should get a fresh container. Override dependencies before first resolve of the target dependency graph.
 
 ```python
 @pytest.fixture(scope="function")
-def container() -> AutoRegisteringContainer:
+def container() -> Container:
     return ContainerFactory()()
-```
 
-### Overriding Registrations
 
-Register mocks before resolving:
-
-```python
-def test_with_mock(container: AutoRegisteringContainer) -> None:
+def test_with_mock(container: Container) -> None:
     mock_service = MagicMock()
-    container.register(UserService, instance=mock_service)
+    container.add_instance(mock_service, provides=UserService)
 
     controller = container.resolve(UserController)
-    # controller._user_service is the mock
+    assert controller is not None
 ```
-
-### Test Factories
-
-Use container-based factories for test setup:
-
-```python
-class TestClientFactory(ContainerBasedFactory):
-    def __init__(self, container: AutoRegisteringContainer) -> None:
-        self._container = container
-
-    def __call__(self, auth_for_user: User | None = None) -> TestClient:
-        # Uses container to resolve dependencies
-        ...
-```
-
-## Best Practices
-
-### Do: Use Type Hints
-
-```python
-@dataclass(kw_only=True)
-class MyService:
-    _other_service: OtherService  # Resolved automatically
-```
-
-### Don't: Use `Any` or Missing Hints
-
-```python
-# ❌ Container can't resolve this
-def __init__(self, service: Any) -> None:
-    ...
-```
-
-### Do: Keep Dependencies Explicit
-
-```python
-# ✅ Clear dependencies in __init__
-@dataclass(kw_only=True)
-class OrderService:
-    _user_service: UserService
-    _payment_service: PaymentService
-```
-
-### Don't: Create Dependencies Internally
-
-```python
-# ❌ Defeats the purpose of DI
-def __init__(self) -> None:
-    self._service = UserService()
-```
-
-### Do: Use Dataclasses
-
-```python
-@dataclass(kw_only=True)
-class MyController(Controller):
-    _service: MyService
-```
-
-The `kw_only=True` ensures explicit naming when constructing.
-
-## Summary
-
-The IoC container:
-
-- **Auto-registers** services when resolved
-- **Detects** Pydantic settings and loads from environment
-- **Resolves** dependency graphs recursively
-- **Uses** singleton scope by default
-- **Enables** easy testing with overrides

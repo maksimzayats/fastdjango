@@ -1,4 +1,5 @@
-from typing import Any
+from collections.abc import Callable
+from typing import Any, cast
 
 import dj_database_url
 from pydantic import Field, SecretStr, computed_field
@@ -90,7 +91,9 @@ class DjangoStorageSettings(BaseSettings):
     static_url: str = "static/"
     media_url: str = "media/"
 
-    s3_settings: AWSS3Settings = Field(default_factory=AWSS3Settings)  # type: ignore[arg-type]
+    s3_settings: AWSS3Settings = Field(
+        default_factory=cast(Callable[[], AWSS3Settings], AWSS3Settings),
+    )
 
     @computed_field()
     def storages(self) -> dict[str, Any]:

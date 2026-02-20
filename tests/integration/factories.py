@@ -4,6 +4,7 @@ from typing import Any
 
 from celery.contrib.testing import worker
 from celery.worker import WorkController
+from diwire import Container
 from fastapi.testclient import TestClient
 
 from core.user.models import User
@@ -11,7 +12,6 @@ from core.user.services.jwt import JWTService
 from delivery.http.factories import FastAPIFactory
 from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
 from delivery.tasks.registry import TasksRegistry
-from infrastructure.frameworks.punq.auto_registering import AutoRegisteringContainer
 
 
 class BaseFactory(ABC):
@@ -25,7 +25,7 @@ class BaseFactory(ABC):
 class ContainerBasedFactory(BaseFactory, ABC):
     def __init__(
         self,
-        container: AutoRegisteringContainer,
+        container: Container,
     ) -> None:
         self._container = container
 

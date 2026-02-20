@@ -59,18 +59,16 @@ Unprefixed variables:
 | `ENVIRONMENT` | Deployment environment |
 | `ALLOWED_HOSTS` | Django allowed hosts |
 
-## Auto-Registration in IoC
+## IoC Integration
 
-The `AutoRegisteringContainer` detects `BaseSettings` subclasses and registers them with a factory:
+`diwire` integrates with `pydantic-settings`, so `BaseSettings` subclasses can be resolved directly:
 
 ```python
 # When resolving a settings class:
 settings = container.resolve(JWTServiceSettings)
 
-# The container automatically:
-# 1. Detects it's a BaseSettings subclass
-# 2. Registers with factory: lambda: JWTServiceSettings()
-# 3. Settings load from environment on first access
+# The container resolves JWTServiceSettings directly.
+# Values are loaded from environment sources during settings creation.
 ```
 
 No explicit registration is needed for settings classes.

@@ -121,7 +121,7 @@ In tutorials, use tables to show which files are created/modified:
 | Action | File Path |
 |--------|-----------|
 | Create | `src/core/todo/models.py` |
-| Modify | `src/ioc/registries/core.py` |
+| Modify | `src/ioc/container.py` |
 ```
 
 ## Tutorial-Specific Guidelines

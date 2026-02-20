@@ -159,14 +159,14 @@ Test factories extend `ContainerBasedFactory` to access the IoC container:
 from abc import ABC
 from dataclasses import dataclass
 
-from ioc.container import AutoRegisteringContainer
+from diwire import Container
 
 
 @dataclass
 class ContainerBasedFactory(ABC):
     """Base factory with access to IoC container."""
 
-    _container: AutoRegisteringContainer
+    _container: Container
 ```
 
 ### TestClientFactory
@@ -227,17 +227,19 @@ staff_auth = jwt_auth_factory(require_staff=True)  # Staff auth
 
 ## Factory Registration
 
-Factories are auto-registered like other services. If resolved by string key, explicit registration is needed:
+Factories are usually auto-wired by type, so no manual registration is required:
 
 ```python
-# src/ioc/registries.py
-class Registry:
-    def register(self, container: Container) -> None:
-        container.register(
-            "FastAPIFactory",
-            factory=lambda: container.resolve(FastAPIFactory),
-            scope=Scope.singleton,
-        )
+api_factory = container.resolve(FastAPIFactory)
+```
+
+When an abstraction must map to a concrete implementation, use `add_factory`:
+
+```python
+container.add_factory(
+    lambda: container.resolve(FastAPIFactory),
+    provides=WebAppFactoryProtocol,
+)
 ```
 
 ## CeleryAppFactory Example

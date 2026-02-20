@@ -22,12 +22,12 @@ Register a mock before creating test factories:
 ```python
 from unittest.mock import MagicMock
 
-def test_with_mock(container: AutoRegisteringContainer) -> None:
+def test_with_mock(container: Container) -> None:
     # 1. Create mock
     mock_service = MagicMock()
 
     # 2. Register mock in container
-    container.register(MyService, instance=mock_service)
+    container.add_instance(mock_service, provides=MyService)
 
     # 3. Create test client (uses container with mock)
     test_client_factory = TestClientFactory(container=container)
@@ -52,14 +52,14 @@ from tests.integration.factories import TestClientFactory
 
 @pytest.mark.django_db(transaction=True)
 def test_checkout_with_mock_payment(
-    container: AutoRegisteringContainer,
+    container: Container,
 ) -> None:
     # Create mock payment service
     mock_payment = MagicMock(spec=PaymentService)
     mock_payment.process_payment.return_value = {"status": "success", "id": "pay_123"}
 
     # Register mock
-    container.register(PaymentService, instance=mock_payment)
+    container.add_instance(mock_payment, provides=PaymentService)
 
     # Create test client with mocked container
     test_client_factory = TestClientFactory(container=container)
@@ -80,7 +80,7 @@ def test_checkout_with_mock_payment(
 ```python
 @pytest.mark.django_db(transaction=True)
 def test_product_with_mock_inventory(
-    container: AutoRegisteringContainer,
+    container: Container,
     user: User,
 ) -> None:
     # Mock inventory service
@@ -88,7 +88,7 @@ def test_product_with_mock_inventory(
     mock_inventory.check_stock.return_value = 100
     mock_inventory.reserve_stock.return_value = True
 
-    container.register(InventoryService, instance=mock_inventory)
+    container.add_instance(mock_inventory, provides=InventoryService)
 
     test_client_factory = TestClientFactory(container=container)
 
@@ -111,14 +111,14 @@ from core.email.services import EmailService, EmailDeliveryError
 
 @pytest.mark.django_db(transaction=True)
 def test_handles_email_failure(
-    container: AutoRegisteringContainer,
+    container: Container,
     user: User,
 ) -> None:
     # Mock email service to fail
     mock_email = MagicMock(spec=EmailService)
     mock_email.send_email.side_effect = EmailDeliveryError("SMTP connection failed")
 
-    container.register(EmailService, instance=mock_email)
+    container.add_instance(mock_email, provides=EmailService)
 
     test_client_factory = TestClientFactory(container=container)
 
@@ -140,14 +140,14 @@ from core.feature.settings import FeatureSettings
 
 @pytest.mark.django_db(transaction=True)
 def test_with_feature_flag_enabled(
-    container: AutoRegisteringContainer,
+    container: Container,
 ) -> None:
     # Create mock settings
     mock_settings = MagicMock(spec=FeatureSettings)
     mock_settings.new_feature_enabled = True
     mock_settings.feature_limit = 100
 
-    container.register(FeatureSettings, instance=mock_settings)
+    container.add_instance(mock_settings, provides=FeatureSettings)
 
     test_client_factory = TestClientFactory(container=container)
 
@@ -168,11 +168,11 @@ import pytest
 
 
 @pytest.fixture
-def mock_external_api(container: AutoRegisteringContainer) -> MagicMock:
+def mock_external_api(container: Container) -> MagicMock:
     """Fixture providing a mocked external API client."""
     mock = MagicMock(spec=ExternalAPIClient)
     mock.fetch_data.return_value = {"data": "mocked"}
-    container.register(ExternalAPIClient, instance=mock)
+    container.add_instance(mock, provides=ExternalAPIClient)
     return mock
 
 
@@ -219,13 +219,13 @@ For Celery tasks, mock at the service level:
 ```python
 @pytest.mark.django_db(transaction=True)
 def test_task_with_mock(
-    container: AutoRegisteringContainer,
+    container: Container,
     celery_worker_factory: TestCeleryWorkerFactory,
     tasks_registry_factory: TestTasksRegistryFactory,
 ) -> None:
     # Mock the service used by the task
     mock_service = MagicMock(spec=NotificationService)
-    container.register(NotificationService, instance=mock_service)
+    container.add_instance(mock_service, provides=NotificationService)
 
     registry = tasks_registry_factory()
 
@@ -251,12 +251,12 @@ mock = MagicMock()
 
 ```python
 # Correct order
-container.register(Service, instance=mock)
+container.add_instance(mock, provides=Service)
 test_client_factory = TestClientFactory(container=container)
 
 # Wrong - factory already created with real service
 test_client_factory = TestClientFactory(container=container)
-container.register(Service, instance=mock)  # Too late!
+container.add_instance(mock, provides=Service)  # Too late!
 ```
 
 ### Do: Use Fixture Order
@@ -264,7 +264,7 @@ container.register(Service, instance=mock)  # Too late!
 ```python
 # container fixture must come first
 def test_something(
-    container: AutoRegisteringContainer,  # First - creates container
+    container: Container,  # First - creates container
     test_client_factory: TestClientFactory,  # Uses container
     user: User,  # Uses database
 ) -> None:

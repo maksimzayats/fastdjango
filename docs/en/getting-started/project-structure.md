@@ -101,27 +101,24 @@ infrastructure/
     ├── anyio/              # Thread pool configuration
     ├── django/             # Django setup
     ├── logfire/            # OpenTelemetry/Logfire
-    ├── punq/               # IoC container
     └── throttled/          # Rate limiting
 ```
 
 Key files:
 
 - **`delivery/controllers.py`**: Defines `Controller` and `TransactionController` base classes
-- **`frameworks/punq/auto_registering.py`**: The `AutoRegisteringContainer` implementation
+- **`ioc/container.py`**: Configures the `diwire.Container` instance used by app entrypoints
 
 ### `src/ioc/` - Dependency Injection
 
-Container configuration and registration.
+Container configuration.
 
 ```
 ioc/
-├── container.py            # ContainerFactory
-└── registries.py           # Explicit registrations
+└── container.py            # ContainerFactory
 ```
 
-- **`container.py`**: Creates `AutoRegisteringContainer` and configures frameworks
-- **`registries.py`**: Registers special cases (string-based lookups, protocol mappings)
+- **`container.py`**: Creates `diwire.Container` and configures frameworks
 
 ## Tests Structure
 

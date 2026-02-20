@@ -34,7 +34,7 @@ class RefreshSessionService:
         refresh_token = self._issue_refresh_token()
         refresh_token_hash = self._hash_refresh_token(refresh_token)
 
-        session = RefreshSession.objects.create(  # type: ignore[attr-defined]
+        session = RefreshSession.objects.create(
             user=user,
             refresh_token_hash=refresh_token_hash,
             user_agent=user_agent,
