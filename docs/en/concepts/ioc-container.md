@@ -70,17 +70,26 @@ class ContainerFactory:
 
 ## Delayed Import for `FastAPIFactory`
 
-The HTTP entrypoint keeps delayed import behavior without string keys:
+The HTTP entrypoint keeps delayed import behavior by creating the container in a bootstrap module:
 
 ```python
-_container = ContainerFactory()()
+# src/delivery/http/bootstrap.py
+from ioc.container import ContainerFactory
 
-from delivery.http.factories import FastAPIFactory  # local import after Django config
-
-api_factory = _container.resolve(FastAPIFactory)
+_container_factory = ContainerFactory()
+container = _container_factory()
 ```
 
-This avoids loading heavy modules before Django is configured.
+Then the app entrypoint uses normal top-level imports:
+
+```python
+from delivery.http.bootstrap import container
+from delivery.http.factories import FastAPIFactory
+
+api_factory = container.resolve(FastAPIFactory)
+```
+
+This keeps `delivery.http.factories` imported only after Django is configured.
 
 ## Registration APIs
 
