@@ -68,9 +68,9 @@ class ContainerFactory:
         return container
 ```
 
-## Delayed Import for `FastAPIFactory`
+## Bootstrap Module for `FastAPIFactory`
 
-The HTTP entrypoint keeps delayed import behavior by creating the container in a bootstrap module:
+The HTTP wiring creates the container in a bootstrap module, where `ContainerFactory` is invoked at import time:
 
 ```python
 # src/delivery/http/bootstrap.py
@@ -80,7 +80,7 @@ _container_factory = ContainerFactory()
 container = _container_factory()
 ```
 
-Then the app entrypoint uses normal top-level imports:
+Then the app entrypoint uses ordinary top-level imports (no delayed/lazy import behavior):
 
 ```python
 from delivery.http.bootstrap import container
@@ -89,7 +89,7 @@ from delivery.http.factories import FastAPIFactory
 api_factory = container.resolve(FastAPIFactory)
 ```
 
-This keeps `delivery.http.factories` imported only after Django is configured.
+This keeps startup explicit and centralized in `bootstrap.py`.
 
 ## Registration APIs
 
@@ -108,18 +108,25 @@ container.add_instance(mock_service, provides=UserService)
 
 ## Lifetime and Scope
 
-The default container setup uses:
+`Scope` and `Lifetime` are `diwire` concepts, but this project does not pass
+`root_scope` or `default_lifetime` to `Container()`.
 
-- `root_scope=Scope.APP`
-- `default_lifetime=Lifetime.SCOPED`
+The container setup in this codebase uses these `Container()` constructor options:
 
-In the root app scope, `Lifetime.SCOPED` behaves like singleton caching.
+- `missing_policy=MissingPolicy.REGISTER_RECURSIVE`
+- `dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE`
 
 ```python
-service1 = container.resolve(UserService)
-service2 = container.resolve(UserService)
-assert service1 is service2
+from diwire import Container, DependencyRegistrationPolicy, MissingPolicy
+
+container = Container(
+    missing_policy=MissingPolicy.REGISTER_RECURSIVE,
+    dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE,
+)
 ```
+
+`Scope`/`Lifetime` behavior therefore comes from `diwire` defaults unless you
+explicitly override it when creating `Container()`.
 
 ## Pydantic Settings Integration
 
