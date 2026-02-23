@@ -9,6 +9,7 @@ from configs.application import (
     ApplicationSettings,
 )
 from configs.logging import LoggingSettings
+from delivery.http.settings import HTTPSettings
 from infrastructure.adapters.database.settings import DatabaseSettings
 from infrastructure.adapters.s3.settings import AWSS3Settings
 from infrastructure.frameworks.django.settings.pydantic_adapter import PydanticSettingsAdapter
@@ -28,7 +29,7 @@ class DjangoSettings(ApplicationSettings):
     )
 
 
-class DjangoHttpSettings(BaseSettings):
+class DjangoHttpSettings(HTTPSettings):
     root_urlconf: str = "delivery.http.django.urls"
 
     middleware: tuple[str, ...] = (

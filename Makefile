@@ -37,13 +37,6 @@ celery-beat-dev:
 		--recursive \
 		-- celery -A delivery.tasks.app beat --loglevel=DEBUG
 
-bot-dev:
-	uv run watchmedo auto-restart \
-		--directory=src \
-		--pattern='*.py' \
-		--recursive \
-		-- python -m delivery.bot
-
 .PHONY: docs docs-build
 docs:
 	uv run mkdocs serve --livereload -f docs/mkdocs.yml
