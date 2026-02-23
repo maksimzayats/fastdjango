@@ -114,6 +114,7 @@ The `.env.example` contains sensible defaults for local development. Key variabl
 - `JWT_SECRET_KEY` — JWT signing key
 - `DATABASE_URL` — PostgreSQL connection string
 - `REDIS_URL` — Redis connection string
+- `AWS_S3_ENDPOINT_URL` / `AWS_S3_PUBLIC_ENDPOINT_URL` — internal vs browser S3 endpoints
 
 ### 5. Start Infrastructure Services
 

@@ -235,6 +235,11 @@ docker compose up migrations collectstatic
 docker compose up -d
 ```
 
+For Django admin static files in Docker, ensure `.env` includes both:
+
+- `AWS_S3_ENDPOINT_URL=http://minio:9000` for app/container access.
+- `AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000` for browser access.
+
 ### View Logs
 
 ```bash

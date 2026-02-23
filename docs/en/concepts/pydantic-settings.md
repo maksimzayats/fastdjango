@@ -44,7 +44,7 @@ Settings classes use `env_prefix` to namespace variables:
 |--------|---------------|-------------------|
 | `DJANGO_` | `DjangoSecuritySettings` | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG` |
 | `JWT_` | `JWTServiceSettings` | `JWT_SECRET_KEY`, `JWT_ALGORITHM` |
-| `AWS_S3_` | `AWSS3Settings` | `AWS_S3_ACCESS_KEY_ID`, `AWS_S3_BUCKET_NAME` |
+| `AWS_S3_` | `AWSS3Settings` | `AWS_S3_ACCESS_KEY_ID`, `AWS_S3_ENDPOINT_URL` |
 | `CORS_` | `CORSSettings` | `CORS_ALLOW_ORIGINS`, `CORS_ALLOW_METHODS` |
 | `LOGFIRE_` | `LogfireSettings` | `LOGFIRE_ENABLED`, `LOGFIRE_TOKEN` |
 | `ANYIO_` | `AnyIOSettings` | `ANYIO_THREAD_LIMITER_TOKENS` |
@@ -210,9 +210,10 @@ class DjangoStorageSettings(BaseSettings):
 
     access_key_id: str
     secret_access_key: SecretStr
-    bucket_name: str
     endpoint_url: str
-    region_name: str = "us-east-1"
+    public_endpoint_url: str | None = None
+    public_bucket_name: str = "public"
+    protected_bucket_name: str = "protected"
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -224,14 +225,14 @@ class DjangoStorageSettings(BaseSettings):
                 "OPTIONS": {
                     "access_key": self.access_key_id,
                     "secret_key": self.secret_access_key.get_secret_value(),
-                    "bucket_name": self.bucket_name,
+                    "bucket_name": self.protected_bucket_name,
                     "endpoint_url": self.endpoint_url,
                 },
             },
             "staticfiles": {
                 "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
                 "OPTIONS": {
-                    "bucket_name": self.bucket_name,
+                    "bucket_name": self.public_bucket_name,
                     "endpoint_url": self.endpoint_url,
                 },
             },
