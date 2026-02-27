@@ -71,6 +71,11 @@ Collect static files for the admin panel:
 docker compose up collectstatic
 ```
 
+For Docker, keep S3 endpoints split:
+
+- `AWS_S3_ENDPOINT_URL=http://minio:9000` (internal container networking)
+- `AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000` (browser-reachable static URLs)
+
 ## Step 5: Start the Development Server
 
 ```bash

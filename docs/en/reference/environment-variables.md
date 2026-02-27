@@ -79,9 +79,10 @@ Prefix: `AWS_S3_`
 |----------|----------|---------|-------------|
 | `AWS_S3_ACCESS_KEY_ID` | Yes* | - | S3 access key |
 | `AWS_S3_SECRET_ACCESS_KEY` | Yes* | - | S3 secret key |
-| `AWS_S3_BUCKET_NAME` | Yes* | - | S3 bucket name |
-| `AWS_S3_ENDPOINT_URL` | Yes* | - | S3 endpoint URL |
-| `AWS_S3_REGION_NAME` | No | `us-east-1` | S3 region |
+| `AWS_S3_ENDPOINT_URL` | Yes* | - | Internal S3 endpoint used by Django and `collectstatic` (for Docker: `http://minio:9000`) |
+| `AWS_S3_PUBLIC_ENDPOINT_URL` | No | - | Browser-reachable endpoint used to generate public static URLs (for Docker: `http://localhost:9000`) |
+| `AWS_S3_PUBLIC_BUCKET_NAME` | No | `public` | Public bucket name used by Django staticfiles storage |
+| `AWS_S3_PROTECTED_BUCKET_NAME` | No | `protected` | Private bucket name used by default Django file storage |
 
 *Required if using S3 storage.
 
@@ -89,8 +90,10 @@ Example (MinIO local):
 ```bash
 AWS_S3_ACCESS_KEY_ID=minioadmin
 AWS_S3_SECRET_ACCESS_KEY=minioadmin
-AWS_S3_BUCKET_NAME=static
-AWS_S3_ENDPOINT_URL=http://localhost:9000
+AWS_S3_ENDPOINT_URL=http://minio:9000
+AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
+AWS_S3_PUBLIC_BUCKET_NAME=public
+AWS_S3_PROTECTED_BUCKET_NAME=protected
 ```
 
 ## CORS Settings
@@ -163,8 +166,10 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
 # S3/MinIO
 AWS_S3_ACCESS_KEY_ID=minioadmin
 AWS_S3_SECRET_ACCESS_KEY=minioadmin
-AWS_S3_BUCKET_NAME=static
-AWS_S3_ENDPOINT_URL=http://localhost:9000
+AWS_S3_ENDPOINT_URL=http://minio:9000
+AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
+AWS_S3_PUBLIC_BUCKET_NAME=public
+AWS_S3_PROTECTED_BUCKET_NAME=protected
 
 # CORS
 CORS_ALLOW_ORIGINS=["http://localhost:3000"]

@@ -6,6 +6,7 @@ class AWSS3Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AWS_S3_")
 
     endpoint_url: str
+    public_endpoint_url: str | None = None
     access_key_id: str
     secret_access_key: SecretStr
     protected_bucket_name: str = "protected"

@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from typing import Any, cast
+from urllib.parse import urlsplit
 
 import dj_database_url
 from pydantic import Field, SecretStr, computed_field
@@ -89,8 +90,8 @@ class DjangoSecuritySettings(BaseSettings):
 
 
 class DjangoStorageSettings(BaseSettings):
-    static_url: str = "static/"
-    media_url: str = "media/"
+    static_url: str = "/static/"
+    media_url: str = "/media/"
 
     s3_settings: AWSS3Settings = Field(
         default_factory=cast(Callable[[], AWSS3Settings], AWSS3Settings),
@@ -107,10 +108,7 @@ class DjangoStorageSettings(BaseSettings):
         return {
             "staticfiles": {
                 "BACKEND": "storages.backends.s3.S3Storage",
-                "OPTIONS": {
-                    **base_options,
-                    "bucket_name": self.s3_settings.public_bucket_name,
-                },
+                "OPTIONS": self._build_staticfiles_options(base_options=base_options),
             },
             "default": {
                 "BACKEND": "storages.backends.s3.S3Storage",
@@ -119,6 +117,40 @@ class DjangoStorageSettings(BaseSettings):
                     "bucket_name": self.s3_settings.protected_bucket_name,
                 },
             },
+        }
+
+    def _build_staticfiles_options(self, *, base_options: dict[str, Any]) -> dict[str, Any]:
+        options = {
+            **base_options,
+            "bucket_name": self.s3_settings.public_bucket_name,
+        }
+
+        public_url_options = self._build_public_static_url_options()
+        if public_url_options:
+            options.update(public_url_options)
+
+        return options
+
+    def _build_public_static_url_options(self) -> dict[str, str]:
+        if not self.s3_settings.public_endpoint_url:
+            return {}
+
+        endpoint = urlsplit(self.s3_settings.public_endpoint_url)
+        if not endpoint.scheme or not endpoint.netloc:
+            return {}
+
+        custom_domain = endpoint.netloc
+        endpoint_path = endpoint.path.strip("/")
+        if endpoint_path:
+            custom_domain = f"{custom_domain}/{endpoint_path}"
+
+        bucket_suffix = f"/{self.s3_settings.public_bucket_name}"
+        if not custom_domain.endswith(bucket_suffix):
+            custom_domain = f"{custom_domain}/{self.s3_settings.public_bucket_name}"
+
+        return {
+            "custom_domain": custom_domain,
+            "url_protocol": f"{endpoint.scheme}:",
         }
 
 

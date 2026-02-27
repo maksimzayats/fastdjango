@@ -110,8 +110,10 @@ minio:
 ```bash
 AWS_S3_ACCESS_KEY_ID=minioadmin
 AWS_S3_SECRET_ACCESS_KEY=minioadmin
-AWS_S3_BUCKET_NAME=static
-AWS_S3_ENDPOINT_URL=http://localhost:9000
+AWS_S3_ENDPOINT_URL=http://minio:9000
+AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
+AWS_S3_PUBLIC_BUCKET_NAME=public
+AWS_S3_PROTECTED_BUCKET_NAME=protected
 ```
 
 ### Commands
@@ -166,12 +168,16 @@ collectstatic:
     - minio
   environment:
     - AWS_S3_ENDPOINT_URL=http://minio:9000
+    - AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
 ```
 
 Run:
 ```bash
 docker compose up collectstatic
 ```
+
+`AWS_S3_ENDPOINT_URL` is the internal container endpoint, while `AWS_S3_PUBLIC_ENDPOINT_URL`
+must be browser-reachable for Django admin static files.
 
 ## Common Operations
 
