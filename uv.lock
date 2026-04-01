@@ -335,11 +335,11 @@ wheels = [
 
 [[package]]
 name = "diwire"
-version = "1.3.1"
+version = "1.3.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d4/62/86f1f638d52e53e1fb79e6947daf77ecb2995bad3eb50ba410042742755e/diwire-1.3.1.tar.gz", hash = "sha256:69bd37957ff2e3861bcbcd95947de530433ea1134b8e9b19619b0e789a24923e", size = 466710, upload-time = "2026-03-01T19:57:02.459Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/fd/00dfac4e904763515af0ed17c61e752e73e0d74ebc062479e5921c06a841/diwire-1.3.2.tar.gz", hash = "sha256:21b410d95f1f74d2f73c7d697415bf5ce20f718c1f2d4cdce815eaca487d7835", size = 469107, upload-time = "2026-03-31T07:38:55.651Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/bd/585cf828172d90c9af6a3915b846170afe199ba50ec02144ba407331227d/diwire-1.3.1-py3-none-any.whl", hash = "sha256:b6ca6ab22a0e4151d2bfce6f514420a6a3797f298f7cd77b98bb5a7c7406de64", size = 98360, upload-time = "2026-03-01T19:57:01.369Z" },
+    { url = "https://files.pythonhosted.org/packages/28/e4/1e6b8317f18eb7d4b34107e09355a35309e533b9767aab836522801990ca/diwire-1.3.2-py3-none-any.whl", hash = "sha256:39755147c153b51a45f5542eaf9ddb2c4846189da2d2391585e7e3f57de7ed98", size = 98534, upload-time = "2026-03-31T07:38:53.811Z" },
 ]
 
 [[package]]
