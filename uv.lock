@@ -1758,11 +1758,11 @@ wheels = [
 
 [[package]]
 name = "throttled-py"
-version = "3.1.1"
+version = "3.2.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/41/bf/c97923aceb37b6a73def7ed0203b68f7627fab355a19f210943fbb4e16c0/throttled_py-3.1.1.tar.gz", hash = "sha256:44ede8098525053a4a502ac1db7aa5fa44b2aceed72a75a65f73a05efe21fbbf", size = 823577, upload-time = "2026-01-15T19:15:22.611Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c3/af/15a5baab9e14d123944f7e22457be91ba526cb7f03acecd3a6e751f0a060/throttled_py-3.2.0.tar.gz", hash = "sha256:a168ad3c0b77efd3cef10120b2e4e52100018e6c02f9d5e1f064bb84c7b39d74", size = 845381, upload-time = "2026-04-03T01:38:31.171Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bf/b1/225147fde167be5d045d65fa3a119d3491e7f87fdb74dbf278d8d70280aa/throttled_py-3.1.1-py3-none-any.whl", hash = "sha256:2b75f1c2044ffd5478d28c4ae9b3d97bb9cf148cbf2ec30e9384d48984cbc997", size = 58845, upload-time = "2026-01-15T19:15:21.077Z" },
+    { url = "https://files.pythonhosted.org/packages/52/39/001735c22a2fc5b0334b0fd100698f1269d62ad051c0ea1d21e4b0e56657/throttled_py-3.2.0-py3-none-any.whl", hash = "sha256:a12585da08b20382cfcdfc261441341ffd4a35d9d40c28de50ba63774481bcca", size = 65880, upload-time = "2026-04-03T01:38:29.647Z" },
 ]
 
 [[package]]
