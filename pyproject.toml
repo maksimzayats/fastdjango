@@ -42,7 +42,7 @@ dev = [
     "pytest-django>=4.11.1",
     "pytest-mock>=3.15.1",
     "ruff>=0.14.10",
-    "ty>=0.0.9",
+    "ty>=0.0.30",
 ]
 docs = [
     "mkdocs>=1.6.1",
