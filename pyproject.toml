@@ -41,7 +41,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "pytest-django>=4.11.1",
     "pytest-mock>=3.15.1",
-    "ruff>=0.14.10",
+    "ruff>=0.15.11",
     "ty>=0.0.9",
 ]
 docs = [
