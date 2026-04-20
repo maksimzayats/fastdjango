@@ -14,7 +14,7 @@ dependencies = [
     "dj-database-url>=3.1.0",
     "django>6",
     "django-storages[s3]>=1.14.6",
-    "django-stubs[compatible-mypy]>=6.0.2",
+    "django-stubs[compatible-mypy]>=6.0.3",
     "fastapi>=0.136.0",
     "gunicorn>=23.0.0",
     "httpx>=0.28.1",
