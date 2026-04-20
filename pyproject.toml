@@ -5,7 +5,7 @@ requires-python = ">=3.14"
 dependencies = [
     "a2wsgi>=1.10.10",
     "annotated-types>=0.7.0",
-    "boto3>=1.42.90",
+    "boto3>=1.42.91",
     "cachetools>=6.2.4",
     "celery>=5.6.2",
     "celery-types>=0.24.0",
