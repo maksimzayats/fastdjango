@@ -66,11 +66,13 @@ class TestUserFactory(ContainerBasedFactory):
         self,
         username: str = "test_user",
         password: str = "password123",  # noqa: S107
-        email: str = "user@test.com",
+        email: str | None = None,
         *,
         is_staff: bool = False,
         **kwargs: Any,
     ) -> User:
+        email = email or f"{username}@test.com"
+
         return User.objects.create_user(
             username=username,
             email=email,

@@ -22,7 +22,7 @@ class JWTServiceSettings(BaseSettings):
 Environment variables:
 
 ```bash
-JWT_SECRET_KEY=my-secret-key
+JWT_SECRET_KEY=my-secret-key-with-at-least-32-bytes
 JWT_ALGORITHM=HS512
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```

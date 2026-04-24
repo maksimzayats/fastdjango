@@ -95,9 +95,9 @@ def handle_exception(self, exception: Exception) -> Any:
 
 ## BaseTransactionController
 
-For sync database operations, use `BaseTransactionController`. For async route
-methods that also need the same transaction/tracing wrapper, use
-`BaseAsyncTransactionController`.
+For sync database operations, use `BaseTransactionController`. Async route
+methods should use `BaseAsyncController` and keep Django transaction management
+inside synchronous services or use cases.
 
 ```python
 # src/fastdjango/infrastructure/django/controllers.py

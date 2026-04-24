@@ -66,7 +66,7 @@ Prefix: `JWT_`
 
 Example:
 ```bash
-JWT_SECRET_KEY=your-super-secret-jwt-key
+JWT_SECRET_KEY=your-super-secret-jwt-key-with-at-least-32-bytes
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```
@@ -162,7 +162,7 @@ DJANGO_SECRET_KEY=your-secret-key-change-in-production
 DJANGO_DEBUG=true
 
 # JWT
-JWT_SECRET_KEY=your-jwt-secret-key
+JWT_SECRET_KEY=your-jwt-secret-key-with-at-least-32-bytes
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # S3/MinIO

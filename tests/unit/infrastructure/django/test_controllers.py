@@ -5,10 +5,7 @@ from typing import Any
 import pytest
 
 from fastdjango.infrastructure.django import controllers as controllers_module
-from fastdjango.infrastructure.django.controllers import (
-    BaseAsyncTransactionController,
-    BaseTransactionController,
-)
+from fastdjango.infrastructure.django.controllers import BaseTransactionController
 
 
 @pytest.fixture()
@@ -25,7 +22,7 @@ class SyncTransactionController(BaseTransactionController):
         return "ok"
 
 
-class AsyncTransactionController(BaseAsyncTransactionController):
+class AsyncRouteTransactionController(BaseTransactionController):
     def register(self, registry: Any) -> None:
         pass
 
@@ -56,25 +53,6 @@ def test_transaction_controller_wraps_sync_route_execution(
     assert events == ["enter", "route", "exit"]
 
 
-@pytest.mark.anyio
-async def test_transaction_controller_wraps_async_route_execution(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    events: list[str] = []
-
-    @contextmanager
-    def traced_atomic(*args: Any, **kwargs: Any) -> Iterator[None]:
-        events.append("enter")
-        try:
-            yield
-        finally:
-            events.append("exit")
-
-    monkeypatch.setattr(controllers_module, "traced_atomic", traced_atomic)
-    controller = AsyncTransactionController()
-
-    coroutine = controller.route(events=events)
-
-    assert events == []
-    assert await coroutine == "ok"
-    assert events == ["enter", "route", "exit"]
+def test_transaction_controller_rejects_async_routes() -> None:
+    with pytest.raises(TypeError, match="cannot use BaseTransactionController"):
+        AsyncRouteTransactionController()
