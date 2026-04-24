@@ -44,11 +44,11 @@ from fastapi import APIRouter, Depends
 
 from fastdjango.core.todo.services import TodoService
 from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
-from fastdjango.core.shared.delivery.fastapi.schemas import Schema
+from fastdjango.core.shared.delivery.fastapi.schemas import FastAPISchema
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 
-class TodoSchema(Schema):
+class TodoSchema(FastAPISchema):
     id: int
     title: str
     completed: bool

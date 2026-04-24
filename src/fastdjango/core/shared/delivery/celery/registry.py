@@ -7,7 +7,7 @@ from celery import Task
 from fastdjango.infrastructure.celery.registry import BaseTasksRegistry
 
 if TYPE_CHECKING:
-    from fastdjango.core.health.delivery.celery.tasks import PingResult
+    from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
 
 
 class TaskName(StrEnum):
@@ -17,5 +17,5 @@ class TaskName(StrEnum):
 @dataclass(kw_only=True)
 class TasksRegistry(BaseTasksRegistry):
     @property
-    def ping(self) -> Task[[], PingResult]:
+    def ping(self) -> Task[[], PingResultSchema]:
         return self._get_task_by_name(TaskName.PING)

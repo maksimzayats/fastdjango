@@ -42,17 +42,17 @@ Create `src/fastdjango/core/email/delivery/celery/send_email.py`:
 ```python
 # src/fastdjango/core/email/delivery/celery/send_email.py
 from dataclasses import dataclass
-from typing import TypedDict
 
 from celery import Celery
 
 from fastdjango.core.email.services import EmailService
+from fastdjango.core.shared.delivery.celery.schemas import CelerySchema
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.core.shared.delivery.celery.registry import TaskName
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 
-class SendEmailResult(TypedDict):
+class SendEmailResultSchema(CelerySchema):
     success: bool
     message_id: str | None
 
@@ -72,7 +72,7 @@ class SendEmailTaskController(Controller):
         user_id: int,
         subject: str,
         body: str,
-    ) -> SendEmailResult:
+    ) -> SendEmailResultSchema:
         """Send an email to a user.
 
         Args:
@@ -91,9 +91,9 @@ class SendEmailTaskController(Controller):
                 subject=subject,
                 body=body,
             )
-            return SendEmailResult(success=True, message_id=message_id)
+            return SendEmailResultSchema(success=True, message_id=message_id)
         except Exception:
-            return SendEmailResult(success=False, message_id=None)
+            return SendEmailResultSchema(success=False, message_id=None)
 ```
 
 ### 3. Register Task Controller
@@ -264,23 +264,23 @@ class TestSendEmailTask:
 
 ```python
 # Good - serializable
-def send_email(self, user_id: int, ...) -> SendEmailResult:
+def send_email(self, user_id: int, ...) -> SendEmailResultSchema:
     user = self._user_use_case.get_user_by_id(user_id)
 
 # Bad - Django models aren't serializable
-def send_email(self, user: User, ...) -> SendEmailResult:
+def send_email(self, user: User, ...) -> SendEmailResultSchema:
     ...
 ```
 
 ### Make Tasks Idempotent
 
 ```python
-def process_order(self, order_id: int) -> ProcessResult:
+def process_order(self, order_id: int) -> ProcessResultSchema:
     order = self._order_service.get_order_by_id(order_id)
 
     # Check if already processed
     if order.status == OrderStatus.PROCESSED:
-        return ProcessResult(already_processed=True)
+        return ProcessResultSchema(already_processed=True)
 
     # Process order
     ...
@@ -289,23 +289,23 @@ def process_order(self, order_id: int) -> ProcessResult:
 ### Handle Failures Gracefully
 
 ```python
-def send_notification(self, user_id: int) -> NotifyResult:
+def send_notification(self, user_id: int) -> NotifyResultSchema:
     try:
         self._push_service.send(user_id, message)
-        return NotifyResult(success=True)
+        return NotifyResultSchema(success=True)
     except PushServiceError as e:
         # Log error but don't crash
         logfire.error("Push failed", user_id=user_id, error=str(e))
-        return NotifyResult(success=False, error=str(e))
+        return NotifyResultSchema(success=False, error=str(e))
 ```
 
-### Use TypedDict for Results
+### Use CelerySchema for Results
 
 ```python
-from typing import TypedDict
+from fastdjango.core.shared.delivery.celery.schemas import CelerySchema
 
 
-class ProcessResult(TypedDict):
+class ProcessResultSchema(CelerySchema):
     success: bool
     items_processed: int
     errors: list[str]

@@ -1,4 +1,4 @@
-from fastdjango.core.health.delivery.celery.tasks import PingResult
+from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
 from tests.integration.factories import TestCeleryWorkerFactory, TestTasksRegistryFactory
 
 
@@ -14,4 +14,4 @@ class TestPingTaskController:
         with celery_worker_factory():
             ping_result = registry.ping.delay().get(timeout=1)
 
-        assert ping_result == PingResult(result="pong")
+        assert ping_result == PingResultSchema(result="pong")

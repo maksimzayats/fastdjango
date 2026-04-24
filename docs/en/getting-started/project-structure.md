@@ -35,9 +35,11 @@ core/
 │   ├── use_cases.py        # SystemHealthUseCase
 │   └── delivery/           # Health FastAPI/Celery delivery
 │       ├── fastapi/
-│       │   └── controllers.py
+│       │   ├── controllers.py
+│       │   └── schemas.py
 │       └── celery/
-│           └── tasks.py
+│           ├── tasks.py
+│           └── schemas.py
 ├── authentication/         # Token/session authentication
 │   ├── models.py           # RefreshSession
 │   ├── dtos.py             # Token use-case DTOs
@@ -57,7 +59,7 @@ core/
 │   └── delivery/
 │       ├── django/         # Django URLs and WSGI factory
 │       ├── fastapi/        # FastAPI app/bootstrap/factory/schemas/request/throttling
-│       └── celery/         # Celery app/factory/registry
+│       └── celery/         # Celery app/factory/registry/schemas
 └── user/                   # User domain
     ├── models.py           # User
     ├── dtos.py             # User use-case DTOs

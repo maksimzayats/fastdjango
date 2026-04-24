@@ -428,6 +428,9 @@ class TestUserController:
 Use `TestTasksRegistryFactory` to get the registry and `TestCeleryWorkerFactory` as context manager:
 
 ```python
+from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
+
+
 class TestPingTaskController:
     def test_ping_task(
         self,
@@ -438,7 +441,7 @@ class TestPingTaskController:
         with celery_worker_factory():  # Starts worker in context
             ping_result = registry.ping.delay().get(timeout=1)
 
-        assert ping_result == PingResult(result="pong")
+        assert ping_result == PingResultSchema(result="pong")
 ```
 
 ### Overriding IoC Registrations in Tests

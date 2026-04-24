@@ -1,14 +1,14 @@
 from fastdjango.core.authentication.dtos import IssueTokenDTO, RefreshTokenDTO, TokenDTO
-from fastdjango.core.shared.delivery.fastapi.schemas import Schema
+from fastdjango.core.shared.delivery.fastapi.schemas import FastAPISchema
 
 
-class IssueTokenRequestSchema(IssueTokenDTO, Schema):
+class IssueTokenRequestSchema(IssueTokenDTO, FastAPISchema):
     pass
 
 
-class RefreshTokenRequestSchema(RefreshTokenDTO, Schema):
+class RefreshTokenRequestSchema(RefreshTokenDTO, FastAPISchema):
     pass
 
 
-class TokenResponseSchema(TokenDTO, Schema):
+class TokenResponseSchema(TokenDTO, FastAPISchema):
     pass

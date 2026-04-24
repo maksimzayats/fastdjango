@@ -27,17 +27,17 @@ Celery tasks follow the same controller pattern as HTTP endpoints. Create `src/f
 ```python
 # src/fastdjango/core/todo/delivery/celery/todo_cleanup.py
 from dataclasses import dataclass
-from typing import TypedDict
 
 from celery import Celery
 
+from fastdjango.core.shared.delivery.celery.schemas import CelerySchema
 from fastdjango.core.todo.services import TodoService
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.core.shared.delivery.celery.registry import TaskName
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 
-class CleanupResult(TypedDict):
+class CleanupResultSchema(CelerySchema):
     """Result of the cleanup task."""
 
     users_processed: int
@@ -55,7 +55,7 @@ class TodoCleanupTaskController(Controller):
         """Register the task with Celery."""
         registry.task(name=TaskName.TODO_CLEANUP)(self.cleanup_completed_todos)
 
-    def cleanup_completed_todos(self) -> CleanupResult:
+    def cleanup_completed_todos(self) -> CleanupResultSchema:
         """Delete all completed todos for all users.
 
         This task is designed to run on a schedule (e.g., daily)
@@ -71,7 +71,7 @@ class TodoCleanupTaskController(Controller):
             deleted_count = self._todo_service.delete_completed_todos(user)
             total_deleted += deleted_count
 
-        return CleanupResult(
+        return CleanupResultSchema(
             users_processed=len(users),
             todos_deleted=total_deleted,
         )
@@ -269,7 +269,7 @@ make celery-beat-dev
 Tasks should be safe to retry:
 
 ```python
-def cleanup_completed_todos(self) -> CleanupResult:
+def cleanup_completed_todos(self) -> CleanupResultSchema:
     # This is idempotent - running it twice doesn't cause issues
     deleted_count = self._todo_service.delete_completed_todos(user)
     return {"deleted": deleted_count}
@@ -277,10 +277,13 @@ def cleanup_completed_todos(self) -> CleanupResult:
 
 ### Do: Return Serializable Results
 
-Use `TypedDict` or simple dicts:
+Use `CelerySchema` or simple dicts:
 
 ```python
-class CleanupResult(TypedDict):
+from fastdjango.core.shared.delivery.celery.schemas import CelerySchema
+
+
+class CleanupResultSchema(CelerySchema):
     users_processed: int
     todos_deleted: int
 ```
@@ -301,7 +304,7 @@ def process_user(self, user_id: int) -> None:
 ### Do: Handle Failures Gracefully
 
 ```python
-def cleanup_completed_todos(self) -> CleanupResult:
+def cleanup_completed_todos(self) -> CleanupResultSchema:
     errors = []
     for user in users:
         try:

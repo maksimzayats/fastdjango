@@ -169,10 +169,10 @@ For more detailed error responses, create an error schema:
 
 ```python
 # src/fastdjango/core/common/delivery/fastapi/schemas.py
-from fastdjango.core.shared.delivery.fastapi.schemas import Schema
+from fastdjango.core.shared.delivery.fastapi.schemas import FastAPISchema
 
 
-class ErrorResponseSchema(Schema):
+class ErrorResponseSchema(FastAPISchema):
     error: str
     code: str
     details: dict | None = None

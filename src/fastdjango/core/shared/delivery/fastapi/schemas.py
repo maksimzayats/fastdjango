@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
 
 
-class Schema(BaseModel):
+class FastAPISchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)

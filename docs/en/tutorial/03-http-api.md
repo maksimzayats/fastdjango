@@ -43,17 +43,17 @@ from datetime import datetime
 
 from pydantic import Field
 
-from fastdjango.core.shared.delivery.fastapi.schemas import Schema
+from fastdjango.core.shared.delivery.fastapi.schemas import FastAPISchema
 
 
-class CreateTodoRequestSchema(Schema):
+class CreateTodoRequestSchema(FastAPISchema):
     """Request schema for creating a todo."""
 
     title: str = Field(..., min_length=1, max_length=200)
     description: str = Field(default="", max_length=1000)
 
 
-class UpdateTodoRequestSchema(Schema):
+class UpdateTodoRequestSchema(FastAPISchema):
     """Request schema for updating a todo."""
 
     title: str | None = Field(default=None, min_length=1, max_length=200)
@@ -61,7 +61,7 @@ class UpdateTodoRequestSchema(Schema):
     completed: bool | None = None
 
 
-class TodoSchema(Schema):
+class TodoSchema(FastAPISchema):
     """Response schema for a todo item."""
 
     id: int
@@ -73,7 +73,7 @@ class TodoSchema(Schema):
     user_id: int
 
 
-class TodoListSchema(Schema):
+class TodoListSchema(FastAPISchema):
     """Response schema for a list of todos."""
 
     todos: list[TodoSchema]

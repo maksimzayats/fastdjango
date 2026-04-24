@@ -150,16 +150,16 @@ from decimal import Decimal
 
 from pydantic import Field
 
-from fastdjango.core.shared.delivery.fastapi.schemas import Schema
+from fastdjango.core.shared.delivery.fastapi.schemas import FastAPISchema
 
 
-class CreateProductRequestSchema(Schema):
+class CreateProductRequestSchema(FastAPISchema):
     name: str = Field(..., min_length=1, max_length=200)
     description: str = Field(default="", max_length=1000)
     price: Decimal = Field(..., gt=0, decimal_places=2)
 
 
-class ProductSchema(Schema):
+class ProductSchema(FastAPISchema):
     id: int
     name: str
     description: str
