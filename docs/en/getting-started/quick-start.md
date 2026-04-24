@@ -139,7 +139,7 @@ If port 8000 is occupied:
 lsof -i :8000
 
 # Or use a different port
-uvicorn fastdjango.core.shared.delivery.fastapi.app:app --host 0.0.0.0 --port 8001
+uvicorn fastdjango.entrypoints.fastapi.app:app --host 0.0.0.0 --port 8001
 ```
 
 ### Database Connection Error

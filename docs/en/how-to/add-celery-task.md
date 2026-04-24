@@ -23,10 +23,10 @@ Add a new Celery task for background processing.
 
 ### 1. Add Task Name
 
-Edit `src/fastdjango/core/shared/delivery/celery/registry.py`:
+Edit `src/fastdjango/entrypoints/celery/registry.py`:
 
 ```python
-# src/fastdjango/core/shared/delivery/celery/registry.py
+# src/fastdjango/entrypoints/celery/registry.py
 from enum import StrEnum
 
 
@@ -48,7 +48,7 @@ from celery import Celery
 from fastdjango.core.email.services import EmailService
 from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
 from fastdjango.core.user.use_cases import UserUseCase
-from fastdjango.core.shared.delivery.celery.registry import TaskName
+from fastdjango.entrypoints.celery.registry import TaskName
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 
@@ -98,16 +98,16 @@ class SendEmailTaskController(Controller):
 
 ### 3. Register Task Controller
 
-Edit `src/fastdjango/core/shared/delivery/celery/factories.py`:
+Edit `src/fastdjango/entrypoints/celery/factories.py`:
 
 ```python
-# src/fastdjango/core/shared/delivery/celery/factories.py
+# src/fastdjango/entrypoints/celery/factories.py
 # Add import
 from fastdjango.core.email.delivery.celery.send_email import SendEmailTaskController
 
 
 @dataclass(kw_only=True)
-class TasksRegistryFactory:
+class TasksRegistryFactory(BaseFactory):
     _celery_app_factory: CeleryAppFactory
     _ping_controller: PingTaskController
     _send_email_controller: SendEmailTaskController  # Add as field
@@ -133,7 +133,7 @@ Controllers are declared as dataclass fields and auto-resolved by the IoC contai
 For type-safe task access, add to `TasksRegistry`:
 
 ```python
-# src/fastdjango/core/shared/delivery/celery/registry.py
+# src/fastdjango/entrypoints/celery/registry.py
 from celery import Task
 
 from fastdjango.infrastructure.celery.registry import BaseTasksRegistry
@@ -173,13 +173,13 @@ class UserController(TransactionController):
 
 ### 6. Schedule the Task (Optional)
 
-For periodic tasks, add to beat schedule in `src/fastdjango/core/shared/delivery/celery/factories.py`:
+For periodic tasks, add to beat schedule in `src/fastdjango/entrypoints/celery/factories.py`:
 
 ```python
 from celery.schedules import crontab
 
 
-class CeleryAppFactory:
+class CeleryAppFactory(BaseFactory):
     def __call__(self) -> Celery:
         celery_app = Celery(...)
 
@@ -315,9 +315,9 @@ class ProcessResultSchema(BaseCelerySchema):
 
 | Action | File |
 |--------|------|
-| Modify | `src/fastdjango/core/shared/delivery/celery/registry.py` |
+| Modify | `src/fastdjango/entrypoints/celery/registry.py` |
 | Create | `src/fastdjango/core/email/delivery/celery/send_email.py` |
-| Modify | `src/fastdjango/core/shared/delivery/celery/factories.py` |
+| Modify | `src/fastdjango/entrypoints/celery/factories.py` |
 | Create | `tests/integration/celery/test_send_email.py` |
 
 ## Verification
@@ -327,7 +327,7 @@ class ProcessResultSchema(BaseCelerySchema):
 
 ```python
 from fastdjango.ioc.container import get_container
-from fastdjango.core.shared.delivery.celery.registry import TasksRegistry
+from fastdjango.entrypoints.celery.registry import TasksRegistry
 
 container = get_container()
 registry = container.resolve(TasksRegistry)

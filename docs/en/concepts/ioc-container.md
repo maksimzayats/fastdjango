@@ -76,7 +76,7 @@ def get_container(
 The HTTP wiring creates the container in a bootstrap module, where `get_container` is invoked at import time:
 
 ```python
-# src/fastdjango/core/shared/delivery/fastapi/bootstrap.py
+# src/fastdjango/entrypoints/fastapi/bootstrap.py
 from fastdjango.ioc.container import get_container
 
 container = get_container()
@@ -85,8 +85,8 @@ container = get_container()
 Then the app entrypoint uses ordinary top-level imports (no delayed/lazy import behavior):
 
 ```python
-from fastdjango.core.shared.delivery.fastapi.bootstrap import container
-from fastdjango.core.shared.delivery.fastapi.factories import FastAPIFactory
+from fastdjango.entrypoints.fastapi.bootstrap import container
+from fastdjango.entrypoints.fastapi.factories import FastAPIFactory
 
 api_factory = container.resolve(FastAPIFactory)
 ```

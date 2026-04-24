@@ -9,6 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.datastructures import State
 
 from fastdjango.core.authentication.services.jwt import JWTService
+from fastdjango.core.shared.factories import BaseFactory
 from fastdjango.core.user.models import User
 from fastdjango.core.user.use_cases import UserUseCase
 
@@ -23,7 +24,7 @@ class AuthenticatedRequest(Request):
 
 
 @dataclass(kw_only=True)
-class JWTAuthFactory:
+class JWTAuthFactory(BaseFactory):
     """Factory for creating JWT auth instances with optional permission checks.
 
     Example:

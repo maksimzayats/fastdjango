@@ -54,14 +54,14 @@ core/
 │           ├── controllers.py  # Token endpoints
 │           ├── schemas.py      # Token schemas
 │           └── throttling.py   # Authenticated-user throttling
-├── shared/                 # Cross-domain application wiring
+├── shared/                 # Shared kernel primitives
 │   ├── dtos.py             # BaseDTO configuration
+│   ├── factories.py        # BaseFactory marker
 │   ├── services.py         # BaseService marker
 │   ├── use_cases.py        # BaseUseCase marker
 │   └── delivery/
-│       ├── django/         # Django URLs and WSGI factory
-│       ├── fastapi/        # FastAPI app/bootstrap/factory/schemas/request/throttling
-│       └── celery/         # Celery app/factory/registry/schemas
+│       ├── fastapi/        # BaseFastAPISchema/request/throttling helpers
+│       └── celery/         # BaseCelerySchema
 └── user/                   # User domain
     ├── models.py           # User
     ├── dtos.py             # User use-case DTOs
@@ -78,16 +78,35 @@ core/
 **Key principle**: Use cases encapsulate application behavior. Controllers never access models directly.
 DTOs live beside use cases; delivery schemas have their own independent base and may inherit from DTOs only when the wire shape matches the use-case shape.
 
+### `src/fastdjango/entrypoints/` - Composition Roots
+
+Application bootstrapping, framework factories, route registration, task
+registration, and Django URL configuration live outside `core/`:
+
+```
+entrypoints/
+├── django/
+│   ├── factories.py        # AdminSiteFactory, DjangoWSGIFactory
+│   └── urls.py             # Django URLConf
+├── fastapi/
+│   ├── app.py              # ASGI app object
+│   ├── bootstrap.py        # Container bootstrap
+│   └── factories.py        # FastAPI app factory and route registration
+└── celery/
+    ├── app.py              # Celery app object
+    ├── factories.py        # Celery app and task registration factories
+    └── registry.py         # App task registry
+```
+
 ### Domain Delivery
 
 Delivery code lives inside the core package it exposes. For example, user FastAPI
 controllers live in `core/user/delivery/fastapi/`, and the health ping task lives
 in `core/health/delivery/celery/`.
 
-Shared application entry points and registries live in `core/shared/delivery/`.
-This mirrors the `secondbrain` structure: `core/shared/delivery/django/urls.py`
-is the Django URLConf, and `core/shared/delivery/fastapi/app.py` is the FastAPI
-entry point.
+Shared delivery helpers stay in `core/shared/delivery/`; application entry
+points and registries live in `entrypoints/`. This keeps reusable core code from
+importing concrete application components.
 
 ### `src/fastdjango/infrastructure/` - Cross-Cutting Concerns
 
@@ -151,8 +170,8 @@ The application has multiple entry points:
 
 | Entry Point | File | Purpose |
 |-------------|------|---------|
-| FastAPI App | `src/fastdjango/core/shared/delivery/fastapi/app.py` | HTTP API application |
-| Celery Worker | `src/fastdjango/core/shared/delivery/celery/app.py` | Background task processing |
+| FastAPI App | `src/fastdjango/entrypoints/fastapi/app.py` | HTTP API application |
+| Celery Worker | `src/fastdjango/entrypoints/celery/app.py` | Background task processing |
 | Django Admin | Mounted at `/django/admin/` | Administration interface |
 
 ## Data Flow

@@ -82,7 +82,7 @@ make docs-build
 
 Runs:
 ```bash
-uvicorn fastdjango.core.shared.delivery.fastapi.app:app --reload --host 0.0.0.0 --port 8000
+uvicorn fastdjango.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - Hot reloading enabled
@@ -93,7 +93,7 @@ uvicorn fastdjango.core.shared.delivery.fastapi.app:app --reload --host 0.0.0.0 
 
 Runs:
 ```bash
-celery -A fastdjango.core.shared.delivery.celery.app:app worker --loglevel=info
+celery -A fastdjango.entrypoints.celery.app:app worker --loglevel=info
 ```
 
 - Processes background tasks
@@ -104,7 +104,7 @@ celery -A fastdjango.core.shared.delivery.celery.app:app worker --loglevel=info
 
 Runs:
 ```bash
-celery -A fastdjango.core.shared.delivery.celery.app:app beat --loglevel=info
+celery -A fastdjango.entrypoints.celery.app:app beat --loglevel=info
 ```
 
 - Schedules periodic tasks

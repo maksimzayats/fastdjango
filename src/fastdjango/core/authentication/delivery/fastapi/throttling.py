@@ -7,11 +7,12 @@ from throttled.asyncio import Quota, RateLimiterType
 
 from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest
 from fastdjango.core.shared.delivery.fastapi.throttling import BaseThrottler
+from fastdjango.core.shared.factories import BaseFactory
 from fastdjango.infrastructure.throttled.throttler import AsyncThrottlerFactory
 
 
 @dataclass(kw_only=True)
-class UserThrottlerFactory:
+class UserThrottlerFactory(BaseFactory):
     _throttler_factory: AsyncThrottlerFactory
 
     def __call__(

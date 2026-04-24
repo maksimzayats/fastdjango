@@ -18,7 +18,7 @@ Expose the Todo service via REST API with JWT authentication.
 | Create | `src/fastdjango/core/todo/delivery/fastapi/controllers.py` |
 | Create | `src/fastdjango/core/todo/delivery/django/__init__.py` |
 | Create | `src/fastdjango/core/todo/delivery/django/admin.py` |
-| Modify | `src/fastdjango/core/shared/delivery/fastapi/factories.py` |
+| Modify | `src/fastdjango/entrypoints/fastapi/factories.py` |
 
 ## Concept Reference
 
@@ -298,16 +298,16 @@ Override `handle_exception` to map domain exceptions to HTTP responses:
 
 ## Step 4: Register the Controller
 
-Modify `src/fastdjango/core/shared/delivery/fastapi/factories.py` to include the TodoController:
+Modify `src/fastdjango/entrypoints/fastapi/factories.py` to include the TodoController:
 
 ```python
-# src/fastdjango/core/shared/delivery/fastapi/factories.py
+# src/fastdjango/entrypoints/fastapi/factories.py
 # Add this import at the top
 from fastdjango.core.todo.delivery.fastapi.controllers import TodoController
 
 
 @dataclass(kw_only=True)
-class FastAPIFactory:
+class FastAPIFactory(BaseFactory):
     # ... existing controller fields ...
     _todo_controller: TodoController  # Add this field
 

@@ -8,13 +8,14 @@ from diwire import Container
 from fastapi.testclient import TestClient
 
 from fastdjango.core.authentication.services.jwt import JWTService
-from fastdjango.core.shared.delivery.celery.factories import CeleryAppFactory, TasksRegistryFactory
-from fastdjango.core.shared.delivery.celery.registry import TasksRegistry
-from fastdjango.core.shared.delivery.fastapi.factories import FastAPIFactory
+from fastdjango.core.shared.factories import BaseFactory
 from fastdjango.core.user.models import User
+from fastdjango.entrypoints.celery.factories import CeleryAppFactory, TasksRegistryFactory
+from fastdjango.entrypoints.celery.registry import TasksRegistry
+from fastdjango.entrypoints.fastapi.factories import FastAPIFactory
 
 
-class BaseFactory(ABC):
+class BaseTestFactory(BaseFactory, ABC):
     __test__ = False
 
     @abstractmethod
@@ -22,7 +23,7 @@ class BaseFactory(ABC):
         pass
 
 
-class ContainerBasedFactory(BaseFactory, ABC):
+class ContainerBasedFactory(BaseTestFactory, ABC):
     def __init__(
         self,
         container: Container,

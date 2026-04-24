@@ -251,7 +251,7 @@ class ProductController(TransactionController):
 
 ### 8. Register the Controller
 
-Edit `src/fastdjango/core/shared/delivery/fastapi/factories.py`:
+Edit `src/fastdjango/entrypoints/fastapi/factories.py`:
 
 ```python
 # Add import at the top
@@ -259,7 +259,7 @@ from fastdjango.core.product.delivery.fastapi.controllers import ProductControll
 
 
 @dataclass(kw_only=True)
-class FastAPIFactory:
+class FastAPIFactory(BaseFactory):
     # ... existing controller fields ...
     _product_controller: ProductController  # Add this field
 
@@ -378,7 +378,7 @@ class TestProductController:
 | Create | `src/fastdjango/core/product/delivery/fastapi/controllers.py` |
 | Modify | `src/fastdjango/infrastructure/django/settings.py` |
 | Modify | `src/fastdjango/core/product/apps.py` |
-| Modify | `src/fastdjango/core/shared/delivery/fastapi/factories.py` |
+| Modify | `src/fastdjango/entrypoints/fastapi/factories.py` |
 | Create | `tests/integration/fastapi/test_v1_products.py` |
 
 ## Verification

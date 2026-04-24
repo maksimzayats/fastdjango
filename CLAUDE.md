@@ -55,9 +55,8 @@ This is a FastAPI + Django + Celery application using **diwire** for dependency 
 ### Module Structure
 
 - **`src/fastdjango/core/`** - Business logic, domain models, services, and domain-owned delivery.
-- **`src/fastdjango/core/shared/delivery/django/`** - Django URLConf and WSGI factory.
-- **`src/fastdjango/core/shared/delivery/fastapi/`** - FastAPI app, bootstrap, factory, and settings.
-- **`src/fastdjango/core/shared/delivery/celery/`** - Celery app, factory, registry, and settings.
+- **`src/fastdjango/core/shared/`** - Shared base classes and reusable delivery primitives.
+- **`src/fastdjango/entrypoints/`** - FastAPI, Celery, and Django composition roots.
 - **`src/fastdjango/infrastructure/`** - Cross-cutting concerns (settings adapters, controller base classes, telemetry).
 - **`src/fastdjango/ioc/`** - Dependency injection container configuration.
 
@@ -160,8 +159,8 @@ Direct model imports are acceptable ONLY in:
 
 ### Entry Points
 
-1. **FastAPI App**: `src/fastdjango/core/shared/delivery/fastapi/app.py`
-2. **Celery Worker**: `src/fastdjango/core/shared/delivery/celery/app.py`
+1. **FastAPI App**: `src/fastdjango/entrypoints/fastapi/app.py`
+2. **Celery Worker**: `src/fastdjango/entrypoints/celery/app.py`
 
 All entry points share the same IoC container for consistent dependency resolution.
 

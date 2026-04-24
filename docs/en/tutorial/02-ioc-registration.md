@@ -74,7 +74,7 @@ from fastdjango.ioc.container import get_container
 
 _container = get_container()
 
-from fastdjango.core.shared.delivery.fastapi.factories import FastAPIFactory
+from fastdjango.entrypoints.fastapi.factories import FastAPIFactory
 
 api_factory = _container.resolve(FastAPIFactory)
 ```

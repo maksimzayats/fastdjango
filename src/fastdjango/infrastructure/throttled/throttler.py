@@ -11,6 +11,8 @@ from throttled.asyncio import (
     Throttled as AsyncThrottled,
 )
 
+from fastdjango.core.shared.factories import BaseFactory
+
 
 class ThrottledRedisSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="REDIS_")
@@ -19,7 +21,7 @@ class ThrottledRedisSettings(BaseSettings):
 
 
 @dataclass(kw_only=True)
-class ThrottlerStoreFactory:
+class ThrottlerStoreFactory(BaseFactory):
     _redis_settings: ThrottledRedisSettings
 
     def __call__(self) -> BaseStore:
@@ -27,7 +29,7 @@ class ThrottlerStoreFactory:
 
 
 @dataclass(kw_only=True)
-class ThrottlerFactory:
+class ThrottlerFactory(BaseFactory):
     _store_factory: ThrottlerStoreFactory
 
     def __post_init__(self) -> None:
@@ -46,7 +48,7 @@ class ThrottlerFactory:
 
 
 @dataclass(kw_only=True)
-class AsyncThrottlerStoreFactory:
+class AsyncThrottlerStoreFactory(BaseFactory):
     _redis_settings: ThrottledRedisSettings
 
     def __call__(self) -> AsyncBaseStore:
@@ -54,7 +56,7 @@ class AsyncThrottlerStoreFactory:
 
 
 @dataclass(kw_only=True)
-class AsyncThrottlerFactory:
+class AsyncThrottlerFactory(BaseFactory):
     _store_factory: AsyncThrottlerStoreFactory
 
     def __post_init__(self) -> None:

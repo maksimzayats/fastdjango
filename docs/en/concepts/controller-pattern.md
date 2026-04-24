@@ -177,7 +177,7 @@ class UserController(TransactionController):
 from celery import Celery
 
 from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
-from fastdjango.core.shared.delivery.celery.registry import TaskName
+from fastdjango.entrypoints.celery.registry import TaskName
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 
@@ -234,9 +234,9 @@ Thread sensitivity:
 Controllers are injected as fields into the factory and registered with tagged routers:
 
 ```python
-# src/fastdjango/core/shared/delivery/fastapi/factories.py
+# src/fastdjango/entrypoints/fastapi/factories.py
 @dataclass(kw_only=True)
-class FastAPIFactory:
+class FastAPIFactory(BaseFactory):
     # Controllers are injected as fields (auto-resolved by IoC)
     _health_controller: HealthController
     _authentication_token_controller: AuthenticationTokenController

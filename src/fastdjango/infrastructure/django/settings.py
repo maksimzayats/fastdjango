@@ -28,7 +28,7 @@ class DjangoHttpSettings(BaseSettings):
     allowed_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
     csrf_trusted_origins: list[str] = Field(default_factory=lambda: ["http://localhost"])
 
-    root_urlconf: str = "fastdjango.core.shared.delivery.django.urls"
+    root_urlconf: str = "fastdjango.entrypoints.django.urls"
 
     middleware: tuple[str, ...] = (
         "django.middleware.security.SecurityMiddleware",

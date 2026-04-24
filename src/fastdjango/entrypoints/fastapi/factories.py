@@ -13,8 +13,9 @@ from fastdjango.core.authentication.delivery.fastapi.controllers import (
     AuthenticationTokenController,
 )
 from fastdjango.core.health.delivery.fastapi.controllers import HealthController
-from fastdjango.core.shared.delivery.django.factories import DjangoWSGIFactory
+from fastdjango.core.shared.factories import BaseFactory
 from fastdjango.core.user.delivery.fastapi.controllers import UserController
+from fastdjango.entrypoints.django.factories import DjangoWSGIFactory
 from fastdjango.infrastructure.anyio.configurator import AnyIOConfigurator
 from fastdjango.infrastructure.logfire.instrumentor import OpenTelemetryInstrumentor
 from fastdjango.infrastructure.shared import ApplicationSettings, Environment
@@ -45,7 +46,7 @@ class Lifespan:
 
 
 @dataclass(kw_only=True)
-class FastAPIFactory:
+class FastAPIFactory(BaseFactory):
     _application_settings: ApplicationSettings
     _fastapi_settings: FastAPISettings
     _cors_settings: CORSSettings

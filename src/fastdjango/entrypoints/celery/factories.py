@@ -5,7 +5,8 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from fastdjango.core.health.delivery.celery.tasks import PingTaskController
-from fastdjango.core.shared.delivery.celery.registry import TaskName, TasksRegistry
+from fastdjango.core.shared.factories import BaseFactory
+from fastdjango.entrypoints.celery.registry import TaskName, TasksRegistry
 from fastdjango.infrastructure.shared import ApplicationSettings
 
 
@@ -49,7 +50,7 @@ class CelerySettings(BaseSettings):
 
 
 @dataclass(kw_only=True)
-class CeleryAppFactory:
+class CeleryAppFactory(BaseFactory):
     _application_settings: ApplicationSettings
     _celery_settings: CelerySettings
     _broker_settings: CeleryBrokerSettings
@@ -88,7 +89,7 @@ class CeleryAppFactory:
 
 
 @dataclass(kw_only=True)
-class TasksRegistryFactory:
+class TasksRegistryFactory(BaseFactory):
     _celery_app_factory: CeleryAppFactory
     _ping_controller: PingTaskController
     _instance: TasksRegistry | None = field(default=None, init=False)

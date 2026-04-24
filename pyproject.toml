@@ -101,8 +101,8 @@ source = ["src"]
 omit = [
     # Entry points
     "src/fastdjango/manage.py",
-    "src/fastdjango/core/shared/delivery/fastapi/app.py",
-    "src/fastdjango/core/shared/delivery/celery/app.py",
+    "src/fastdjango/entrypoints/fastapi/app.py",
+    "src/fastdjango/entrypoints/celery/app.py",
     # Django admin (requires manual testing)
     "src/**/admin.py",
     # Observability/telemetry (requires external services)

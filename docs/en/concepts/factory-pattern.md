@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 
 @dataclass(kw_only=True)
-class JWTAuthFactory:
+class JWTAuthFactory(BaseFactory):
     """Factory for creating JWT authentication dependencies."""
 
     _jwt_service: JWTService
@@ -98,9 +98,9 @@ Auth dependencies are created in `__post_init__` and stored as instance attribut
 The `FastAPIFactory` creates the entire FastAPI application:
 
 ```python
-# src/fastdjango/core/shared/delivery/fastapi/factories.py
+# src/fastdjango/entrypoints/fastapi/factories.py
 @dataclass(kw_only=True)
-class FastAPIFactory:
+class FastAPIFactory(BaseFactory):
     _application_settings: ApplicationSettings
     _fastapi_settings: FastAPISettings
     _cors_settings: CORSSettings
@@ -163,7 +163,7 @@ from diwire import Container
 
 
 @dataclass
-class ContainerBasedFactory(ABC):
+class ContainerBasedFactory(BaseFactory, ABC):
     """Base factory with access to IoC container."""
 
     _container: Container
@@ -245,9 +245,9 @@ container.add_factory(
 ## CeleryAppFactory Example
 
 ```python
-# src/fastdjango/core/shared/delivery/celery/factories.py
+# src/fastdjango/entrypoints/celery/factories.py
 @dataclass(kw_only=True)
-class CeleryAppFactory:
+class CeleryAppFactory(BaseFactory):
     """Factory for creating Celery applications."""
 
     _broker_settings: CeleryBrokerSettings

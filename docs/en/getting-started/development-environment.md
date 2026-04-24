@@ -136,15 +136,15 @@ Tests use `.env.test` which is loaded automatically by pytest:
 ```bash
 # FastAPI (HTTP API)
 make dev
-# Equivalent to: uvicorn fastdjango.core.shared.delivery.fastapi.app:app --reload --host 0.0.0.0 --port 8000
+# Equivalent to: uvicorn fastdjango.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
 
 # Celery Worker
 make celery-dev
-# Equivalent to: celery -A fastdjango.core.shared.delivery.celery.app:app worker --loglevel=info
+# Equivalent to: celery -A fastdjango.entrypoints.celery.app:app worker --loglevel=info
 
 # Celery Beat (Scheduler)
 make celery-beat-dev
-# Equivalent to: celery -A fastdjango.core.shared.delivery.celery.app:app beat --loglevel=info
+# Equivalent to: celery -A fastdjango.entrypoints.celery.app:app beat --loglevel=info
 ```
 
 ### Database Operations
@@ -217,7 +217,7 @@ LOGGING_LEVEL=DEBUG make dev
 For detailed Celery logs:
 
 ```bash
-celery -A fastdjango.core.shared.delivery.celery.app:app worker --loglevel=debug
+celery -A fastdjango.entrypoints.celery.app:app worker --loglevel=debug
 ```
 
 ## Docker Development

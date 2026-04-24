@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from celery import Task
 
+from fastdjango.core.health.delivery.celery.tasks import PING_TASK_NAME
 from fastdjango.infrastructure.celery.registry import BaseTasksRegistry
 
 if TYPE_CHECKING:
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class TaskName(StrEnum):
-    PING = "ping"
+    PING = PING_TASK_NAME
 
 
 @dataclass(kw_only=True)

@@ -1,4 +1,4 @@
-from fastdjango.core.shared.delivery.celery.factories import CeleryAppFactory, TasksRegistryFactory
+from fastdjango.entrypoints.celery.factories import CeleryAppFactory, TasksRegistryFactory
 from fastdjango.ioc.container import get_container
 
 _container = get_container()
