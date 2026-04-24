@@ -18,9 +18,9 @@ featuring dependency injection, type-safe configuration, and comprehensive obser
 **Define a service** with business logic and database operations:
 
 ```python
-# src/core/todo/services.py
+# src/fastdjango/core/todo/services.py
 from django.db import transaction
-from core.todo.models import Todo
+from fastdjango.core.todo.models import Todo
 
 
 class TodoService:
@@ -38,14 +38,14 @@ class TodoService:
 **Create a controller** — services are auto-injected via the IoC container:
 
 ```python
-# src/delivery/http/todo/controllers.py
+# src/fastdjango/core/todo/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from core.todo.services import TodoService
-from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
-from infrastructure.delivery.controllers import Controller
+from fastdjango.core.todo.services import TodoService
+from fastdjango.core.user.delivery.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from fastdjango.infrastructure.delivery.controllers import Controller
 
 
 class TodoSchema(BaseModel):

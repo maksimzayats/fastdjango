@@ -146,7 +146,7 @@ Access MinIO console at http://localhost:9001
 ```yaml
 migrations:
   build: .
-  command: python src/manage.py migrate
+  command: python src/fastdjango/manage.py migrate
   depends_on:
     - postgres
   environment:
@@ -163,7 +163,7 @@ docker compose up migrations
 ```yaml
 collectstatic:
   build: .
-  command: python src/manage.py collectstatic --noinput
+  command: python src/fastdjango/manage.py collectstatic --noinput
   depends_on:
     - minio
   environment:

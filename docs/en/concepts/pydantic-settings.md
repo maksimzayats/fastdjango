@@ -123,7 +123,7 @@ print(settings)  # secret_key='**********'
 The project loads `.env` files via `python-dotenv`:
 
 ```python
-# src/infrastructure/frameworks/django/configurator.py
+# src/fastdjango/infrastructure/django/configurator.py
 from dotenv import load_dotenv
 
 
@@ -171,7 +171,7 @@ The IoC container resolves settings automatically.
 Django settings are adapted from Pydantic using `PydanticSettingsAdapter`:
 
 ```python
-# src/configs/django.py
+# src/fastdjango/infrastructure/django/settings.py
 class DjangoSecuritySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DJANGO_")
 
@@ -244,9 +244,8 @@ class DjangoStorageSettings(BaseSettings):
 Parse complex values from environment:
 
 ```python
-class HTTPSettings(BaseSettings):
+class FastAPISettings(BaseSettings):
     allowed_hosts: list[str] = ["*"]  # From ALLOWED_HOSTS="host1,host2"
-    csrf_trusted_origins: list[str] = []
 
 
 class CORSSettings(BaseSettings):
@@ -292,7 +291,7 @@ class LogfireSettings(BaseSettings):
 
 ```python
 # Settings validated when container creates them
-container = ContainerFactory()()
+container = get_container()
 # If any required env vars are missing, fails here
 ```
 

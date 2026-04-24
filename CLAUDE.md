@@ -50,16 +50,16 @@ All code must be compatible with `mypy --strict` mode.
 
 ## Architecture Overview
 
-This is a Django + Celery application using **diwire** for dependency injection.
+This is a FastAPI + Django + Celery application using **diwire** for dependency injection.
 
 ### Module Structure
 
-- **`configs/`** - Application configuration (Django settings, logging, Pydantic settings classes).
-- **`core/`** - Business logic, domain models, and **services**. All database operations are encapsulated in services.
-- **`delivery/`** - External interfaces (HTTP API, Celery tasks, JWT auth, delivery-specific services). **Controllers NEVER access models directly.**
-- **`infrastructure/`** - Cross-cutting concerns (settings adapters, controller base classes, telemetry).
-- **`ioc/`** - Dependency injection container configuration.
-- **`delivery/tasks/`** - Celery task definitions using controller pattern.
+- **`src/fastdjango/core/`** - Business logic, domain models, services, and domain-owned delivery.
+- **`src/fastdjango/core/shared/delivery/django/`** - Django URLConf and WSGI factory.
+- **`src/fastdjango/core/shared/delivery/fastapi/`** - FastAPI app, bootstrap, factory, and settings.
+- **`src/fastdjango/core/shared/delivery/celery/`** - Celery app, factory, registry, and settings.
+- **`src/fastdjango/infrastructure/`** - Cross-cutting concerns (settings adapters, controller base classes, telemetry).
+- **`src/fastdjango/ioc/`** - Dependency injection container configuration.
 
 ## Service Layer Architecture
 
@@ -78,8 +78,8 @@ Controller → Service → Model
 ### Correct Pattern
 
 ```python
-# delivery/http/user/controllers.py
-from core.user.services.user import UserService  # ✅ Import service, not model
+# src/fastdjango/core/user/delivery/fastapi/controllers.py
+from fastdjango.core.user.services.user import UserService  # ✅ Import service, not model
 
 class UserController(Controller):
     def __init__(self, user_service: UserService) -> None:
@@ -94,7 +94,7 @@ class UserController(Controller):
 
 ```python
 # ❌ WRONG - Direct model import in controller
-from core.user.models import User
+from fastdjango.core.user.models import User
 
 class UserController(Controller):
     def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
@@ -104,12 +104,12 @@ class UserController(Controller):
 
 ### Creating Services
 
-Services belong in `core/<domain>/services.py` or `core/<domain>/services/<service_name>.py` for domains with multiple services:
+Services belong in `src/fastdjango/core/<domain>/services.py` or `src/fastdjango/core/<domain>/services/<service_name>.py` for domains with multiple services:
 
 ```python
-# core/item/services.py
+# src/fastdjango/core/item/services.py
 from django.db import transaction
-from core.item.models import Item
+from fastdjango.core.item.models import Item
 
 class ItemNotFoundError(Exception):
     """Domain exception for missing items."""
@@ -158,8 +158,8 @@ Direct model imports are acceptable ONLY in:
 
 ### Entry Points
 
-1. **HTTP API**: `delivery/http/app.py` (FastAPI)
-2. **Celery Worker**: `delivery/tasks/app.py`
+1. **FastAPI App**: `src/fastdjango/core/shared/delivery/fastapi/app.py`
+2. **Celery Worker**: `src/fastdjango/core/shared/delivery/celery/app.py`
 
 All entry points share the same IoC container for consistent dependency resolution.
 
@@ -169,13 +169,12 @@ The container uses `diwire` recursive auto-wiring. Services are resolved by type
 
 ### Container Setup
 
-The container is created via `ContainerFactory` in `src/ioc/container.py`:
+The container is created via `get_container()` in `src/fastdjango/ioc/container.py`:
 
 ```python
-from ioc.container import ContainerFactory
+from fastdjango.ioc.container import get_container
 
-container_factory = ContainerFactory()
-container = container_factory()  # Creates Container
+container = get_container()
 ```
 
 ### Container
@@ -221,7 +220,7 @@ controller = container.resolve(UserController)
 
 ## Controller Pattern
 
-Controllers are defined in `infrastructure/delivery/controllers.py`.
+Controllers are defined in `src/fastdjango/infrastructure/delivery/controllers.py`.
 
 ### Controller (HTTP API, Celery)
 
@@ -252,7 +251,7 @@ async def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSch
     return UserSchema.model_validate(user, from_attributes=True)
 ```
 
-**Thread pool configuration:** Control parallelism via `ANYIO_THREAD_LIMITER_TOKENS` environment variable (default: 40 concurrent threads per worker). See `src/infrastructure/anyio/configurator.py`.
+**Thread pool configuration:** Control parallelism via `ANYIO_THREAD_LIMITER_TOKENS` environment variable (default: 40 concurrent threads per worker). See `src/fastdjango/infrastructure/anyio/configurator.py`.
 
 ### Async Handlers (Advanced)
 
@@ -287,7 +286,7 @@ async def create_user_async(self, request: AuthenticatedRequest, body: CreateUse
 ```python
 from dataclasses import dataclass, field
 from fastapi import APIRouter, Depends
-from delivery.http.auth.jwt import JWTAuth, JWTAuthFactory
+from fastdjango.core.user.delivery.fastapi.auth import JWTAuth, JWTAuthFactory
 
 @dataclass
 class UserController(Controller):
@@ -314,7 +313,7 @@ Use `JWTAuthFactory` for JWT authentication with optional permission checks:
 ```python
 from dataclasses import dataclass, field
 from fastapi import APIRouter, Depends
-from delivery.http.auth.jwt import JWTAuth, JWTAuthFactory
+from fastdjango.core.user.delivery.fastapi.auth import JWTAuth, JWTAuthFactory
 
 @dataclass
 class AdminController(Controller):
@@ -378,8 +377,7 @@ Each test gets a fresh container (function-scoped fixtures in `tests/integration
 ```python
 @pytest.fixture(scope="function")
 def container() -> Container:
-    container_factory = ContainerFactory()
-    return container_factory()
+    return get_container()
 
 @pytest.fixture(scope="function")
 def test_client_factory(container: Container) -> TestClientFactory:

@@ -176,7 +176,7 @@ class OrderController(TransactionController):
 Logfire is configured to scrub sensitive fields:
 
 ```python
-# src/infrastructure/frameworks/logfire/configurator.py
+# src/fastdjango/infrastructure/logfire/configurator.py
 logfire.configure(
     scrubbing=logfire.ScrubbingOptions(
         extra_patterns=["access_token", "refresh_token"],
@@ -188,7 +188,7 @@ Fields containing these patterns are replaced with `[Scrubbed]`.
 
 ### Adding Custom Scrub Patterns
 
-Edit `src/infrastructure/frameworks/logfire/configurator.py`:
+Edit `src/fastdjango/infrastructure/logfire/configurator.py`:
 
 ```python
 logfire.configure(

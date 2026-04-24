@@ -16,7 +16,7 @@ Use factories when:
 The most common factory in this project is `JWTAuthFactory`:
 
 ```python
-# src/delivery/http/auth/jwt.py
+# src/fastdjango/core/user/delivery/fastapi/auth.py
 from dataclasses import dataclass
 
 
@@ -98,11 +98,11 @@ Auth dependencies are created in `__post_init__` and stored as instance attribut
 The `FastAPIFactory` creates the entire FastAPI application:
 
 ```python
-# src/delivery/http/factories.py
+# src/fastdjango/core/shared/delivery/fastapi/factories.py
 @dataclass(kw_only=True)
 class FastAPIFactory:
     _application_settings: ApplicationSettings
-    _http_settings: HTTPSettings
+    _fastapi_settings: FastAPISettings
     _cors_settings: CORSSettings
 
     _lifespan: Lifespan
@@ -155,7 +155,7 @@ class FastAPIFactory:
 Test factories extend `ContainerBasedFactory` to access the IoC container:
 
 ```python
-# src/infrastructure/delivery/factories.py
+# src/fastdjango/infrastructure/delivery/factories.py
 from abc import ABC
 from dataclasses import dataclass
 
@@ -245,7 +245,7 @@ container.add_factory(
 ## CeleryAppFactory Example
 
 ```python
-# src/delivery/tasks/factories.py
+# src/fastdjango/core/shared/delivery/celery/factories.py
 @dataclass(kw_only=True)
 class CeleryAppFactory:
     """Factory for creating Celery applications."""

@@ -136,15 +136,15 @@ Tests use `.env.test` which is loaded automatically by pytest:
 ```bash
 # FastAPI (HTTP API)
 make dev
-# Equivalent to: uvicorn delivery.http.app:app --reload --host 0.0.0.0 --port 8000
+# Equivalent to: uvicorn fastdjango.core.shared.delivery.fastapi.app:app --reload --host 0.0.0.0 --port 8000
 
 # Celery Worker
 make celery-dev
-# Equivalent to: celery -A delivery.tasks.app:celery_app worker --loglevel=info
+# Equivalent to: celery -A fastdjango.core.shared.delivery.celery.app:app worker --loglevel=info
 
 # Celery Beat (Scheduler)
 make celery-beat-dev
-# Equivalent to: celery -A delivery.tasks.app:celery_app beat --loglevel=info
+# Equivalent to: celery -A fastdjango.core.shared.delivery.celery.app:app beat --loglevel=info
 ```
 
 ### Database Operations
@@ -157,8 +157,8 @@ make makemigrations
 make migrate
 
 # Or using Django manage.py directly
-uv run python src/manage.py makemigrations
-uv run python src/manage.py migrate
+uv run python src/fastdjango/manage.py makemigrations
+uv run python src/fastdjango/manage.py migrate
 ```
 
 ## Testing
@@ -170,7 +170,7 @@ uv run python src/manage.py migrate
 make test
 
 # Run specific test file
-pytest tests/integration/http/v1/test_v1_users.py
+pytest tests/integration/fastapi/test_v1_users.py
 
 # Run with verbose output
 pytest -v tests/
@@ -217,7 +217,7 @@ LOGGING_LEVEL=DEBUG make dev
 For detailed Celery logs:
 
 ```bash
-celery -A delivery.tasks.app:celery_app worker --loglevel=debug
+celery -A fastdjango.core.shared.delivery.celery.app:app worker --loglevel=debug
 ```
 
 ## Docker Development

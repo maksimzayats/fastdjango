@@ -35,56 +35,58 @@ service = container.resolve(UserService)
 
 `resolve(UserService)` recursively builds and caches dependencies in the app root scope.
 
-## Container Factory
+## Container Creation
 
-`src/ioc/container.py` creates and configures the container:
+`src/fastdjango/ioc/container.py` creates and configures the container:
 
 ```python
 from diwire import Container, DependencyRegistrationPolicy, MissingPolicy
 
 
-class ContainerFactory:
-    def __call__(
-        self,
-        *,
-        configure_django: bool = True,
-        configure_logging: bool = True,
-        instrument_libraries: bool = True,
-    ) -> Container:
-        container = Container(
-            missing_policy=MissingPolicy.REGISTER_RECURSIVE,
-            dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE,
-        )
+def get_container(
+    *,
+    configure_django: bool = True,
+    configure_logging: bool = True,
+    configure_logfire: bool = True,
+    instrument_libraries: bool = True,
+) -> Container:
+    container = Container(
+        missing_policy=MissingPolicy.REGISTER_RECURSIVE,
+        dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE,
+    )
 
-        if configure_django:
-            self._configure_django(container)
+    if configure_django:
+        _configure_django(container)
 
-        if configure_logging:
-            self._configure_logging(container)
+    if configure_logging:
+        _configure_logging(container)
 
-        if instrument_libraries:
-            self._instrument_libraries(container)
+    if configure_logfire:
+        _configure_logfire(container)
 
-        return container
+    if instrument_libraries:
+        _instrument_libraries(container)
+
+    register_dependencies(container)
+    return container
 ```
 
 ## Bootstrap Module for `FastAPIFactory`
 
-The HTTP wiring creates the container in a bootstrap module, where `ContainerFactory` is invoked at import time:
+The HTTP wiring creates the container in a bootstrap module, where `get_container` is invoked at import time:
 
 ```python
-# src/delivery/http/bootstrap.py
-from ioc.container import ContainerFactory
+# src/fastdjango/core/shared/delivery/fastapi/bootstrap.py
+from fastdjango.ioc.container import get_container
 
-_container_factory = ContainerFactory()
-container = _container_factory()
+container = get_container()
 ```
 
 Then the app entrypoint uses ordinary top-level imports (no delayed/lazy import behavior):
 
 ```python
-from delivery.http.bootstrap import container
-from delivery.http.factories import FastAPIFactory
+from fastdjango.core.shared.delivery.fastapi.bootstrap import container
+from fastdjango.core.shared.delivery.fastapi.factories import FastAPIFactory
 
 api_factory = container.resolve(FastAPIFactory)
 ```
@@ -143,7 +145,7 @@ Each test should get a fresh container. Override dependencies before first resol
 ```python
 @pytest.fixture(scope="function")
 def container() -> Container:
-    return ContainerFactory()()
+    return get_container()
 
 
 def test_with_mock(container: Container) -> None:

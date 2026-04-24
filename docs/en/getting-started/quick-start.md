@@ -119,13 +119,13 @@ make celery-beat-dev
 To access Django Admin:
 
 ```bash
-docker compose exec app python src/manage.py createsuperuser
+docker compose exec app python src/fastdjango/manage.py createsuperuser
 ```
 
 Or use the shell directly:
 
 ```bash
-uv run python src/manage.py createsuperuser
+uv run python src/fastdjango/manage.py createsuperuser
 ```
 
 ## Common Issues
@@ -139,7 +139,7 @@ If port 8000 is occupied:
 lsof -i :8000
 
 # Or use a different port
-uvicorn delivery.http.app:app --host 0.0.0.0 --port 8001
+uvicorn fastdjango.core.shared.delivery.fastapi.app:app --host 0.0.0.0 --port 8001
 ```
 
 ### Database Connection Error

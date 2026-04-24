@@ -4,7 +4,7 @@ services:
       - ./src:/app/src:ro
     command:
       - uvicorn
-      - delivery.http.app:app
+      - fastdjango.core.shared.delivery.fastapi.app:app
       - --reload
       - --host
       - 0.0.0.0
@@ -22,7 +22,7 @@ services:
       - --recursive
       - --
       - celery
-      - --app=delivery.tasks.app
+      - --app=fastdjango.core.shared.delivery.celery.app
       - worker
       - --loglevel=${LOGGING_LEVEL:-INFO}
       - --concurrency=2
@@ -38,7 +38,7 @@ services:
       - --recursive
       - --
       - celery
-      - --app=delivery.tasks.app
+      - --app=fastdjango.core.shared.delivery.celery.app
       - beat
       - --loglevel=${LOGGING_LEVEL:-INFO}
 

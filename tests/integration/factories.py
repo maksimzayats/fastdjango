@@ -7,11 +7,11 @@ from celery.worker import WorkController
 from diwire import Container
 from fastapi.testclient import TestClient
 
-from core.user.models import User
-from core.user.services.jwt import JWTService
-from delivery.http.factories import FastAPIFactory
-from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
-from delivery.tasks.registry import TasksRegistry
+from fastdjango.core.shared.delivery.celery.factories import CeleryAppFactory, TasksRegistryFactory
+from fastdjango.core.shared.delivery.celery.registry import TasksRegistry
+from fastdjango.core.shared.delivery.fastapi.factories import FastAPIFactory
+from fastdjango.core.user.models import User
+from fastdjango.core.user.services.jwt import JWTService
 
 
 class BaseFactory(ABC):

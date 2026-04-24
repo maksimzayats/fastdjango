@@ -2,8 +2,8 @@ import pytest
 from diwire import Container
 from throttled.asyncio import MemoryStore
 
-from infrastructure.frameworks.throttled.throttler import AsyncThrottlerStoreFactory
-from ioc.container import ContainerFactory
+from fastdjango.infrastructure.throttled.throttler import AsyncThrottlerStoreFactory
+from fastdjango.ioc.container import get_container
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
     TestClientFactory,
@@ -14,8 +14,7 @@ from tests.integration.factories import (
 
 @pytest.fixture(scope="function")
 def container() -> Container:
-    container_factory = ContainerFactory()
-    container = container_factory()
+    container = get_container()
     container.add_instance(lambda: MemoryStore(), provides=AsyncThrottlerStoreFactory)  # noqa: PLW0108
 
     return container

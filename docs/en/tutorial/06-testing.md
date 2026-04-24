@@ -13,7 +13,7 @@ Write comprehensive tests for the Todo feature.
 
 | Action | File Path |
 |--------|-----------|
-| Create | `tests/integration/http/v1/test_v1_todos.py` |
+| Create | `tests/integration/fastapi/test_v1_todos.py` |
 | Create | `tests/unit/services/test_todo_service.py` |
 
 ## Concept Reference
@@ -31,17 +31,17 @@ The project uses:
 
 ## Step 1: Create HTTP Integration Tests
 
-Create `tests/integration/http/v1/test_v1_todos.py`:
+Create `tests/integration/fastapi/test_v1_todos.py`:
 
 ```python
-# tests/integration/http/v1/test_v1_todos.py
+# tests/integration/fastapi/test_v1_todos.py
 from http import HTTPStatus
 
 import pytest
 
-from core.todo.models import Todo
-from core.todo.services import TodoService
-from core.user.models import User
+from fastdjango.core.todo.models import Todo
+from fastdjango.core.todo.services import TodoService
+from fastdjango.core.user.models import User
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
 
@@ -292,13 +292,13 @@ Create `tests/unit/services/test_todo_service.py`:
 # tests/unit/services/test_todo_service.py
 import pytest
 
-from core.todo.models import Todo
-from core.todo.services import (
+from fastdjango.core.todo.models import Todo
+from fastdjango.core.todo.services import (
     TodoAccessDeniedError,
     TodoNotFoundError,
     TodoService,
 )
-from core.user.models import User
+from fastdjango.core.user.models import User
 
 
 @pytest.fixture(scope="function")
@@ -461,14 +461,14 @@ class TestTodoService:
 
 ## Step 3: Create Celery Task Tests
 
-Add task tests to `tests/integration/tasks/test_todo_cleanup.py`:
+Add task tests to `tests/integration/celery/test_todo_cleanup.py`:
 
 ```python
-# tests/integration/tasks/test_todo_cleanup.py
+# tests/integration/celery/test_todo_cleanup.py
 import pytest
 
-from core.todo.models import Todo
-from core.user.models import User
+from fastdjango.core.todo.models import Todo
+from fastdjango.core.user.models import User
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
     TestTasksRegistryFactory,
@@ -516,16 +516,16 @@ make test
 pytest --cov=src --cov-report=html tests/
 
 # Run specific test file
-pytest tests/integration/http/v1/test_v1_todos.py
+pytest tests/integration/fastapi/test_v1_todos.py
 
 # Run with verbose output
 pytest -v tests/
 
 # Run specific test class
-pytest tests/integration/http/v1/test_v1_todos.py::TestTodoController
+pytest tests/integration/fastapi/test_v1_todos.py::TestTodoController
 
 # Run specific test method
-pytest tests/integration/http/v1/test_v1_todos.py::TestTodoController::test_create_todo
+pytest tests/integration/fastapi/test_v1_todos.py::TestTodoController::test_create_todo
 ```
 
 ## Test Patterns
@@ -552,7 +552,7 @@ Each test gets a fresh container. Fixtures are function-scoped by default:
 ```python
 @pytest.fixture(scope="function")
 def container() -> Container:
-    return ContainerFactory()()
+    return get_container()
 ```
 
 ### Transaction Rollback

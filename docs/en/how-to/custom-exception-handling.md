@@ -37,8 +37,8 @@ def handle_exception(self, exception: Exception) -> Any:
 Create exceptions in your service file:
 
 ```python
-# src/core/order/services.py
-from core.exceptions import ApplicationError
+# src/fastdjango/core/order/services.py
+from fastdjango.core.exceptions import ApplicationError
 
 
 class OrderNotFoundError(ApplicationError):
@@ -87,20 +87,20 @@ class OrderService:
 ### 3. Map Exceptions in Controller
 
 ```python
-# src/delivery/http/controllers/order/controllers.py
+# src/fastdjango/core/order/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from core.order.services import (
+from fastdjango.core.order.services import (
     InsufficientStockError,
     InvalidOrderStateError,
     OrderAlreadyPaidError,
     OrderNotFoundError,
     OrderService,
 )
-from infrastructure.delivery.controllers import TransactionController
+from fastdjango.infrastructure.delivery.controllers import TransactionController
 
 
 @dataclass(kw_only=True)
@@ -168,7 +168,7 @@ class OrderController(TransactionController):
 For more detailed error responses, create an error schema:
 
 ```python
-# src/delivery/http/controllers/common/schemas.py
+# src/fastdjango/core/common/delivery/fastapi/schemas.py
 from pydantic import BaseModel
 
 

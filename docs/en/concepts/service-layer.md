@@ -8,7 +8,7 @@ Without a service layer, controllers directly access the database:
 
 ```python
 # ❌ Wrong - Controller accesses model directly
-from core.user.models import User
+from fastdjango.core.user.models import User
 
 class UserController:
     def get_user(self, user_id: int) -> UserSchema:
@@ -29,7 +29,7 @@ The service layer acts as an intermediary:
 
 ```python
 # ✅ Correct - Controller uses service
-from core.user.services import UserService
+from fastdjango.core.user.services import UserService
 
 class UserController:
     def __init__(self, user_service: UserService) -> None:
@@ -57,13 +57,13 @@ This boundary is absolute. Controllers never import models.
 Services are dataclasses with injected dependencies:
 
 ```python
-# src/core/todo/services.py
+# src/fastdjango/core/todo/services.py
 from dataclasses import dataclass
 
 from django.db import transaction
 
-from core.todo.models import Todo
-from core.user.models import User
+from fastdjango.core.todo.models import Todo
+from fastdjango.core.user.models import User
 
 
 class TodoNotFoundError(Exception):
@@ -204,9 +204,9 @@ Model imports are acceptable in:
 ### Django Admin
 
 ```python
-# src/core/todo/admin.py
+# src/fastdjango/core/todo/delivery/django/admin.py
 from django.contrib import admin
-from core.todo.models import Todo  # ✅ OK in admin
+from fastdjango.core.todo.models import Todo  # ✅ OK in admin
 
 @admin.register(Todo)
 class TodoAdmin(admin.ModelAdmin):
@@ -224,7 +224,7 @@ from django.db import migrations, models
 
 ```python
 # tests/integration/conftest.py
-from core.todo.models import Todo  # ✅ OK in tests
+from fastdjango.core.todo.models import Todo  # ✅ OK in tests
 
 @pytest.fixture
 def todo(user: User) -> Todo:
@@ -236,7 +236,7 @@ def todo(user: User) -> Todo:
 Controllers can reference models in type hints for validation, but must use services for operations:
 
 ```python
-from core.user.models import User  # For type hint only
+from fastdjango.core.user.models import User  # For type hint only
 
 def get_user(self, request: AuthenticatedRequest) -> UserSchema:
     user: User = request.state.user  # Type hint is fine

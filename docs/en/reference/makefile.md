@@ -82,7 +82,7 @@ make docs-build
 
 Runs:
 ```bash
-uvicorn delivery.http.app:app --reload --host 0.0.0.0 --port 8000
+uvicorn fastdjango.core.shared.delivery.fastapi.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - Hot reloading enabled
@@ -93,7 +93,7 @@ uvicorn delivery.http.app:app --reload --host 0.0.0.0 --port 8000
 
 Runs:
 ```bash
-celery -A delivery.tasks.app:celery_app worker --loglevel=info
+celery -A fastdjango.core.shared.delivery.celery.app:app worker --loglevel=info
 ```
 
 - Processes background tasks
@@ -104,7 +104,7 @@ celery -A delivery.tasks.app:celery_app worker --loglevel=info
 
 Runs:
 ```bash
-celery -A delivery.tasks.app:celery_app beat --loglevel=info
+celery -A fastdjango.core.shared.delivery.celery.app:app beat --loglevel=info
 ```
 
 - Schedules periodic tasks
@@ -150,7 +150,7 @@ pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=80
 
 Runs:
 ```bash
-uv run python src/manage.py migrate
+uv run python src/fastdjango/manage.py migrate
 ```
 
 - Applies all pending migrations
@@ -160,7 +160,7 @@ uv run python src/manage.py migrate
 
 Runs:
 ```bash
-uv run python src/manage.py makemigrations
+uv run python src/fastdjango/manage.py makemigrations
 ```
 
 - Detects model changes

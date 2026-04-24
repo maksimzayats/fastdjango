@@ -7,11 +7,11 @@ Understanding the codebase organization is essential for working effectively wit
 ```
 .
 ├── src/                    # Application source code
-│   ├── configs/            # Configuration and settings
-│   ├── core/               # Business logic and domain models
-│   ├── delivery/           # External interfaces (HTTP, Celery)
-│   ├── infrastructure/     # Cross-cutting concerns
-│   └── ioc/                # Dependency injection container
+│   └── fastdjango/         # Application package
+│       ├── core/           # Business logic and domain models
+│       ├── infrastructure/ # Cross-cutting concerns
+│       ├── ioc/            # Dependency injection container
+│       └── manage.py       # Django management entry point
 ├── tests/                  # Test suite
 │   ├── integration/        # Integration tests
 │   └── unit/               # Unit tests
@@ -22,23 +22,7 @@ Understanding the codebase organization is essential for working effectively wit
 
 ## Source Code Structure
 
-### `src/configs/` - Configuration
-
-Application configuration using Pydantic Settings.
-
-```
-configs/
-├── application.py          # Base application settings (environment, version)
-├── django.py               # Django settings adapters
-└── logging.py              # Structured logging configuration
-```
-
-Key files:
-
-- **`application.py`**: Defines `ApplicationSettings` with environment detection
-- **`django.py`**: Adapts Pydantic settings to Django's settings format
-
-### `src/core/` - Business Logic
+### `src/fastdjango/core/` - Business Logic
 
 The core layer contains domain models and services. This is where business logic lives.
 
@@ -46,46 +30,47 @@ The core layer contains domain models and services. This is where business logic
 core/
 ├── exceptions.py           # Base application exception
 ├── health/                 # Health check domain
-│   └── services.py         # HealthService
+│   ├── services.py         # HealthService
+│   └── delivery/           # Health FastAPI/Celery delivery
+│       ├── fastapi/
+│       │   └── controllers.py
+│       └── celery/
+│           └── ping.py
+├── shared/                 # Cross-domain application wiring
+│   └── delivery/
+│       ├── django/         # Django URLs and WSGI factory
+│       ├── fastapi/        # FastAPI app/bootstrap/factory/settings
+│       └── celery/         # Celery app/factory/registry/settings
 └── user/                   # User domain
     ├── models.py           # User, RefreshSession models
-    └── services/           # User-related services
-        ├── user.py         # UserService (CRUD)
-        ├── jwt.py          # JWTService (token operations)
-        └── refresh_session.py  # RefreshSessionService
+    ├── services/           # User-related services
+    │   ├── user.py         # UserService (CRUD)
+    │   ├── jwt.py          # JWTService (token operations)
+    │   └── refresh_session.py  # RefreshSessionService
+    └── delivery/
+        ├── django/
+        │   └── admin.py
+        └── fastapi/
+            ├── auth.py
+            ├── controllers.py
+            ├── schemas.py
+            └── services/
 ```
 
 **Key principle**: Services encapsulate all database operations. Controllers never access models directly.
 
-### `src/delivery/` - External Interfaces
+### Domain Delivery
 
-The delivery layer handles external communication (HTTP requests, Celery tasks).
+Delivery code lives inside the core package it exposes. For example, user FastAPI
+controllers live in `core/user/delivery/fastapi/`, and the health ping task lives
+in `core/health/delivery/celery/`.
 
-```
-delivery/
-├── http/                   # HTTP API (FastAPI)
-│   ├── app.py              # WSGI/ASGI entry point
-│   ├── factories.py        # FastAPIFactory
-│   ├── settings.py         # HTTP settings (CORS, hosts)
-│   ├── auth/               # Authentication
-│   │   └── jwt.py          # JWTAuthFactory, JWTAuth
-│   ├── controllers/        # HTTP controllers
-│   │   ├── health/         # Health endpoint
-│   │   └── user/           # User endpoints
-│   ├── django/             # Django integration
-│   │   └── factories.py    # Admin, WSGI factories
-│   └── services/           # Delivery-specific services
-│       ├── request.py      # RequestInfoService
-│       └── throttler.py    # Rate limiting
-└── tasks/                  # Celery tasks
-    ├── app.py              # Celery entry point
-    ├── factories.py        # CeleryAppFactory
-    ├── registry.py         # Task registry
-    └── tasks/              # Task controllers
-        └── ping.py         # Example ping task
-```
+Shared application entry points and registries live in `core/shared/delivery/`.
+This mirrors the `secondbrain` structure: `core/shared/delivery/django/urls.py`
+is the Django URLConf, and `core/shared/delivery/fastapi/app.py` is the FastAPI
+entry point.
 
-### `src/infrastructure/` - Cross-Cutting Concerns
+### `src/fastdjango/infrastructure/` - Cross-Cutting Concerns
 
 Infrastructure code that supports all layers.
 
@@ -95,30 +80,34 @@ infrastructure/
 │   ├── database/           # Database settings
 │   ├── redis/              # Redis settings
 │   └── s3/                 # S3/MinIO settings
+├── anyio/                  # Thread pool configuration
+├── celery/                 # Celery registry primitives
 ├── delivery/               # Delivery infrastructure
 │   └── controllers.py      # Base Controller classes
-└── frameworks/             # Framework integrations
-    ├── anyio/              # Thread pool configuration
-    ├── django/             # Django setup
-    ├── logfire/            # OpenTelemetry/Logfire
-    └── throttled/          # Rate limiting
+├── django/                 # Django setup and settings
+├── logfire/                # OpenTelemetry/Logfire
+├── logging/                # Logging configuration
+├── throttled/              # Rate limiting
+└── shared.py               # Base application settings
 ```
 
 Key files:
 
 - **`delivery/controllers.py`**: Defines `Controller` and `TransactionController` base classes
-- **`ioc/container.py`**: Configures the `diwire.Container` instance used by app entrypoints
+- **`django/settings.py`**: Adapts Pydantic settings to Django's settings format
+- **`logging/configurator.py`**: Configures application logging
 
-### `src/ioc/` - Dependency Injection
+### `src/fastdjango/ioc/` - Dependency Injection
 
 Container configuration.
 
 ```
 ioc/
-└── container.py            # ContainerFactory
+├── container.py            # get_container
+└── registry.py             # Explicit dependency registrations
 ```
 
-- **`container.py`**: Creates `diwire.Container` and configures frameworks
+- **`container.py`**: Creates `diwire.Container` and configures Django, logging, Logfire, and instrumentation
 
 ## Tests Structure
 
@@ -128,9 +117,10 @@ tests/
 ├── integration/            # Integration tests
 │   ├── conftest.py         # Integration fixtures (container, factories)
 │   ├── factories.py        # Test factories
-│   └── http/               # HTTP endpoint tests
-│       └── v1/
-│           └── test_v1_users.py
+│   ├── fastapi/            # FastAPI endpoint tests
+│   │   └── test_v1_users.py
+│   └── celery/             # Celery task tests
+│       └── test_ping_task.py
 └── unit/                   # Unit tests
     └── services/           # Service unit tests
 ```
@@ -146,8 +136,8 @@ The application has multiple entry points:
 
 | Entry Point | File | Purpose |
 |-------------|------|---------|
-| HTTP API | `delivery/http/app.py` | FastAPI application |
-| Celery Worker | `delivery/tasks/app.py` | Background task processing |
+| FastAPI App | `src/fastdjango/core/shared/delivery/fastapi/app.py` | HTTP API application |
+| Celery Worker | `src/fastdjango/core/shared/delivery/celery/app.py` | Background task processing |
 | Django Admin | Mounted at `/django/admin/` | Administration interface |
 
 ## Data Flow
@@ -157,7 +147,7 @@ The application has multiple entry points:
 │                     Delivery Layer                          │
 │  ┌─────────────────────────┐  ┌─────────────────────────┐  │
 │  │        HTTP API         │  │      Celery Tasks       │  │
-│  │      Controllers        │  │      Controllers        │  │
+│  │   Domain Controllers    │  │   Domain Controllers    │  │
 │  └───────────┬─────────────┘  └───────────┬─────────────┘  │
 └──────────────┼────────────────────────────┼─────────────────┘
                │                            │

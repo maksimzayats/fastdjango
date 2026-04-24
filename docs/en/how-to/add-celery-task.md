@@ -23,10 +23,10 @@ Add a new Celery task for background processing.
 
 ### 1. Add Task Name
 
-Edit `src/delivery/tasks/registry.py`:
+Edit `src/fastdjango/core/shared/delivery/celery/registry.py`:
 
 ```python
-# src/delivery/tasks/registry.py
+# src/fastdjango/core/shared/delivery/celery/registry.py
 from enum import StrEnum
 
 
@@ -37,19 +37,19 @@ class TaskName(StrEnum):
 
 ### 2. Create Task Controller
 
-Create `src/delivery/tasks/tasks/send_email.py`:
+Create `src/fastdjango/core/email/delivery/celery/send_email.py`:
 
 ```python
-# src/delivery/tasks/tasks/send_email.py
+# src/fastdjango/core/email/delivery/celery/send_email.py
 from dataclasses import dataclass
 from typing import TypedDict
 
 from celery import Celery
 
-from core.email.services import EmailService
-from core.user.services.user import UserService
-from delivery.tasks.registry import TaskName
-from infrastructure.delivery.controllers import Controller
+from fastdjango.core.email.services import EmailService
+from fastdjango.core.user.services.user import UserService
+from fastdjango.core.shared.delivery.celery.registry import TaskName
+from fastdjango.infrastructure.delivery.controllers import Controller
 
 
 class SendEmailResult(TypedDict):
@@ -98,12 +98,12 @@ class SendEmailTaskController(Controller):
 
 ### 3. Register Task Controller
 
-Edit `src/delivery/tasks/factories.py`:
+Edit `src/fastdjango/core/shared/delivery/celery/factories.py`:
 
 ```python
-# src/delivery/tasks/factories.py
+# src/fastdjango/core/shared/delivery/celery/factories.py
 # Add import
-from delivery.tasks.tasks.send_email import SendEmailTaskController
+from fastdjango.core.email.delivery.celery.send_email import SendEmailTaskController
 
 
 @dataclass(kw_only=True)
@@ -133,10 +133,10 @@ Controllers are declared as dataclass fields and auto-resolved by the IoC contai
 For type-safe task access, add to `TasksRegistry`:
 
 ```python
-# src/delivery/tasks/registry.py
+# src/fastdjango/core/shared/delivery/celery/registry.py
 from celery import Task
 
-from delivery.tasks.base import BaseTasksRegistry
+from fastdjango.infrastructure.celery.registry import BaseTasksRegistry
 
 
 class TasksRegistry(BaseTasksRegistry):
@@ -173,7 +173,7 @@ class UserController(TransactionController):
 
 ### 6. Schedule the Task (Optional)
 
-For periodic tasks, add to beat schedule in `src/delivery/tasks/factories.py`:
+For periodic tasks, add to beat schedule in `src/fastdjango/core/shared/delivery/celery/factories.py`:
 
 ```python
 from celery.schedules import crontab
@@ -208,13 +208,13 @@ make celery-beat-dev
 ### 7. Write Tests
 
 ```python
-# tests/integration/tasks/test_send_email.py
+# tests/integration/celery/test_send_email.py
 from unittest.mock import MagicMock
 
 import pytest
 
-from core.email.services import EmailService
-from core.user.models import User
+from fastdjango.core.email.services import EmailService
+from fastdjango.core.user.models import User
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
     TestTasksRegistryFactory,
@@ -315,10 +315,10 @@ class ProcessResult(TypedDict):
 
 | Action | File |
 |--------|------|
-| Modify | `src/delivery/tasks/registry.py` |
-| Create | `src/delivery/tasks/tasks/send_email.py` |
-| Modify | `src/delivery/tasks/factories.py` |
-| Create | `tests/integration/tasks/test_send_email.py` |
+| Modify | `src/fastdjango/core/shared/delivery/celery/registry.py` |
+| Create | `src/fastdjango/core/email/delivery/celery/send_email.py` |
+| Modify | `src/fastdjango/core/shared/delivery/celery/factories.py` |
+| Create | `tests/integration/celery/test_send_email.py` |
 
 ## Verification
 
@@ -326,10 +326,10 @@ class ProcessResult(TypedDict):
 2. Trigger task in shell:
 
 ```python
-from ioc.container import ContainerFactory
-from delivery.tasks.registry import TasksRegistry
+from fastdjango.ioc.container import get_container
+from fastdjango.core.shared.delivery.celery.registry import TasksRegistry
 
-container = ContainerFactory()()
+container = get_container()
 registry = container.resolve(TasksRegistry)
 result = registry.send_email.delay(user_id=1, subject="Test", body="Hello")
 print(result.get(timeout=10))

@@ -4,7 +4,7 @@ Understand how the dependency injection container wires services automatically w
 
 ## What You'll Learn
 
-- How `ContainerFactory` builds the container
+- How `get_container` builds the container
 - How recursive auto-wiring works
 - When to use `add`, `add_factory`, and `add_instance`
 
@@ -14,35 +14,38 @@ Understand how the dependency injection container wires services automatically w
 
 ## Container Creation
 
-The container is created in `src/ioc/container.py`:
+The container is created in `src/fastdjango/ioc/container.py`:
 
 ```python
 from diwire import Container, DependencyRegistrationPolicy, MissingPolicy
 
 
-class ContainerFactory:
-    def __call__(
-        self,
-        *,
-        configure_django: bool = True,
-        configure_logging: bool = True,
-        instrument_libraries: bool = True,
-    ) -> Container:
-        container = Container(
-            missing_policy=MissingPolicy.REGISTER_RECURSIVE,
-            dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE,
-        )
+def get_container(
+    *,
+    configure_django: bool = True,
+    configure_logging: bool = True,
+    configure_logfire: bool = True,
+    instrument_libraries: bool = True,
+) -> Container:
+    container = Container(
+        missing_policy=MissingPolicy.REGISTER_RECURSIVE,
+        dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE,
+    )
 
-        if configure_django:
-            self._configure_django(container)
+    if configure_django:
+        _configure_django(container)
 
-        if configure_logging:
-            self._configure_logging(container)
+    if configure_logging:
+        _configure_logging(container)
 
-        if instrument_libraries:
-            self._instrument_libraries(container)
+    if configure_logfire:
+        _configure_logfire(container)
 
-        return container
+    if instrument_libraries:
+        _instrument_libraries(container)
+
+    register_dependencies(container)
+    return container
 ```
 
 Configuration components (`DjangoConfigurator`, `LoggingConfigurator`, telemetry instrumentor) are also resolved from this same container.
@@ -67,9 +70,11 @@ assert service is service_again
 The HTTP app now resolves by type with delayed import:
 
 ```python
-_container = ContainerFactory()()
+from fastdjango.ioc.container import get_container
 
-from delivery.http.factories import FastAPIFactory
+_container = get_container()
+
+from fastdjango.core.shared.delivery.fastapi.factories import FastAPIFactory
 
 api_factory = _container.resolve(FastAPIFactory)
 ```
@@ -107,6 +112,6 @@ controller = container.resolve(TodoController)
 
 ## Summary
 
-- `ContainerFactory` uses `diwire.Container` with recursive registration policies
+- `get_container` uses `diwire.Container` with recursive registration policies
 - Dependencies are resolved by type, including `FastAPIFactory`
 - Test overrides use `add_instance(..., provides=...)` before first resolve

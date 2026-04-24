@@ -12,10 +12,11 @@ Create the Todo domain model and service layer.
 
 | Action | File Path |
 |--------|-----------|
-| Create | `src/core/todo/__init__.py` |
-| Create | `src/core/todo/models.py` |
-| Create | `src/core/todo/services.py` |
-| Modify | `src/configs/django.py` |
+| Create | `src/fastdjango/core/todo/__init__.py` |
+| Create | `src/fastdjango/core/todo/apps.py` |
+| Create | `src/fastdjango/core/todo/models.py` |
+| Create | `src/fastdjango/core/todo/services.py` |
+| Modify | `src/fastdjango/infrastructure/django/settings.py` |
 
 ## Concept Reference
 
@@ -26,19 +27,31 @@ Create the Todo domain model and service layer.
 Create the directory structure for the todo domain:
 
 ```bash
-mkdir -p src/core/todo
-touch src/core/todo/__init__.py
+mkdir -p src/fastdjango/core/todo
+touch src/fastdjango/core/todo/__init__.py
+```
+
+Create `src/fastdjango/core/todo/apps.py`:
+
+```python
+from django.apps import AppConfig
+
+
+class TodoConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "fastdjango.core.todo"
+    label = "todo"
 ```
 
 ## Step 2: Define the Todo Model
 
-Create the Django model in `src/core/todo/models.py`:
+Create the Django model in `src/fastdjango/core/todo/models.py`:
 
 ```python
-# src/core/todo/models.py
+# src/fastdjango/core/todo/models.py
 from django.db import models
 
-from core.user.models import User
+from fastdjango.core.user.models import User
 
 
 class Todo(models.Model):
@@ -77,11 +90,11 @@ Key points:
 
 ## Step 3: Register the App
 
-Add the todo app to Django's installed apps. Edit `src/configs/django.py`:
+Add the todo app to Django's installed apps. Edit `src/fastdjango/infrastructure/django/settings.py`:
 
 ```python
-# src/configs/django.py
-# Find the DjangoSettings class and add 'core.todo' to installed_apps
+# src/fastdjango/infrastructure/django/settings.py
+# Find the DjangoSettings class and add TodoConfig to installed_apps
 
 class DjangoSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DJANGO_")
@@ -95,8 +108,8 @@ class DjangoSettings(BaseSettings):
         "django.contrib.messages",
         "django.contrib.staticfiles",
         # Core apps
-        "core.user",
-        "core.todo",  # Add this line
+        "fastdjango.core.user.apps.UserConfig",
+        "fastdjango.core.todo.apps.TodoConfig",  # Add this line
     )
 ```
 
@@ -112,7 +125,7 @@ You should see output like:
 
 ```
 Migrations for 'todo':
-  src/core/todo/migrations/0001_initial.py
+  src/fastdjango/core/todo/migrations/0001_initial.py
     - Create model Todo
 ```
 
@@ -128,17 +141,17 @@ Domain exceptions communicate specific errors. Add them to the service file.
 
 ## Step 6: Create the Todo Service
 
-Create `src/core/todo/services.py`:
+Create `src/fastdjango/core/todo/services.py`:
 
 ```python
-# src/core/todo/services.py
+# src/fastdjango/core/todo/services.py
 from dataclasses import dataclass
 
 from django.db import transaction
 
-from core.exceptions import ApplicationError
-from core.todo.models import Todo
-from core.user.models import User
+from fastdjango.core.exceptions import ApplicationError
+from fastdjango.core.todo.models import Todo
+from fastdjango.core.user.models import User
 
 
 class TodoNotFoundError(ApplicationError):
@@ -345,12 +358,12 @@ class TodoService:
 Test the service in a Django shell:
 
 ```bash
-uv run python src/manage.py shell
+uv run python src/fastdjango/manage.py shell
 ```
 
 ```python
-from core.user.models import User
-from core.todo.services import TodoService
+from fastdjango.core.user.models import User
+from fastdjango.core.todo.services import TodoService
 
 # Get or create a test user
 user = User.objects.first()

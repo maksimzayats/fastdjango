@@ -7,7 +7,7 @@ Controllers provide a unified pattern for handling requests from any source: HTT
 All controllers inherit from the base `Controller` class:
 
 ```python
-# src/infrastructure/delivery/controllers.py
+# src/fastdjango/infrastructure/delivery/controllers.py
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -88,8 +88,8 @@ def handle_exception(self, exception: Exception) -> Any:
 For database operations, use `TransactionController`:
 
 ```python
-# src/infrastructure/delivery/controllers.py
-from infrastructure.frameworks.logfire.transaction import traced_atomic
+# src/fastdjango/infrastructure/delivery/controllers.py
+from fastdjango.infrastructure.django.traced_atomic import traced_atomic
 
 
 @dataclass(kw_only=True)
@@ -119,15 +119,15 @@ This wraps methods with:
 ## HTTP Controller Example
 
 ```python
-# src/delivery/http/controllers/user/controllers.py
+# src/fastdjango/core/user/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from core.user.services.user import UserService
-from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuthFactory
-from infrastructure.delivery.controllers import TransactionController
+from fastdjango.core.user.services.user import UserService
+from fastdjango.core.user.delivery.fastapi.auth import AuthenticatedRequest, JWTAuthFactory
+from fastdjango.infrastructure.delivery.controllers import TransactionController
 
 
 @dataclass(kw_only=True)
@@ -173,13 +173,13 @@ class UserController(TransactionController):
 ## Celery Task Controller Example
 
 ```python
-# src/delivery/tasks/tasks/ping.py
+# src/fastdjango/core/health/delivery/celery/ping.py
 from typing import Literal, TypedDict
 
 from celery import Celery
 
-from delivery.tasks.registry import TaskName
-from infrastructure.delivery.controllers import Controller
+from fastdjango.core.shared.delivery.celery.registry import TaskName
+from fastdjango.infrastructure.delivery.controllers import Controller
 
 
 class PingResult(TypedDict):
@@ -239,7 +239,7 @@ Thread sensitivity:
 Controllers are injected as fields into the factory and registered with tagged routers:
 
 ```python
-# src/delivery/http/factories.py
+# src/fastdjango/core/shared/delivery/fastapi/factories.py
 @dataclass(kw_only=True)
 class FastAPIFactory:
     # Controllers are injected as fields (auto-resolved by IoC)

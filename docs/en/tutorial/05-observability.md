@@ -50,14 +50,14 @@ The project automatically instruments these libraries:
 | HTTPX | Outbound HTTP calls |
 | Pydantic | Validation |
 
-This is configured in `src/infrastructure/frameworks/logfire/instrumentor.py`.
+This is configured in `src/fastdjango/infrastructure/logfire/instrumentor.py`.
 
 ## Step 3: Add Custom Logging
 
 Use structured logging in your services:
 
 ```python
-# src/core/todo/services.py
+# src/fastdjango/core/todo/services.py
 import logfire
 
 
@@ -106,7 +106,7 @@ class TodoService:
 Create spans for complex operations:
 
 ```python
-# src/core/todo/services.py
+# src/fastdjango/core/todo/services.py
 import logfire
 
 
@@ -133,8 +133,8 @@ class TodoService:
 The `TransactionController` uses `traced_atomic` to combine database transactions with Logfire tracing:
 
 ```python
-# src/infrastructure/delivery/controllers.py
-from infrastructure.frameworks.logfire.transaction import traced_atomic
+# src/fastdjango/infrastructure/delivery/controllers.py
+from fastdjango.infrastructure.django.traced_atomic import traced_atomic
 
 
 @dataclass(kw_only=True)
@@ -174,7 +174,7 @@ class TodoController(TransactionController):
 The project includes a health check endpoint at `GET /v1/health`:
 
 ```python
-# src/delivery/http/controllers/health/controllers.py
+# src/fastdjango/core/health/delivery/fastapi/controllers.py
 @dataclass(kw_only=True)
 class HealthController(TransactionController):
     _health_service: HealthService
@@ -187,7 +187,7 @@ class HealthController(TransactionController):
 The `HealthService` checks database connectivity:
 
 ```python
-# src/core/health/services.py
+# src/fastdjango/core/health/services.py
 class HealthService:
     def check_system_health(self) -> None:
         try:
@@ -273,7 +273,7 @@ logfire.error("Failed to process", error=e)    # Needs attention
 Logfire is configured to scrub sensitive fields:
 
 ```python
-# src/infrastructure/frameworks/logfire/configurator.py
+# src/fastdjango/infrastructure/logfire/configurator.py
 logfire.configure(
     scrubbing=logfire.ScrubbingOptions(
         extra_patterns=["access_token", "refresh_token"],

@@ -11,6 +11,6 @@ def pytest_configure() -> None:
     if test_env_path:
         load_dotenv(test_env_path, override=True)
 
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "configs.django")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fastdjango.infrastructure.django.settings")
 
     django.setup()
