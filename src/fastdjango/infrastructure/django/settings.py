@@ -1,13 +1,10 @@
-from collections.abc import Callable
-from typing import Any, cast
+from typing import Any
 from urllib.parse import urlsplit
 
 import dj_database_url
 from pydantic import Field, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from fastdjango.infrastructure.adapters.database.settings import DatabaseSettings
-from fastdjango.infrastructure.adapters.s3.settings import AWSS3Settings
 from fastdjango.infrastructure.django.pydantic_settings_adapter import PydanticSettingsAdapter
 from fastdjango.infrastructure.shared import ApplicationSettings
 
@@ -65,9 +62,10 @@ class DjangoAuthSettings(BaseSettings):
     )
 
 
-class DjangoDatabaseSettings(DatabaseSettings):
+class DjangoDatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DATABASE_")
 
+    url: SecretStr
     default_auto_field: str = "django.db.models.BigAutoField"
     conn_max_age: int = 600
 
@@ -89,19 +87,33 @@ class DjangoSecuritySettings(BaseSettings):
 
 
 class DjangoStorageSettings(BaseSettings):
+    model_config = SettingsConfigDict(populate_by_name=True)
+
     static_url: str = "/static/"
     media_url: str = "/media/"
 
-    s3_settings: AWSS3Settings = Field(
-        default_factory=cast(Callable[[], AWSS3Settings], AWSS3Settings),
+    endpoint_url: str = Field(validation_alias="AWS_S3_ENDPOINT_URL")
+    public_endpoint_url: str | None = Field(
+        default=None,
+        validation_alias="AWS_S3_PUBLIC_ENDPOINT_URL",
+    )
+    access_key_id: str = Field(validation_alias="AWS_S3_ACCESS_KEY_ID")
+    secret_access_key: SecretStr = Field(validation_alias="AWS_S3_SECRET_ACCESS_KEY")
+    protected_bucket_name: str = Field(
+        default="protected",
+        validation_alias="AWS_S3_PROTECTED_BUCKET_NAME",
+    )
+    public_bucket_name: str = Field(
+        default="public",
+        validation_alias="AWS_S3_PUBLIC_BUCKET_NAME",
     )
 
     @computed_field()
     def storages(self) -> dict[str, Any]:
         base_options = {
-            "access_key": self.s3_settings.access_key_id,
-            "secret_key": self.s3_settings.secret_access_key.get_secret_value(),
-            "endpoint_url": self.s3_settings.endpoint_url,
+            "access_key": self.access_key_id,
+            "secret_key": self.secret_access_key.get_secret_value(),
+            "endpoint_url": self.endpoint_url,
         }
 
         return {
@@ -113,7 +125,7 @@ class DjangoStorageSettings(BaseSettings):
                 "BACKEND": "storages.backends.s3.S3Storage",
                 "OPTIONS": {
                     **base_options,
-                    "bucket_name": self.s3_settings.protected_bucket_name,
+                    "bucket_name": self.protected_bucket_name,
                 },
             },
         }
@@ -121,7 +133,7 @@ class DjangoStorageSettings(BaseSettings):
     def _build_staticfiles_options(self, *, base_options: dict[str, Any]) -> dict[str, Any]:
         options = {
             **base_options,
-            "bucket_name": self.s3_settings.public_bucket_name,
+            "bucket_name": self.public_bucket_name,
         }
 
         public_url_options = self._build_public_static_url_options()
@@ -131,10 +143,10 @@ class DjangoStorageSettings(BaseSettings):
         return options
 
     def _build_public_static_url_options(self) -> dict[str, str]:
-        if not self.s3_settings.public_endpoint_url:
+        if not self.public_endpoint_url:
             return {}
 
-        endpoint = urlsplit(self.s3_settings.public_endpoint_url)
+        endpoint = urlsplit(self.public_endpoint_url)
         if not endpoint.scheme or not endpoint.netloc:
             return {}
 
@@ -143,9 +155,9 @@ class DjangoStorageSettings(BaseSettings):
         if endpoint_path:
             custom_domain = f"{custom_domain}/{endpoint_path}"
 
-        bucket_suffix = f"/{self.s3_settings.public_bucket_name}"
+        bucket_suffix = f"/{self.public_bucket_name}"
         if not custom_domain.endswith(bucket_suffix):
-            custom_domain = f"{custom_domain}/{self.s3_settings.public_bucket_name}"
+            custom_domain = f"{custom_domain}/{self.public_bucket_name}"
 
         return {
             "custom_domain": custom_domain,
@@ -178,7 +190,7 @@ adapter.adapt(
     DjangoDatabaseSettings(),  # type: ignore[call-arg, missing-argument]
     DjangoAuthSettings(),
     DjangoSecuritySettings(),  # type: ignore[call-arg, missing-argument]
-    DjangoStorageSettings(),
+    DjangoStorageSettings(),  # type: ignore[call-arg, missing-argument]
     DjangoTemplatesSettings(),
     settings_locals=locals(),
 )

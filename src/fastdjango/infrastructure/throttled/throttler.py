@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from throttled import BaseStore, Quota, RateLimiterType, RedisStore, Throttled
 from throttled.asyncio import (
     BaseStore as AsyncBaseStore,
@@ -9,12 +11,16 @@ from throttled.asyncio import (
     Throttled as AsyncThrottled,
 )
 
-from fastdjango.infrastructure.adapters.redis.settings import RedisSettings
+
+class ThrottledRedisSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="REDIS_")
+
+    url: SecretStr
 
 
 @dataclass(kw_only=True)
 class ThrottlerStoreFactory:
-    _redis_settings: RedisSettings
+    _redis_settings: ThrottledRedisSettings
 
     def __call__(self) -> BaseStore:
         return RedisStore(server=self._redis_settings.url.get_secret_value())
@@ -41,7 +47,7 @@ class ThrottlerFactory:
 
 @dataclass(kw_only=True)
 class AsyncThrottlerStoreFactory:
-    _redis_settings: RedisSettings
+    _redis_settings: ThrottledRedisSettings
 
     def __call__(self) -> AsyncBaseStore:
         return AsyncRedisStore(server=self._redis_settings.url.get_secret_value())

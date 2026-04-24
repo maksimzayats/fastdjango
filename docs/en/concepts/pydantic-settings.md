@@ -44,7 +44,7 @@ Settings classes use `env_prefix` to namespace variables:
 |--------|---------------|-------------------|
 | `DJANGO_` | `DjangoSecuritySettings` | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG` |
 | `JWT_` | `JWTServiceSettings` | `JWT_SECRET_KEY`, `JWT_ALGORITHM` |
-| `AWS_S3_` | `AWSS3Settings` | `AWS_S3_ACCESS_KEY_ID`, `AWS_S3_ENDPOINT_URL` |
+| `AWS_S3_` | `DjangoStorageSettings` | `AWS_S3_ACCESS_KEY_ID`, `AWS_S3_ENDPOINT_URL` |
 | `CORS_` | `CORSSettings` | `CORS_ALLOW_ORIGINS`, `CORS_ALLOW_METHODS` |
 | `LOGFIRE_` | `LogfireSettings` | `LOGFIRE_ENABLED`, `LOGFIRE_TOKEN` |
 | `ANYIO_` | `AnyIOSettings` | `ANYIO_THREAD_LIMITER_TOKENS` |
@@ -78,7 +78,7 @@ No explicit registration is needed for settings classes.
 Pydantic validates settings at startup:
 
 ```python
-class DatabaseSettings(BaseSettings):
+class DjangoDatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DATABASE_")
 
     url: str  # Required - no default
@@ -89,7 +89,7 @@ class DatabaseSettings(BaseSettings):
 If `DATABASE_URL` is missing, the application fails fast with a clear error:
 
 ```
-ValidationError: 1 validation error for DatabaseSettings
+ValidationError: 1 validation error for DjangoDatabaseSettings
 url
   field required
 ```
@@ -180,8 +180,9 @@ class DjangoSecuritySettings(BaseSettings):
 
 
 class DjangoDatabaseSettings(BaseSettings):
-    # Multiple settings combined
-    url: str = Field(alias="DATABASE_URL")
+    model_config = SettingsConfigDict(env_prefix="DATABASE_")
+
+    url: str
     conn_max_age: int = 600
 
 
@@ -206,14 +207,23 @@ from pydantic import computed_field
 
 
 class DjangoStorageSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="AWS_S3_")
+    model_config = SettingsConfigDict(populate_by_name=True)
 
-    access_key_id: str
-    secret_access_key: SecretStr
-    endpoint_url: str
-    public_endpoint_url: str | None = None
-    public_bucket_name: str = "public"
-    protected_bucket_name: str = "protected"
+    access_key_id: str = Field(validation_alias="AWS_S3_ACCESS_KEY_ID")
+    secret_access_key: SecretStr = Field(validation_alias="AWS_S3_SECRET_ACCESS_KEY")
+    endpoint_url: str = Field(validation_alias="AWS_S3_ENDPOINT_URL")
+    public_endpoint_url: str | None = Field(
+        default=None,
+        validation_alias="AWS_S3_PUBLIC_ENDPOINT_URL",
+    )
+    public_bucket_name: str = Field(
+        default="public",
+        validation_alias="AWS_S3_PUBLIC_BUCKET_NAME",
+    )
+    protected_bucket_name: str = Field(
+        default="protected",
+        validation_alias="AWS_S3_PROTECTED_BUCKET_NAME",
+    )
 
     @computed_field  # type: ignore[prop-decorator]
     @property

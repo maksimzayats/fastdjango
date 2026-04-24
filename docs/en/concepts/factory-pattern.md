@@ -250,8 +250,8 @@ container.add_factory(
 class CeleryAppFactory:
     """Factory for creating Celery applications."""
 
-    _redis_settings: RedisSettings
-    _logfire_settings: LogfireSettings
+    _broker_settings: CeleryBrokerSettings
+    _celery_settings: CelerySettings
 
     _instance: ClassVar[Celery | None] = None
 

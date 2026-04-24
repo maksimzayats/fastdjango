@@ -39,8 +39,8 @@ core/
 ├── shared/                 # Cross-domain application wiring
 │   └── delivery/
 │       ├── django/         # Django URLs and WSGI factory
-│       ├── fastapi/        # FastAPI app/bootstrap/factory/settings
-│       └── celery/         # Celery app/factory/registry/settings
+│       ├── fastapi/        # FastAPI app/bootstrap/factory
+│       └── celery/         # Celery app/factory/registry
 └── user/                   # User domain
     ├── models.py           # User, RefreshSession models
     ├── services/           # User-related services
@@ -76,10 +76,6 @@ Infrastructure code that supports all layers.
 
 ```
 infrastructure/
-├── adapters/               # External service adapters
-│   ├── database/           # Database settings
-│   ├── redis/              # Redis settings
-│   └── s3/                 # S3/MinIO settings
 ├── anyio/                  # Thread pool configuration
 ├── celery/                 # Celery registry primitives
 ├── delivery/               # Delivery infrastructure

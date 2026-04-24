@@ -2,7 +2,6 @@ from typing import Any
 
 from pydantic import SecretStr
 
-from fastdjango.infrastructure.adapters.s3.settings import AWSS3Settings
 from fastdjango.infrastructure.django.settings import DjangoStorageSettings
 
 
@@ -13,13 +12,11 @@ def _get_static_options(settings: DjangoStorageSettings) -> dict[str, Any]:
 
 def test_staticfiles_storage_uses_internal_endpoint_by_default() -> None:
     settings = DjangoStorageSettings(
-        s3_settings=AWSS3Settings(
-            endpoint_url="http://minio:9000",
-            public_endpoint_url=None,
-            access_key_id="access-key",
-            secret_access_key=SecretStr("secret-key"),
-            public_bucket_name="public-assets",
-        ),
+        endpoint_url="http://minio:9000",
+        public_endpoint_url=None,
+        access_key_id="access-key",
+        secret_access_key=SecretStr("secret-key"),
+        public_bucket_name="public-assets",
     )
 
     static_options = _get_static_options(settings)
@@ -31,12 +28,10 @@ def test_staticfiles_storage_uses_internal_endpoint_by_default() -> None:
 
 def test_staticfiles_storage_uses_public_endpoint_for_generated_urls() -> None:
     settings = DjangoStorageSettings(
-        s3_settings=AWSS3Settings(
-            endpoint_url="http://minio:9000",
-            public_endpoint_url="http://localhost:9000",
-            access_key_id="access-key",
-            secret_access_key=SecretStr("secret-key"),
-        ),
+        endpoint_url="http://minio:9000",
+        public_endpoint_url="http://localhost:9000",
+        access_key_id="access-key",
+        secret_access_key=SecretStr("secret-key"),
     )
 
     static_options = _get_static_options(settings)

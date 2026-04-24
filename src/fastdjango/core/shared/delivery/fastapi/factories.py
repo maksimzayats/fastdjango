@@ -4,12 +4,13 @@ from dataclasses import dataclass
 
 from a2wsgi import WSGIMiddleware
 from fastapi import APIRouter, FastAPI
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from fastdjango.core.health.delivery.fastapi.controllers import HealthController
 from fastdjango.core.shared.delivery.django.factories import DjangoWSGIFactory
-from fastdjango.core.shared.delivery.fastapi.settings import CORSSettings, FastAPISettings
 from fastdjango.core.user.delivery.fastapi.controllers import (
     UserController,
     UserTokenController,
@@ -17,6 +18,19 @@ from fastdjango.core.user.delivery.fastapi.controllers import (
 from fastdjango.infrastructure.anyio.configurator import AnyIOConfigurator
 from fastdjango.infrastructure.logfire.instrumentor import OpenTelemetryInstrumentor
 from fastdjango.infrastructure.shared import ApplicationSettings, Environment
+
+
+class FastAPISettings(BaseSettings):
+    allowed_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
+
+
+class CORSSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="CORS_")
+
+    allow_credentials: bool = True
+    allow_origins: list[str] = Field(default_factory=lambda: ["http://localhost"])
+    allow_methods: list[str] = Field(default_factory=lambda: ["*"])
+    allow_headers: list[str] = Field(default_factory=lambda: ["*"])
 
 
 @dataclass(kw_only=True)
