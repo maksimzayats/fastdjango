@@ -137,7 +137,8 @@ class TodoService(BaseService):
 The `BaseTransactionController` uses `traced_atomic` to combine database transactions with Logfire tracing:
 
 ```python
-# src/fastdjango/infrastructure/delivery/controllers.py
+# src/fastdjango/infrastructure/django/controllers.py
+from fastdjango.foundation.delivery.controllers import BaseController
 from fastdjango.infrastructure.django.traced_atomic import traced_atomic
 
 

@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from fastdjango.core.health.delivery.fastapi.schemas import HealthCheckResponseSchema
 from fastdjango.core.health.exceptions import HealthCheckError
 from fastdjango.core.health.use_cases import SystemHealthUseCase
-from fastdjango.infrastructure.delivery.controllers import BaseController
+from fastdjango.foundation.delivery.controllers import BaseController
 
 logger = logging.getLogger(__name__)
 

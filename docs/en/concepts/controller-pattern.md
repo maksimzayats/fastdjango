@@ -4,10 +4,11 @@ Controllers provide a unified pattern for handling requests from any source: HTT
 
 ## The Core Abstraction
 
-All controllers inherit from the base `BaseController` class:
+Synchronous controllers inherit from `BaseController`; asynchronous controllers
+inherit from `BaseAsyncController`:
 
 ```python
-# src/fastdjango/infrastructure/delivery/controllers.py
+# src/fastdjango/foundation/delivery/controllers.py
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -25,6 +26,13 @@ class BaseController(ABC):
 
     def handle_exception(self, exception: Exception) -> Any:
         """Handle exceptions raised by controller methods."""
+        raise exception
+
+
+@dataclass(kw_only=True)
+class BaseAsyncController(ABC):
+    async def handle_exception(self, exception: Exception) -> Any:
+        """Handle exceptions raised by async controller methods."""
         raise exception
 ```
 
@@ -69,6 +77,8 @@ def _wrap_route(self, method: Callable[..., Any]) -> Callable[..., Any]:
 ```
 
 This means every public method automatically goes through `handle_exception()` if it raises.
+Use `BaseController` for sync route methods and `BaseAsyncController` for async
+route methods; the base classes fail fast when the route style does not match.
 
 ### 3. Custom Exception Handling
 
@@ -85,10 +95,13 @@ def handle_exception(self, exception: Exception) -> Any:
 
 ## BaseTransactionController
 
-For database operations, use `BaseTransactionController`:
+For sync database operations, use `BaseTransactionController`. For async route
+methods that also need the same transaction/tracing wrapper, use
+`BaseAsyncTransactionController`.
 
 ```python
-# src/fastdjango/infrastructure/delivery/controllers.py
+# src/fastdjango/infrastructure/django/controllers.py
+from fastdjango.foundation.delivery.controllers import BaseController
 from fastdjango.infrastructure.django.traced_atomic import traced_atomic
 
 
@@ -127,7 +140,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuthFactory
-from fastdjango.infrastructure.delivery.controllers import BaseTransactionController
+from fastdjango.infrastructure.django.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
@@ -178,7 +191,7 @@ from celery import Celery
 
 from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
 from fastdjango.entrypoints.celery.registry import TaskName
-from fastdjango.infrastructure.delivery.controllers import BaseController
+from fastdjango.foundation.delivery.controllers import BaseController
 
 
 class PingTaskController(BaseController):

@@ -49,7 +49,7 @@ from fastdjango.core.email.services import EmailService
 from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.entrypoints.celery.registry import TaskName
-from fastdjango.infrastructure.delivery.controllers import BaseController
+from fastdjango.foundation.delivery.controllers import BaseController
 
 
 class SendEmailResultSchema(BaseCelerySchema):

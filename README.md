@@ -47,7 +47,7 @@ from fastapi import APIRouter, Depends
 from fastdjango.core.todo.services import TodoService
 from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 from fastdjango.foundation.delivery.fastapi.schemas import BaseFastAPISchema
-from fastdjango.infrastructure.delivery.controllers import BaseController
+from fastdjango.foundation.delivery.controllers import BaseController
 
 
 class TodoSchema(BaseFastAPISchema):

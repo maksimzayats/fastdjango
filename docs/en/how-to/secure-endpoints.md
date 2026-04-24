@@ -118,7 +118,7 @@ from fastdjango.core.product.delivery.fastapi.schemas import (
     CreateProductRequestSchema,
     ProductSchema,
 )
-from fastdjango.infrastructure.delivery.controllers import BaseTransactionController
+from fastdjango.infrastructure.django.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)

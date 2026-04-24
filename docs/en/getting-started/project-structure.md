@@ -82,15 +82,16 @@ ownership:
 ```
 foundation/
 ├── configurators.py        # BaseConfigurator
+├── delivery/
+│   ├── controllers.py      # BaseController, BaseAsyncController
+│   ├── celery/
+│   │   └── schemas.py      # BaseCelerySchema
+│   └── fastapi/
+│       └── schemas.py      # BaseFastAPISchema
 ├── dtos.py                 # BaseDTO
 ├── factories.py            # BaseFactory
 ├── services.py             # BaseService
-├── use_cases.py            # BaseUseCase
-└── delivery/
-    ├── fastapi/
-    │   └── schemas.py      # BaseFastAPISchema
-    └── celery/
-        └── schemas.py      # BaseCelerySchema
+└── use_cases.py            # BaseUseCase
 ```
 
 ### `src/fastdjango/entrypoints/` - Composition Roots
@@ -132,9 +133,8 @@ Infrastructure code that supports all layers.
 infrastructure/
 ├── anyio/                  # Thread pool configuration
 ├── celery/                 # Celery registry primitives
-├── delivery/               # Delivery infrastructure
-│   └── controllers.py      # Base Controller classes
-├── django/                 # Django setup and settings
+├── django/                 # Django setup, settings, transaction controllers
+│   └── controllers.py      # BaseTransactionController classes
 ├── logfire/                # OpenTelemetry/Logfire
 ├── logging/                # Logging configuration
 ├── throttled/              # Rate limiting
@@ -143,7 +143,7 @@ infrastructure/
 
 Key files:
 
-- **`delivery/controllers.py`**: Defines `BaseController` and `BaseTransactionController` base classes
+- **`django/controllers.py`**: Defines sync and async transaction controller base classes
 - **`django/settings.py`**: Adapts Pydantic settings to Django's settings format
 - **`logging/configurator.py`**: Configures application logging
 

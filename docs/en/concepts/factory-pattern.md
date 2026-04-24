@@ -155,7 +155,7 @@ class FastAPIFactory(BaseFactory):
 Test factories extend `ContainerBasedFactory` to access the IoC container:
 
 ```python
-# src/fastdjango/infrastructure/delivery/factories.py
+# tests/integration/factories.py
 from abc import ABC
 from dataclasses import dataclass
 

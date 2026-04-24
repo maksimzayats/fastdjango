@@ -1,7 +1,7 @@
 from celery import Celery
 
 from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
-from fastdjango.infrastructure.delivery.controllers import BaseController
+from fastdjango.foundation.delivery.controllers import BaseController
 
 PING_TASK_NAME = "ping"
 

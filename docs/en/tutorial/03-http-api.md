@@ -112,7 +112,7 @@ from fastdjango.core.todo.delivery.fastapi.schemas import (
     TodoSchema,
     UpdateTodoRequestSchema,
 )
-from fastdjango.infrastructure.delivery.controllers import BaseTransactionController
+from fastdjango.infrastructure.django.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
