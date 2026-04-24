@@ -54,14 +54,9 @@ core/
 │           ├── controllers.py  # Token endpoints
 │           ├── schemas.py      # Token schemas
 │           └── throttling.py   # Authenticated-user throttling
-├── shared/                 # Shared kernel primitives
-│   ├── dtos.py             # BaseDTO configuration
-│   ├── factories.py        # BaseFactory marker
-│   ├── services.py         # BaseService marker
-│   ├── use_cases.py        # BaseUseCase marker
+├── shared/                 # Shared component helpers
 │   └── delivery/
-│       ├── fastapi/        # BaseFastAPISchema/request/throttling helpers
-│       └── celery/         # BaseCelerySchema
+│       └── fastapi/        # Request info and throttling helpers
 └── user/                   # User domain
     ├── models.py           # User
     ├── dtos.py             # User use-case DTOs
@@ -77,6 +72,26 @@ core/
 
 **Key principle**: Use cases encapsulate application behavior. Controllers never access models directly.
 DTOs live beside use cases; delivery schemas have their own independent base and may inherit from DTOs only when the wire shape matches the use-case shape.
+
+### `src/fastdjango/foundation/` - Base Contracts
+
+Foundational marker and base classes live outside `core/`, `infrastructure/`,
+and `entrypoints/` so every layer can depend on them without reversing
+ownership:
+
+```
+foundation/
+├── configurators.py        # BaseConfigurator
+├── dtos.py                 # BaseDTO
+├── factories.py            # BaseFactory
+├── services.py             # BaseService
+├── use_cases.py            # BaseUseCase
+└── delivery/
+    ├── fastapi/
+    │   └── schemas.py      # BaseFastAPISchema
+    └── celery/
+        └── schemas.py      # BaseCelerySchema
+```
 
 ### `src/fastdjango/entrypoints/` - Composition Roots
 
@@ -104,9 +119,10 @@ Delivery code lives inside the core package it exposes. For example, user FastAP
 controllers live in `core/user/delivery/fastapi/`, and the health ping task lives
 in `core/health/delivery/celery/`.
 
-Shared delivery helpers stay in `core/shared/delivery/`; application entry
-points and registries live in `entrypoints/`. This keeps reusable core code from
-importing concrete application components.
+Shared delivery helpers stay in `core/shared/delivery/`; reusable base contracts
+stay in `foundation/`; application entry points and registries live in
+`entrypoints/`. This keeps reusable code from importing concrete application
+components.
 
 ### `src/fastdjango/infrastructure/` - Cross-Cutting Concerns
 
@@ -116,7 +132,6 @@ Infrastructure code that supports all layers.
 infrastructure/
 ├── anyio/                  # Thread pool configuration
 ├── celery/                 # Celery registry primitives
-├── configurators.py        # BaseConfigurator marker
 ├── delivery/               # Delivery infrastructure
 │   └── controllers.py      # Base Controller classes
 ├── django/                 # Django setup and settings
@@ -129,7 +144,6 @@ infrastructure/
 Key files:
 
 - **`delivery/controllers.py`**: Defines `BaseController` and `BaseTransactionController` base classes
-- **`configurators.py`**: Defines `BaseConfigurator` for infrastructure configuration classes
 - **`django/settings.py`**: Adapts Pydantic settings to Django's settings format
 - **`logging/configurator.py`**: Configures application logging
 

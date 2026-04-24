@@ -46,7 +46,7 @@ from dataclasses import dataclass
 from celery import Celery
 
 from fastdjango.core.email.services import EmailService
-from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
+from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.entrypoints.celery.registry import TaskName
 from fastdjango.infrastructure.delivery.controllers import BaseController
@@ -302,7 +302,7 @@ def send_notification(self, user_id: int) -> NotifyResultSchema:
 ### Use BaseCelerySchema for Results
 
 ```python
-from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
+from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
 
 
 class ProcessResultSchema(BaseCelerySchema):

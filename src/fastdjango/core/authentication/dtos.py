@@ -1,4 +1,4 @@
-from fastdjango.core.shared.dtos import BaseDTO
+from fastdjango.foundation.dtos import BaseDTO
 
 
 class IssueTokenDTO(BaseDTO):

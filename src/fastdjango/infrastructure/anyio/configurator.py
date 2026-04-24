@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import anyio
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from fastdjango.infrastructure.configurators import BaseConfigurator
+from fastdjango.foundation.configurators import BaseConfigurator
 
 logger = logging.getLogger(__name__)
 

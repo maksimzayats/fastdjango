@@ -6,7 +6,7 @@ import jwt
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from fastdjango.core.shared.services import BaseService
+from fastdjango.foundation.services import BaseService
 
 
 class JWTServiceSettings(BaseSettings):

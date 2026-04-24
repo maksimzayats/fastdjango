@@ -4,7 +4,7 @@ from django.contrib.admin import AdminSite
 from django.contrib.admin.sites import site as default_site
 from django.core.handlers.wsgi import WSGIHandler
 
-from fastdjango.core.shared.factories import BaseFactory
+from fastdjango.foundation.factories import BaseFactory
 
 
 class AdminSiteFactory(BaseFactory):

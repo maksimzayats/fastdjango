@@ -21,7 +21,7 @@ featuring dependency injection, type-safe configuration, and comprehensive obser
 # src/fastdjango/core/todo/services.py
 from django.db import transaction
 
-from fastdjango.core.shared.services import BaseService
+from fastdjango.foundation.services import BaseService
 from fastdjango.core.todo.models import Todo
 
 
@@ -46,7 +46,7 @@ from fastapi import APIRouter, Depends
 
 from fastdjango.core.todo.services import TodoService
 from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
-from fastdjango.core.shared.delivery.fastapi.schemas import BaseFastAPISchema
+from fastdjango.foundation.delivery.fastapi.schemas import BaseFastAPISchema
 from fastdjango.infrastructure.delivery.controllers import BaseController
 
 

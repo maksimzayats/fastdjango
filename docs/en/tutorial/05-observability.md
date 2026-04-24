@@ -60,7 +60,7 @@ Use structured logging in your services:
 # src/fastdjango/core/todo/services.py
 import logfire
 
-from fastdjango.core.shared.services import BaseService
+from fastdjango.foundation.services import BaseService
 
 
 @dataclass(kw_only=True)
@@ -111,7 +111,7 @@ Create spans for complex operations:
 # src/fastdjango/core/todo/services.py
 import logfire
 
-from fastdjango.core.shared.services import BaseService
+from fastdjango.foundation.services import BaseService
 
 
 @dataclass(kw_only=True)
@@ -192,7 +192,7 @@ The `SystemHealthUseCase` checks database connectivity:
 
 ```python
 # src/fastdjango/core/health/use_cases.py
-from fastdjango.core.shared.use_cases import BaseUseCase
+from fastdjango.foundation.use_cases import BaseUseCase
 
 
 class SystemHealthUseCase(BaseUseCase):

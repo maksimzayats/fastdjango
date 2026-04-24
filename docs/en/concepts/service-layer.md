@@ -62,7 +62,7 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
-from fastdjango.core.shared.services import BaseService
+from fastdjango.foundation.services import BaseService
 from fastdjango.core.todo.models import Todo
 from fastdjango.core.user.models import User
 
@@ -186,7 +186,7 @@ Use `@transaction.atomic` for database writes:
 ```python
 from django.db import transaction
 
-from fastdjango.core.shared.services import BaseService
+from fastdjango.foundation.services import BaseService
 
 @dataclass(kw_only=True)
 class TodoService(BaseService):
@@ -252,7 +252,7 @@ def get_user(self, request: AuthenticatedRequest) -> UserSchema:
 Services can depend on other services:
 
 ```python
-from fastdjango.core.shared.services import BaseService
+from fastdjango.foundation.services import BaseService
 
 @dataclass(kw_only=True)
 class OrderService(BaseService):

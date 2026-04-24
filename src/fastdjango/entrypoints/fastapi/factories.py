@@ -13,9 +13,9 @@ from fastdjango.core.authentication.delivery.fastapi.controllers import (
     AuthenticationTokenController,
 )
 from fastdjango.core.health.delivery.fastapi.controllers import HealthController
-from fastdjango.core.shared.factories import BaseFactory
 from fastdjango.core.user.delivery.fastapi.controllers import UserController
 from fastdjango.entrypoints.django.factories import DjangoWSGIFactory
+from fastdjango.foundation.factories import BaseFactory
 from fastdjango.infrastructure.anyio.configurator import AnyIOConfigurator
 from fastdjango.infrastructure.logfire.instrumentor import OpenTelemetryInstrumentor
 from fastdjango.infrastructure.shared import ApplicationSettings, Environment

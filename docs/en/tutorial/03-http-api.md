@@ -43,7 +43,7 @@ from datetime import datetime
 
 from pydantic import Field
 
-from fastdjango.core.shared.delivery.fastapi.schemas import BaseFastAPISchema
+from fastdjango.foundation.delivery.fastapi.schemas import BaseFastAPISchema
 
 
 class CreateTodoRequestSchema(BaseFastAPISchema):

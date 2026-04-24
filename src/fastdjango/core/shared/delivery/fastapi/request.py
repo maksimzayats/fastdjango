@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pydantic_settings import BaseSettings
 from starlette.requests import Request
 
-from fastdjango.core.shared.services import BaseService
+from fastdjango.foundation.services import BaseService
 
 logger = logging.getLogger(__name__)
 

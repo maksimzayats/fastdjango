@@ -1,5 +1,5 @@
-from fastdjango.core.shared.delivery.fastapi.schemas import BaseFastAPISchema
 from fastdjango.core.user.dtos import CreateUserDTO, UserDTO
+from fastdjango.foundation.delivery.fastapi.schemas import BaseFastAPISchema
 
 
 class CreateUserRequestSchema(CreateUserDTO, BaseFastAPISchema):

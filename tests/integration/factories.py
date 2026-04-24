@@ -8,11 +8,11 @@ from diwire import Container
 from fastapi.testclient import TestClient
 
 from fastdjango.core.authentication.services.jwt import JWTService
-from fastdjango.core.shared.factories import BaseFactory
 from fastdjango.core.user.models import User
 from fastdjango.entrypoints.celery.factories import CeleryAppFactory, TasksRegistryFactory
 from fastdjango.entrypoints.celery.registry import TasksRegistry
 from fastdjango.entrypoints.fastapi.factories import FastAPIFactory
+from fastdjango.foundation.factories import BaseFactory
 
 
 class BaseTestFactory(BaseFactory, ABC):

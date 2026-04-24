@@ -3,7 +3,7 @@ from typing import Annotated
 from annotated_types import Len
 from pydantic import EmailStr
 
-from fastdjango.core.shared.dtos import BaseDTO
+from fastdjango.foundation.dtos import BaseDTO
 
 
 class CreateUserDTO(BaseDTO):

@@ -94,7 +94,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from fastdjango.core.exceptions import ApplicationError
-from fastdjango.core.shared.services import BaseService
+from fastdjango.foundation.services import BaseService
 from fastdjango.core.product.models import Product
 
 
@@ -151,7 +151,7 @@ from decimal import Decimal
 
 from pydantic import Field
 
-from fastdjango.core.shared.delivery.fastapi.schemas import BaseFastAPISchema
+from fastdjango.foundation.delivery.fastapi.schemas import BaseFastAPISchema
 
 
 class CreateProductRequestSchema(BaseFastAPISchema):

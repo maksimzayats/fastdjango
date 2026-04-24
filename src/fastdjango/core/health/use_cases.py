@@ -3,7 +3,7 @@ import logging
 from django.contrib.sessions.models import Session
 
 from fastdjango.core.health.exceptions import HealthCheckError
-from fastdjango.core.shared.use_cases import BaseUseCase
+from fastdjango.foundation.use_cases import BaseUseCase
 
 logger = logging.getLogger(__name__)
 

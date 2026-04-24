@@ -11,7 +11,7 @@ from throttled.asyncio import (
     Throttled as AsyncThrottled,
 )
 
-from fastdjango.core.shared.factories import BaseFactory
+from fastdjango.foundation.factories import BaseFactory
 
 
 class ThrottledRedisSettings(BaseSettings):

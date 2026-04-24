@@ -126,7 +126,7 @@ The project loads `.env` files via `python-dotenv`:
 # src/fastdjango/infrastructure/django/configurator.py
 from dotenv import load_dotenv
 
-from fastdjango.infrastructure.configurators import BaseConfigurator
+from fastdjango.foundation.configurators import BaseConfigurator
 
 
 class DjangoConfigurator(BaseConfigurator):
@@ -149,7 +149,7 @@ load_dotenv(".env.test")
 Inject settings into services:
 
 ```python
-from fastdjango.core.shared.services import BaseService
+from fastdjango.foundation.services import BaseService
 
 @dataclass(kw_only=True)
 class JWTService(BaseService):

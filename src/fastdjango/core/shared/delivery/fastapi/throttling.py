@@ -10,7 +10,7 @@ from starlette.requests import Request
 from throttled.asyncio import Quota, RateLimiterType, Throttled
 
 from fastdjango.core.shared.delivery.fastapi.request import RequestInfoService
-from fastdjango.core.shared.factories import BaseFactory
+from fastdjango.foundation.factories import BaseFactory
 from fastdjango.infrastructure.throttled.throttler import AsyncThrottlerFactory
 
 logger = logging.getLogger(__name__)

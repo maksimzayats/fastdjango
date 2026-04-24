@@ -6,7 +6,7 @@ import logfire
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from fastdjango.infrastructure.configurators import BaseConfigurator
+from fastdjango.foundation.configurators import BaseConfigurator
 from fastdjango.infrastructure.logfire.configurator import LogfireSettings
 
 

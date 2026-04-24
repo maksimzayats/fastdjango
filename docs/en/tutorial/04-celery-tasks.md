@@ -30,7 +30,7 @@ from dataclasses import dataclass
 
 from celery import Celery
 
-from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
+from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
 from fastdjango.core.todo.services import TodoService
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.entrypoints.celery.registry import TaskName
@@ -280,7 +280,7 @@ def cleanup_completed_todos(self) -> CleanupResultSchema:
 Use `BaseCelerySchema` or simple dicts:
 
 ```python
-from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
+from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
 
 
 class CleanupResultSchema(BaseCelerySchema):

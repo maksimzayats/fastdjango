@@ -150,7 +150,7 @@ from dataclasses import dataclass
 from django.db import transaction
 
 from fastdjango.core.exceptions import ApplicationError
-from fastdjango.core.shared.services import BaseService
+from fastdjango.foundation.services import BaseService
 from fastdjango.core.todo.models import Todo
 from fastdjango.core.user.models import User
 
