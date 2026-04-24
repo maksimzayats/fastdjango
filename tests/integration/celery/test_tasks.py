@@ -12,6 +12,6 @@ class TestPingTaskController:
     ) -> None:
         registry = tasks_registry_factory()
         with celery_worker_factory():
-            ping_result = registry.ping.delay().get(timeout=1)
+            ping_result = registry.ping.delay().get(timeout=10)
 
         assert ping_result == PingResultSchema(result="pong")

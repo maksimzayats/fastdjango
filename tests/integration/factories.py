@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
 from typing import Any
 
+from celery import Celery
 from celery.contrib.testing import worker
 from celery.worker import WorkController
 from diwire import Container
@@ -85,14 +86,26 @@ class TestUserFactory(ContainerBasedFactory):
 class TestCeleryWorkerFactory(ContainerBasedFactory):
     def __call__(self) -> AbstractContextManager[WorkController]:
         celery_app_factory = self._container.resolve(CeleryAppFactory)
+        celery_app = celery_app_factory()
+        configure_celery_app_for_tests(celery_app)
 
         return worker.start_worker(
-            app=celery_app_factory(),
+            app=celery_app,
             perform_ping_check=False,
         )
 
 
 class TestTasksRegistryFactory(ContainerBasedFactory):
     def __call__(self) -> TasksRegistry:
+        celery_app_factory = self._container.resolve(CeleryAppFactory)
+        configure_celery_app_for_tests(celery_app_factory())
+
         factory = self._container.resolve(TasksRegistryFactory)
         return factory()
+
+
+def configure_celery_app_for_tests(celery_app: Celery) -> None:
+    celery_app.conf.update(
+        broker_url="memory://",
+        result_backend="cache+memory://",
+    )
