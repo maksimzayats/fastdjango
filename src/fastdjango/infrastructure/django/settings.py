@@ -6,7 +6,10 @@ from pydantic import Field, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from fastdjango.infrastructure.django.pydantic_settings_adapter import PydanticSettingsAdapter
+from fastdjango.infrastructure.django.stubs import patch_django_stubs
 from fastdjango.infrastructure.shared import ApplicationSettings
+
+patch_django_stubs()
 
 
 class DjangoSettings(ApplicationSettings):

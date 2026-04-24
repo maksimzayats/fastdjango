@@ -3,7 +3,6 @@ import os
 from dataclasses import dataclass
 
 import django
-import django_stubs_ext
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
@@ -32,5 +31,4 @@ class DjangoConfigurator:
             "DJANGO_SETTINGS_MODULE",
             self._settings.django_settings_module,
         )
-        django_stubs_ext.monkeypatch()
         django.setup()
