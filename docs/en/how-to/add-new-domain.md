@@ -94,6 +94,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from fastdjango.core.exceptions import ApplicationError
+from fastdjango.core.shared.services import BaseService
 from fastdjango.core.product.models import Product
 
 
@@ -102,7 +103,7 @@ class ProductNotFoundError(ApplicationError):
 
 
 @dataclass(kw_only=True)
-class ProductService:
+class ProductService(BaseService):
     def get_product_by_id(self, product_id: int) -> Product:
         try:
             return Product.objects.get(id=product_id)
@@ -150,16 +151,16 @@ from decimal import Decimal
 
 from pydantic import Field
 
-from fastdjango.core.shared.delivery.fastapi.schemas import FastAPISchema
+from fastdjango.core.shared.delivery.fastapi.schemas import BaseFastAPISchema
 
 
-class CreateProductRequestSchema(FastAPISchema):
+class CreateProductRequestSchema(BaseFastAPISchema):
     name: str = Field(..., min_length=1, max_length=200)
     description: str = Field(default="", max_length=1000)
     price: Decimal = Field(..., gt=0, decimal_places=2)
 
 
-class ProductSchema(FastAPISchema):
+class ProductSchema(BaseFastAPISchema):
     id: int
     name: str
     description: str

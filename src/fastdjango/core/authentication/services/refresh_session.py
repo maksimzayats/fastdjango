@@ -13,6 +13,7 @@ from fastdjango.core.authentication.exceptions import (
     InvalidRefreshTokenError,
 )
 from fastdjango.core.authentication.models import RefreshSession
+from fastdjango.core.shared.services import BaseService
 from fastdjango.core.user.models import User
 
 
@@ -26,7 +27,7 @@ class RefreshSessionServiceSettings(BaseSettings):
 
 
 @dataclass(kw_only=True)
-class RefreshSessionService:
+class RefreshSessionService(BaseService):
     _settings: RefreshSessionServiceSettings
 
     def create_refresh_session(

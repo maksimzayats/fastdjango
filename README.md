@@ -20,10 +20,12 @@ featuring dependency injection, type-safe configuration, and comprehensive obser
 ```python
 # src/fastdjango/core/todo/services.py
 from django.db import transaction
+
+from fastdjango.core.shared.services import BaseService
 from fastdjango.core.todo.models import Todo
 
 
-class TodoService:
+class TodoService(BaseService):
     def get_todo_by_id(self, todo_id: int) -> Todo | None:
         return Todo.objects.filter(id=todo_id).first()
 
@@ -44,11 +46,11 @@ from fastapi import APIRouter, Depends
 
 from fastdjango.core.todo.services import TodoService
 from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
-from fastdjango.core.shared.delivery.fastapi.schemas import FastAPISchema
+from fastdjango.core.shared.delivery.fastapi.schemas import BaseFastAPISchema
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 
-class TodoSchema(FastAPISchema):
+class TodoSchema(BaseFastAPISchema):
     id: int
     title: str
     completed: bool

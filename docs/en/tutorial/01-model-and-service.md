@@ -150,6 +150,7 @@ from dataclasses import dataclass
 from django.db import transaction
 
 from fastdjango.core.exceptions import ApplicationError
+from fastdjango.core.shared.services import BaseService
 from fastdjango.core.todo.models import Todo
 from fastdjango.core.user.models import User
 
@@ -163,7 +164,7 @@ class TodoAccessDeniedError(ApplicationError):
 
 
 @dataclass(kw_only=True)
-class TodoService:
+class TodoService(BaseService):
     """Service for todo item operations.
 
     Encapsulates all database operations for Todo model.

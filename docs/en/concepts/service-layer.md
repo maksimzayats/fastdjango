@@ -62,6 +62,7 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
+from fastdjango.core.shared.services import BaseService
 from fastdjango.core.todo.models import Todo
 from fastdjango.core.user.models import User
 
@@ -71,7 +72,7 @@ class TodoNotFoundError(Exception):
 
 
 @dataclass(kw_only=True)
-class TodoService:
+class TodoService(BaseService):
     """Service for todo operations."""
 
     def get_todo_by_id(self, todo_id: int) -> Todo:
@@ -185,8 +186,10 @@ Use `@transaction.atomic` for database writes:
 ```python
 from django.db import transaction
 
+from fastdjango.core.shared.services import BaseService
+
 @dataclass(kw_only=True)
-class TodoService:
+class TodoService(BaseService):
     @transaction.atomic
     def create_todo(self, user: User, title: str) -> Todo:
         todo = Todo.objects.create(user=user, title=title)
@@ -249,8 +252,10 @@ def get_user(self, request: AuthenticatedRequest) -> UserSchema:
 Services can depend on other services:
 
 ```python
+from fastdjango.core.shared.services import BaseService
+
 @dataclass(kw_only=True)
-class OrderService:
+class OrderService(BaseService):
     _user_use_case: UserUseCase
     _payment_service: PaymentService
     _notification_service: NotificationService

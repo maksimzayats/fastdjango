@@ -1,20 +1,20 @@
-from fastdjango.core.shared.dtos import DTO
+from fastdjango.core.shared.dtos import BaseDTO
 
 
-class IssueTokenDTO(DTO):
+class IssueTokenDTO(BaseDTO):
     username: str
     password: str
 
 
-class TokenRequestContextDTO(DTO):
+class TokenRequestContextDTO(BaseDTO):
     user_agent: str
     ip_address: str | None
 
 
-class RefreshTokenDTO(DTO):
+class RefreshTokenDTO(BaseDTO):
     refresh_token: str
 
 
-class TokenDTO(DTO):
+class TokenDTO(BaseDTO):
     access_token: str
     refresh_token: str

@@ -1,5 +1,5 @@
 from typing import TypedDict
 
 
-class CelerySchema(TypedDict):
+class BaseCelerySchema(TypedDict):
     pass

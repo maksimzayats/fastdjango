@@ -120,9 +120,9 @@ class FastAPIFactory:
         self._health_controller.register(health_router)
         app.include_router(health_router)
 
-        user_token_router = APIRouter(tags=["user", "token"])
-        self._authentication_token_controller.register(user_token_router)
-        app.include_router(user_token_router)
+        auth_router = APIRouter(tags=["auth", "token"])
+        self._authentication_token_controller.register(auth_router)
+        app.include_router(auth_router)
 
         user_router = APIRouter(tags=["user"])
         self._user_controller.register(user_router)

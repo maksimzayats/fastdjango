@@ -1,7 +1,7 @@
 from typing import Literal
 
-from fastdjango.core.shared.delivery.celery.schemas import CelerySchema
+from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
 
 
-class PingResultSchema(CelerySchema):
+class PingResultSchema(BaseCelerySchema):
     result: Literal["pong"]

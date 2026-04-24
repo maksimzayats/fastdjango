@@ -6,6 +6,8 @@ import jwt
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from fastdjango.core.shared.services import BaseService
+
 
 class JWTServiceSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="JWT_")
@@ -21,7 +23,7 @@ class JWTServiceSettings(BaseSettings):
 
 
 @dataclass(kw_only=True)
-class JWTService:
+class JWTService(BaseService):
     EXPIRED_SIGNATURE_ERROR = jwt.ExpiredSignatureError
     INVALID_TOKEN_ERROR = jwt.InvalidTokenError
 

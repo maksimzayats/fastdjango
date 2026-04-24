@@ -3,11 +3,12 @@ import logging
 from django.contrib.sessions.models import Session
 
 from fastdjango.core.health.exceptions import HealthCheckError
+from fastdjango.core.shared.use_cases import BaseUseCase
 
 logger = logging.getLogger(__name__)
 
 
-class SystemHealthUseCase:
+class SystemHealthUseCase(BaseUseCase):
     def check(self) -> None:
         """Check the health of the system components.
 

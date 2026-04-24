@@ -60,9 +60,11 @@ Use structured logging in your services:
 # src/fastdjango/core/todo/services.py
 import logfire
 
+from fastdjango.core.shared.services import BaseService
+
 
 @dataclass(kw_only=True)
-class TodoService:
+class TodoService(BaseService):
     def create_todo(
         self,
         user: User,
@@ -109,9 +111,11 @@ Create spans for complex operations:
 # src/fastdjango/core/todo/services.py
 import logfire
 
+from fastdjango.core.shared.services import BaseService
+
 
 @dataclass(kw_only=True)
-class TodoService:
+class TodoService(BaseService):
     def delete_completed_todos(self, user: User) -> int:
         with logfire.span(
             "delete_completed_todos",
@@ -188,7 +192,10 @@ The `SystemHealthUseCase` checks database connectivity:
 
 ```python
 # src/fastdjango/core/health/use_cases.py
-class SystemHealthUseCase:
+from fastdjango.core.shared.use_cases import BaseUseCase
+
+
+class SystemHealthUseCase(BaseUseCase):
     def check(self) -> None:
         try:
             # Verify database connection

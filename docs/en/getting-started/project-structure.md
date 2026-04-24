@@ -55,7 +55,9 @@ core/
 │           ├── schemas.py      # Token schemas
 │           └── throttling.py   # Authenticated-user throttling
 ├── shared/                 # Cross-domain application wiring
-│   ├── dtos.py             # Base DTO configuration
+│   ├── dtos.py             # BaseDTO configuration
+│   ├── services.py         # BaseService marker
+│   ├── use_cases.py        # BaseUseCase marker
 │   └── delivery/
 │       ├── django/         # Django URLs and WSGI factory
 │       ├── fastapi/        # FastAPI app/bootstrap/factory/schemas/request/throttling

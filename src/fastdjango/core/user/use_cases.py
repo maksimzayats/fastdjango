@@ -3,13 +3,14 @@ from dataclasses import dataclass
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
+from fastdjango.core.shared.use_cases import BaseUseCase
 from fastdjango.core.user.dtos import CreateUserDTO
 from fastdjango.core.user.exceptions import UserAlreadyExistsError, WeakPasswordError
 from fastdjango.core.user.models import User
 
 
 @dataclass(kw_only=True)
-class UserUseCase:
+class UserUseCase(BaseUseCase):
     def get_user_by_id(self, user_id: int) -> User | None:
         return User.objects.filter(id=user_id).first()
 

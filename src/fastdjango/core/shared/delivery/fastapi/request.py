@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pydantic_settings import BaseSettings
 from starlette.requests import Request
 
+from fastdjango.core.shared.services import BaseService
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,7 +22,7 @@ class RequestInfoServiceSettings(BaseSettings):
 
 
 @dataclass(kw_only=True)
-class RequestInfoService:
+class RequestInfoService(BaseService):
     _settings: RequestInfoServiceSettings
 
     def get_user_agent(self, request: Request) -> str:

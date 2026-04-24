@@ -46,13 +46,13 @@ from dataclasses import dataclass
 from celery import Celery
 
 from fastdjango.core.email.services import EmailService
-from fastdjango.core.shared.delivery.celery.schemas import CelerySchema
+from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.core.shared.delivery.celery.registry import TaskName
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 
-class SendEmailResultSchema(CelerySchema):
+class SendEmailResultSchema(BaseCelerySchema):
     success: bool
     message_id: str | None
 
@@ -299,13 +299,13 @@ def send_notification(self, user_id: int) -> NotifyResultSchema:
         return NotifyResultSchema(success=False, error=str(e))
 ```
 
-### Use CelerySchema for Results
+### Use BaseCelerySchema for Results
 
 ```python
-from fastdjango.core.shared.delivery.celery.schemas import CelerySchema
+from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
 
 
-class ProcessResultSchema(CelerySchema):
+class ProcessResultSchema(BaseCelerySchema):
     success: bool
     items_processed: int
     errors: list[str]

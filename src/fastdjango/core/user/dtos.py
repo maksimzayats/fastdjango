@@ -3,10 +3,10 @@ from typing import Annotated
 from annotated_types import Len
 from pydantic import EmailStr
 
-from fastdjango.core.shared.dtos import DTO
+from fastdjango.core.shared.dtos import BaseDTO
 
 
-class CreateUserDTO(DTO):
+class CreateUserDTO(BaseDTO):
     email: EmailStr
     username: Annotated[str, Len(max_length=150)]
     first_name: Annotated[str, Len(max_length=150)]
@@ -14,7 +14,7 @@ class CreateUserDTO(DTO):
     password: Annotated[str, Len(max_length=128)]
 
 
-class UserDTO(DTO):
+class UserDTO(BaseDTO):
     id: int
     username: str
     email: str

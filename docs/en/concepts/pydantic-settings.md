@@ -147,8 +147,10 @@ load_dotenv(".env.test")
 Inject settings into services:
 
 ```python
+from fastdjango.core.shared.services import BaseService
+
 @dataclass(kw_only=True)
-class JWTService:
+class JWTService(BaseService):
     _settings: JWTServiceSettings
 
     def issue_access_token(self, user_id: int) -> str:

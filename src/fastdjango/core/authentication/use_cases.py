@@ -9,12 +9,13 @@ from fastdjango.core.authentication.dtos import (
 from fastdjango.core.authentication.exceptions import InvalidCredentialsError
 from fastdjango.core.authentication.services.jwt import JWTService
 from fastdjango.core.authentication.services.refresh_session import RefreshSessionService
+from fastdjango.core.shared.use_cases import BaseUseCase
 from fastdjango.core.user.models import User
 from fastdjango.core.user.use_cases import UserUseCase
 
 
 @dataclass(kw_only=True)
-class TokenUseCase:
+class TokenUseCase(BaseUseCase):
     _jwt_service: JWTService
     _refresh_session_service: RefreshSessionService
     _user_use_case: UserUseCase

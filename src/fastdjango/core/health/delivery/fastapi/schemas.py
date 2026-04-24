@@ -1,7 +1,7 @@
 from typing import Literal
 
-from fastdjango.core.shared.delivery.fastapi.schemas import FastAPISchema
+from fastdjango.core.shared.delivery.fastapi.schemas import BaseFastAPISchema
 
 
-class HealthCheckResponseSchema(FastAPISchema):
+class HealthCheckResponseSchema(BaseFastAPISchema):
     status: Literal["ok"]

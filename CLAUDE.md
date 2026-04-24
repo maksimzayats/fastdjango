@@ -109,12 +109,14 @@ Services belong in `src/fastdjango/core/<domain>/services.py` or `src/fastdjango
 ```python
 # src/fastdjango/core/item/services.py
 from django.db import transaction
+
+from fastdjango.core.shared.services import BaseService
 from fastdjango.core.item.models import Item
 
 class ItemNotFoundError(Exception):
     """Domain exception for missing items."""
 
-class ItemService:
+class ItemService(BaseService):
     def get_item_by_id(self, item_id: int) -> Item:
         try:
             return Item.objects.get(id=item_id)

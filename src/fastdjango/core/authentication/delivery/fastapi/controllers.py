@@ -42,8 +42,8 @@ class AuthenticationTokenController(TransactionController):
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
-            path="/v1/users/me/token",
-            endpoint=self.issue_user_token,
+            path="/v1/auth/token",
+            endpoint=self.issue_token,
             methods=["POST"],
             dependencies=[
                 Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
@@ -52,8 +52,8 @@ class AuthenticationTokenController(TransactionController):
         )
 
         registry.add_api_route(
-            path="/v1/users/me/token/refresh",
-            endpoint=self.refresh_user_token,
+            path="/v1/auth/token/refresh",
+            endpoint=self.refresh_token,
             methods=["POST"],
             dependencies=[
                 Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
@@ -62,8 +62,8 @@ class AuthenticationTokenController(TransactionController):
         )
 
         registry.add_api_route(
-            path="/v1/users/me/token/revoke",
-            endpoint=self.revoke_refresh_token,
+            path="/v1/auth/token/revoke",
+            endpoint=self.revoke_token,
             methods=["POST"],
             dependencies=[
                 Depends(self._jwt_auth),
@@ -72,7 +72,7 @@ class AuthenticationTokenController(TransactionController):
             ],
         )
 
-    def issue_user_token(
+    def issue_token(
         self,
         request: Request,
         body: IssueTokenRequestSchema,
@@ -87,7 +87,7 @@ class AuthenticationTokenController(TransactionController):
 
         return TokenResponseSchema.model_validate(token)
 
-    def refresh_user_token(
+    def refresh_token(
         self,
         body: RefreshTokenRequestSchema,
     ) -> TokenResponseSchema:
@@ -97,7 +97,7 @@ class AuthenticationTokenController(TransactionController):
 
         return TokenResponseSchema.model_validate(token)
 
-    def revoke_refresh_token(
+    def revoke_token(
         self,
         request: AuthenticatedRequest,
         body: RefreshTokenRequestSchema,

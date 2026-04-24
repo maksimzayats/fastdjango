@@ -43,17 +43,17 @@ from datetime import datetime
 
 from pydantic import Field
 
-from fastdjango.core.shared.delivery.fastapi.schemas import FastAPISchema
+from fastdjango.core.shared.delivery.fastapi.schemas import BaseFastAPISchema
 
 
-class CreateTodoRequestSchema(FastAPISchema):
+class CreateTodoRequestSchema(BaseFastAPISchema):
     """Request schema for creating a todo."""
 
     title: str = Field(..., min_length=1, max_length=200)
     description: str = Field(default="", max_length=1000)
 
 
-class UpdateTodoRequestSchema(FastAPISchema):
+class UpdateTodoRequestSchema(BaseFastAPISchema):
     """Request schema for updating a todo."""
 
     title: str | None = Field(default=None, min_length=1, max_length=200)
@@ -61,7 +61,7 @@ class UpdateTodoRequestSchema(FastAPISchema):
     completed: bool | None = None
 
 
-class TodoSchema(FastAPISchema):
+class TodoSchema(BaseFastAPISchema):
     """Response schema for a todo item."""
 
     id: int
@@ -73,7 +73,7 @@ class TodoSchema(FastAPISchema):
     user_id: int
 
 
-class TodoListSchema(FastAPISchema):
+class TodoListSchema(BaseFastAPISchema):
     """Response schema for a list of todos."""
 
     todos: list[TodoSchema]
@@ -376,7 +376,7 @@ curl -X POST http://localhost:8000/v1/users/ \
   -d '{"username": "testuser", "email": "test@example.com", "password": "SecurePass123!"}'
 
 # Get token
-curl -X POST http://localhost:8000/v1/users/me/token \
+curl -X POST http://localhost:8000/v1/auth/token \
   -H "Content-Type: application/json" \
   -d '{"username": "testuser", "password": "SecurePass123!"}'
 ```

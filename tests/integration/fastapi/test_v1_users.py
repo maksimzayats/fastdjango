@@ -43,7 +43,7 @@ class TestUserController:
     ) -> None:
         with test_client_factory() as test_client:
             response = test_client.post(
-                "/v1/users/me/token",
+                "/v1/auth/token",
                 json={"username": user.username, "password": _TEST_PASSWORD},
             )
             token_response = TokenResponseSchema.model_validate(response.json())
@@ -66,7 +66,7 @@ class TestUserController:
     ) -> None:
         with test_client_factory() as test_client:
             response = test_client.post(
-                "/v1/users/me/token",
+                "/v1/auth/token",
                 json={"username": user.username, "password": "invalid-password"},
             )
 
@@ -79,26 +79,26 @@ class TestUserController:
     ) -> None:
         with test_client_factory() as test_client:
             response = test_client.post(
-                "/v1/users/me/token",
+                "/v1/auth/token",
                 json={"username": user.username, "password": _TEST_PASSWORD},
             )
             token_response = TokenResponseSchema.model_validate(response.json())
 
             response = test_client.post(
-                "/v1/users/me/token/refresh",
+                "/v1/auth/token/refresh",
                 json={"refresh_token": token_response.refresh_token},
             )
             token_response = TokenResponseSchema.model_validate(response.json())
 
             response = test_client.post(
-                "/v1/users/me/token/revoke",
+                "/v1/auth/token/revoke",
                 json={"refresh_token": token_response.refresh_token},
                 headers={"Authorization": f"Bearer {token_response.access_token}"},
             )
             revoke_status = response.status_code
 
             response = test_client.post(
-                "/v1/users/me/token/refresh",
+                "/v1/auth/token/refresh",
                 json={"refresh_token": token_response.refresh_token},
             )
 

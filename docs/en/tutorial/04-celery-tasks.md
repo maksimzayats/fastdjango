@@ -30,14 +30,14 @@ from dataclasses import dataclass
 
 from celery import Celery
 
-from fastdjango.core.shared.delivery.celery.schemas import CelerySchema
+from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
 from fastdjango.core.todo.services import TodoService
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.core.shared.delivery.celery.registry import TaskName
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 
-class CleanupResultSchema(CelerySchema):
+class CleanupResultSchema(BaseCelerySchema):
     """Result of the cleanup task."""
 
     users_processed: int
@@ -277,13 +277,13 @@ def cleanup_completed_todos(self) -> CleanupResultSchema:
 
 ### Do: Return Serializable Results
 
-Use `CelerySchema` or simple dicts:
+Use `BaseCelerySchema` or simple dicts:
 
 ```python
-from fastdjango.core.shared.delivery.celery.schemas import CelerySchema
+from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
 
 
-class CleanupResultSchema(CelerySchema):
+class CleanupResultSchema(BaseCelerySchema):
     users_processed: int
     todos_deleted: int
 ```

@@ -60,8 +60,10 @@ class InvalidOrderStateError(ApplicationError):
 ### 2. Raise Exceptions in Service
 
 ```python
+from fastdjango.core.shared.services import BaseService
+
 @dataclass(kw_only=True)
-class OrderService:
+class OrderService(BaseService):
     def get_order_by_id(self, order_id: int) -> Order:
         try:
             return Order.objects.get(id=order_id)
@@ -169,10 +171,10 @@ For more detailed error responses, create an error schema:
 
 ```python
 # src/fastdjango/core/common/delivery/fastapi/schemas.py
-from fastdjango.core.shared.delivery.fastapi.schemas import FastAPISchema
+from fastdjango.core.shared.delivery.fastapi.schemas import BaseFastAPISchema
 
 
-class ErrorResponseSchema(FastAPISchema):
+class ErrorResponseSchema(BaseFastAPISchema):
     error: str
     code: str
     details: dict | None = None
