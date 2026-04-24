@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from diwire import Container
 
-from fastdjango.core.health.delivery.fastapi.controllers import HealthCheckResponseSchema
+from fastdjango.core.health.delivery.fastapi.schemas import HealthCheckResponseSchema
 from fastdjango.core.health.exceptions import HealthCheckError
 from fastdjango.core.health.use_cases import SystemHealthUseCase
 from tests.integration.factories import TestClientFactory

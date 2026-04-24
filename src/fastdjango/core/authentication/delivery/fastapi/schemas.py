@@ -1,15 +1,14 @@
-from pydantic import BaseModel
+from fastdjango.core.authentication.dtos import IssueTokenDTO, RefreshTokenDTO, TokenDTO
+from fastdjango.core.shared.delivery.fastapi.schemas import Schema
 
 
-class IssueTokenRequestSchema(BaseModel):
-    username: str
-    password: str
+class IssueTokenRequestSchema(IssueTokenDTO, Schema):
+    pass
 
 
-class RefreshTokenRequestSchema(BaseModel):
-    refresh_token: str
+class RefreshTokenRequestSchema(RefreshTokenDTO, Schema):
+    pass
 
 
-class TokenResponseSchema(BaseModel):
-    access_token: str
-    refresh_token: str
+class TokenResponseSchema(TokenDTO, Schema):
+    pass

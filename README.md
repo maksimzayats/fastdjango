@@ -41,14 +41,14 @@ class TodoService:
 # src/fastdjango/core/todo/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 
 from fastdjango.core.todo.services import TodoService
 from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from fastdjango.core.shared.delivery.fastapi.schemas import Schema
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 
-class TodoSchema(BaseModel):
+class TodoSchema(Schema):
     id: int
     title: str
     completed: bool

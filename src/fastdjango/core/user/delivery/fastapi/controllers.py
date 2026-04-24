@@ -52,13 +52,7 @@ class UserController(TransactionController):
         )
 
     def create_user(self, request_body: CreateUserRequestSchema) -> UserSchema:
-        user = self._user_use_case.create_user(
-            username=request_body.username,
-            email=str(request_body.email),
-            first_name=request_body.first_name,
-            last_name=request_body.last_name,
-            password=request_body.password,
-        )
+        user = self._user_use_case.create_user(data=request_body)
 
         return UserSchema.model_validate(user, from_attributes=True)
 

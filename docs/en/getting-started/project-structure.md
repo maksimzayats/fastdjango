@@ -40,6 +40,7 @@ core/
 │           └── tasks.py
 ├── authentication/         # Token/session authentication
 │   ├── models.py           # RefreshSession
+│   ├── dtos.py             # Token use-case DTOs
 │   ├── exceptions.py       # Authentication exceptions
 │   ├── use_cases.py        # TokenUseCase
 │   ├── services/           # Token/session primitives
@@ -52,12 +53,14 @@ core/
 │           ├── schemas.py      # Token schemas
 │           └── throttling.py   # Authenticated-user throttling
 ├── shared/                 # Cross-domain application wiring
+│   ├── dtos.py             # Base DTO configuration
 │   └── delivery/
 │       ├── django/         # Django URLs and WSGI factory
-│       ├── fastapi/        # FastAPI app/bootstrap/factory/request/throttling
+│       ├── fastapi/        # FastAPI app/bootstrap/factory/schemas/request/throttling
 │       └── celery/         # Celery app/factory/registry
 └── user/                   # User domain
     ├── models.py           # User
+    ├── dtos.py             # User use-case DTOs
     ├── exceptions.py       # User domain exceptions
     ├── use_cases.py        # UserUseCase
     └── delivery/
@@ -69,6 +72,7 @@ core/
 ```
 
 **Key principle**: Use cases encapsulate application behavior. Controllers never access models directly.
+DTOs live beside use cases; delivery schemas have their own independent base and may inherit from DTOs only when the wire shape matches the use-case shape.
 
 ### Domain Delivery
 
@@ -162,7 +166,7 @@ The application has multiple entry points:
 ┌─────────────────────────────────────────────────────────────┐
 │                      Core Layer                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │              Services and Use Cases                  │   │
+│  │            DTOs, Services and Use Cases              │   │
 │  │   UserUseCase  │  TokenUseCase │  SystemHealthUseCase│   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │

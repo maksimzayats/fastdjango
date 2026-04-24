@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
+from fastdjango.core.user.dtos import CreateUserDTO
 from fastdjango.core.user.exceptions import UserAlreadyExistsError, WeakPasswordError
 from fastdjango.core.user.models import User
 
@@ -39,12 +40,7 @@ class UserUseCase:
 
     def is_valid_password(
         self,
-        password: str,
-        *,
-        username: str,
-        email: str,
-        first_name: str,
-        last_name: str,
+        data: CreateUserDTO,
     ) -> bool:
         """Validate the strength of the given password.
 
@@ -52,12 +48,12 @@ class UserUseCase:
         """
         try:
             validate_password(
-                password=password,
+                password=data.password,
                 user=User(
-                    username=username,
-                    email=email,
-                    first_name=first_name,
-                    last_name=last_name,
+                    username=data.username,
+                    email=str(data.email),
+                    first_name=data.first_name,
+                    last_name=data.last_name,
                 ),
             )
         except ValidationError:
@@ -67,33 +63,23 @@ class UserUseCase:
 
     def create_user(
         self,
-        username: str,
-        email: str,
-        first_name: str,
-        last_name: str,
-        password: str,
+        data: CreateUserDTO,
     ) -> User:
-        is_valid_password = self.is_valid_password(
-            password=password,
-            username=username,
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-        )
+        is_valid_password = self.is_valid_password(data=data)
         if not is_valid_password:
             raise WeakPasswordError
 
         existing_user = self.get_user_by_username_or_email(
-            username=username,
-            email=email,
+            username=data.username,
+            email=str(data.email),
         )
         if existing_user is not None:
             raise UserAlreadyExistsError
 
         return User.objects.create_user(
-            username=username,
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            password=password,
+            username=data.username,
+            email=str(data.email),
+            first_name=data.first_name,
+            last_name=data.last_name,
+            password=data.password,
         )

@@ -1,20 +1,15 @@
 import logging
 from dataclasses import dataclass
 from http import HTTPStatus
-from typing import Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
+from fastdjango.core.health.delivery.fastapi.schemas import HealthCheckResponseSchema
 from fastdjango.core.health.exceptions import HealthCheckError
 from fastdjango.core.health.use_cases import SystemHealthUseCase
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 logger = logging.getLogger(__name__)
-
-
-class HealthCheckResponseSchema(BaseModel):
-    status: Literal["ok"]
 
 
 @dataclass(kw_only=True)

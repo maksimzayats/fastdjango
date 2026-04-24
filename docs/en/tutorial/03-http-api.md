@@ -41,17 +41,19 @@ Create request and response schemas in `src/fastdjango/core/todo/delivery/fastap
 # src/fastdjango/core/todo/delivery/fastapi/schemas.py
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from fastdjango.core.shared.delivery.fastapi.schemas import Schema
 
 
-class CreateTodoRequestSchema(BaseModel):
+class CreateTodoRequestSchema(Schema):
     """Request schema for creating a todo."""
 
     title: str = Field(..., min_length=1, max_length=200)
     description: str = Field(default="", max_length=1000)
 
 
-class UpdateTodoRequestSchema(BaseModel):
+class UpdateTodoRequestSchema(Schema):
     """Request schema for updating a todo."""
 
     title: str | None = Field(default=None, min_length=1, max_length=200)
@@ -59,7 +61,7 @@ class UpdateTodoRequestSchema(BaseModel):
     completed: bool | None = None
 
 
-class TodoSchema(BaseModel):
+class TodoSchema(Schema):
     """Response schema for a todo item."""
 
     id: int
@@ -71,7 +73,7 @@ class TodoSchema(BaseModel):
     user_id: int
 
 
-class TodoListSchema(BaseModel):
+class TodoListSchema(Schema):
     """Response schema for a list of todos."""
 
     todos: list[TodoSchema]

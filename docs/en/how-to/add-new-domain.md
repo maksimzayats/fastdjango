@@ -148,16 +148,18 @@ Create `src/fastdjango/core/product/delivery/fastapi/schemas.py`:
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from fastdjango.core.shared.delivery.fastapi.schemas import Schema
 
 
-class CreateProductRequestSchema(BaseModel):
+class CreateProductRequestSchema(Schema):
     name: str = Field(..., min_length=1, max_length=200)
     description: str = Field(default="", max_length=1000)
     price: Decimal = Field(..., gt=0, decimal_places=2)
 
 
-class ProductSchema(BaseModel):
+class ProductSchema(Schema):
     id: int
     name: str
     description: str

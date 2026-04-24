@@ -15,6 +15,7 @@ from fastdjango.core.authentication.delivery.fastapi.schemas import (
     TokenResponseSchema,
 )
 from fastdjango.core.authentication.delivery.fastapi.throttling import UserThrottlerFactory
+from fastdjango.core.authentication.dtos import TokenRequestContextDTO
 from fastdjango.core.authentication.exceptions import (
     ExpiredRefreshTokenError,
     InvalidCredentialsError,
@@ -77,29 +78,24 @@ class AuthenticationTokenController(TransactionController):
         body: IssueTokenRequestSchema,
     ) -> TokenResponseSchema:
         token = self._token_use_case.issue_token(
-            username=body.username,
-            password=body.password,
-            user_agent=self._request_info_service.get_user_agent(request=request),
-            ip_address=self._request_info_service.get_user_ip(request=request),
+            data=body,
+            context=TokenRequestContextDTO(
+                user_agent=self._request_info_service.get_user_agent(request=request),
+                ip_address=self._request_info_service.get_user_ip(request=request),
+            ),
         )
 
-        return TokenResponseSchema(
-            access_token=token.access_token,
-            refresh_token=token.refresh_token,
-        )
+        return TokenResponseSchema.model_validate(token)
 
     def refresh_user_token(
         self,
         body: RefreshTokenRequestSchema,
     ) -> TokenResponseSchema:
         token = self._token_use_case.refresh_token(
-            refresh_token=body.refresh_token,
+            data=body,
         )
 
-        return TokenResponseSchema(
-            access_token=token.access_token,
-            refresh_token=token.refresh_token,
-        )
+        return TokenResponseSchema.model_validate(token)
 
     def revoke_refresh_token(
         self,
@@ -107,7 +103,7 @@ class AuthenticationTokenController(TransactionController):
         body: RefreshTokenRequestSchema,
     ) -> None:
         self._token_use_case.revoke_token(
-            refresh_token=body.refresh_token,
+            data=body,
             user=request.state.user,
         )
 
