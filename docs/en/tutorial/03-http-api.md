@@ -100,7 +100,7 @@ from fastdjango.core.todo.services import (
     TodoNotFoundError,
     TodoService,
 )
-from fastdjango.core.user.delivery.fastapi.auth import (
+from fastdjango.core.authentication.delivery.fastapi.auth import (
     AuthenticatedRequest,
     JWTAuthFactory,
 )

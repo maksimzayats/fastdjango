@@ -125,8 +125,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from fastdjango.core.user.services.user import UserService
-from fastdjango.core.user.delivery.fastapi.auth import AuthenticatedRequest, JWTAuthFactory
+from fastdjango.core.user.use_cases import UserUseCase
+from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuthFactory
 from fastdjango.infrastructure.delivery.controllers import TransactionController
 
 
@@ -135,7 +135,7 @@ class UserController(TransactionController):
     """HTTP controller for user operations."""
 
     _jwt_auth_factory: JWTAuthFactory
-    _user_service: UserService
+    _user_use_case: UserUseCase
 
     def __post_init__(self) -> None:
         self._jwt_auth = self._jwt_auth_factory()
@@ -166,7 +166,7 @@ class UserController(TransactionController):
 ### Key Patterns
 
 1. **Dataclass with `kw_only=True`**: Explicit named parameters
-2. **Dependencies as fields**: `_user_service`, `_jwt_auth_factory`
+2. **Dependencies as fields**: `_user_use_case`, `_jwt_auth_factory`
 3. **Computed values in `__post_init__`**: Create auth dependencies at initialization
 4. **`__post_init__`**: Initialize auth dependencies, then call `super().__post_init__()`
 
@@ -208,7 +208,7 @@ FastAPI runs sync handlers in a thread pool automatically:
 ```python
 # ✅ Recommended - sync handler
 def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
-    user = self._user_service.get_user_by_id(user_id)
+    user = self._user_use_case.get_user_by_id(user_id)
     return UserSchema.model_validate(user, from_attributes=True)
 ```
 
@@ -221,7 +221,7 @@ from asgiref.sync import sync_to_async
 
 async def get_user_async(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
     user = await sync_to_async(
-        self._user_service.get_user_by_id,
+        self._user_use_case.get_user_by_id,
         thread_sensitive=False,  # Read-only = parallel OK
     )(user_id)
     return UserSchema.model_validate(user, from_attributes=True)
@@ -244,7 +244,7 @@ Controllers are injected as fields into the factory and registered with tagged r
 class FastAPIFactory:
     # Controllers are injected as fields (auto-resolved by IoC)
     _health_controller: HealthController
-    _user_token_controller: UserTokenController
+    _authentication_token_controller: AuthenticationTokenController
     _user_controller: UserController
 
     def _register_controllers(self, app: FastAPI) -> None:
@@ -254,7 +254,7 @@ class FastAPIFactory:
         app.include_router(health_router)
 
         user_token_router = APIRouter(tags=["user", "token"])
-        self._user_token_controller.register(user_token_router)
+        self._authentication_token_controller.register(user_token_router)
         app.include_router(user_token_router)
 
         user_router = APIRouter(tags=["user"])
@@ -293,7 +293,7 @@ Mock dependencies, test business logic:
 ```python
 def test_get_user():
     mock_service = MagicMock()
-    controller = UserController(_user_service=mock_service, ...)
+    controller = UserController(_user_use_case=mock_service, ...)
     # Test controller methods directly
 ```
 

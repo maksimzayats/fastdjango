@@ -2,7 +2,8 @@ from http import HTTPStatus
 
 import pytest
 
-from fastdjango.core.user.delivery.fastapi.schemas import TokenResponseSchema, UserSchema
+from fastdjango.core.authentication.delivery.fastapi.schemas import TokenResponseSchema
+from fastdjango.core.user.delivery.fastapi.schemas import UserSchema
 from fastdjango.core.user.models import User
 from tests.integration.factories import TestClientFactory, TestUserFactory
 

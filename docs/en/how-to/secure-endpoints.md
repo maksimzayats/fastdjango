@@ -27,7 +27,7 @@ Protect endpoints with JWT authentication and role-based access control.
 ```python
 from dataclasses import dataclass
 
-from fastdjango.core.user.delivery.fastapi.auth import JWTAuthFactory
+from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuthFactory
 
 
 @dataclass(kw_only=True)
@@ -92,7 +92,7 @@ def register(self, registry: APIRouter) -> None:
 Use `AuthenticatedRequest` to access the user:
 
 ```python
-from fastdjango.core.user.delivery.fastapi.auth import AuthenticatedRequest
+from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest
 
 
 def list_favorites(self, request: AuthenticatedRequest) -> list[ProductSchema]:
@@ -110,7 +110,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from fastdjango.core.product.services import ProductNotFoundError, ProductService
-from fastdjango.core.user.delivery.fastapi.auth import (
+from fastdjango.core.authentication.delivery.fastapi.auth import (
     AuthenticatedRequest,
     JWTAuthFactory,
 )
@@ -207,25 +207,25 @@ class ProductController(TransactionController):
 For additional security, add rate limiting:
 
 ```python
-from fastdjango.core.user.delivery.fastapi.services.throttler import IPThrottler, UserThrottler
+from fastapi import Depends
 from throttled import rate_limiter
+
+from fastdjango.core.shared.delivery.fastapi.throttling import IPThrottlerFactory
 
 
 @dataclass(kw_only=True)
 class AuthController(TransactionController):
-    _ip_throttler: IPThrottler
+    _ip_throttler_factory: IPThrottlerFactory
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
             path="/v1/auth/login",
             endpoint=self.login,
             methods=["POST"],
+            dependencies=[Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10)))],
         )
 
     def login(self, request: Request, body: LoginSchema) -> TokenSchema:
-        # Rate limit by IP: 10 attempts per minute
-        self._ip_throttler.check(request, rate_limiter.per_min(10))
-
         # ... login logic ...
 ```
 

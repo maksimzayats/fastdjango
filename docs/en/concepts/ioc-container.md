@@ -9,7 +9,7 @@ Without DI, classes create dependencies directly:
 ```python
 class UserController:
     def __init__(self) -> None:
-        self._user_service = UserService()
+        self._user_use_case = UserUseCase()
         self._jwt_service = JWTService()
 ```
 
@@ -17,8 +17,8 @@ With DI, dependencies are provided externally:
 
 ```python
 class UserController:
-    def __init__(self, user_service: UserService, jwt_service: JWTService) -> None:
-        self._user_service = user_service
+    def __init__(self, user_use_case: UserUseCase, jwt_service: JWTService) -> None:
+        self._user_use_case = user_use_case
         self._jwt_service = jwt_service
 ```
 
@@ -30,10 +30,10 @@ This project uses [`diwire`](https://pypi.org/project/diwire/). The container is
 from diwire import Container
 
 container = Container()
-service = container.resolve(UserService)
+service = container.resolve(UserUseCase)
 ```
 
-`resolve(UserService)` recursively builds and caches dependencies in the app root scope.
+`resolve(UserUseCase)` recursively builds and caches dependencies in the app root scope.
 
 ## Container Creation
 
@@ -99,13 +99,13 @@ Most services need no manual registration, but when needed use native `diwire` A
 
 ```python
 # Register a concrete class for itself
-container.add(UserService)
+container.add(UserUseCase)
 
 # Register a factory for an abstraction
-container.add_factory(lambda: container.resolve(UserService), provides=UserServiceProtocol)
+container.add_factory(lambda: container.resolve(UserUseCase), provides=UserUseCaseProtocol)
 
 # Register an existing instance/mock
-container.add_instance(mock_service, provides=UserService)
+container.add_instance(mock_service, provides=UserUseCase)
 ```
 
 ## Lifetime and Scope
@@ -150,7 +150,7 @@ def container() -> Container:
 
 def test_with_mock(container: Container) -> None:
     mock_service = MagicMock()
-    container.add_instance(mock_service, provides=UserService)
+    container.add_instance(mock_service, provides=UserUseCase)
 
     controller = container.resolve(UserController)
     assert controller is not None

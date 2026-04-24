@@ -25,7 +25,7 @@ class JWTAuthFactory:
     """Factory for creating JWT authentication dependencies."""
 
     _jwt_service: JWTService
-    _user_service: UserService
+    _user_use_case: UserUseCase
 
     def __call__(
         self,
@@ -43,7 +43,7 @@ class JWTAuthFactory:
         """
         auth = JWTAuth(
             jwt_service=self._jwt_service,
-            user_service=self._user_service,
+            user_use_case=self._user_use_case,
         )
 
         if require_staff or require_superuser:
@@ -62,7 +62,7 @@ class JWTAuthFactory:
 @dataclass(kw_only=True)
 class UserController(TransactionController):
     _jwt_auth_factory: JWTAuthFactory
-    _user_service: UserService
+    _user_use_case: UserUseCase
 
     def __post_init__(self) -> None:
         # Create different auth configurations
@@ -111,7 +111,7 @@ class FastAPIFactory:
 
     # Controllers are injected as fields
     _health_controller: HealthController
-    _user_token_controller: UserTokenController
+    _authentication_token_controller: AuthenticationTokenController
     _user_controller: UserController
 
     def __call__(
@@ -305,7 +305,7 @@ app = fast_api_factory()  # All setup handled internally
 ```python
 # Factories can be mocked or configured for tests
 def test_with_custom_factory():
-    factory = JWTAuthFactory(_jwt_service=mock_jwt, _user_service=mock_user)
+    factory = JWTAuthFactory(_jwt_service=mock_jwt, _user_use_case=mock_user)
     auth = factory()
     # Test with controlled dependencies
 ```

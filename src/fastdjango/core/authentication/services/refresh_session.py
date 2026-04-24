@@ -8,8 +8,12 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic_settings import BaseSettings
 
-from fastdjango.core.exceptions import ApplicationError
-from fastdjango.core.user.models import RefreshSession, User
+from fastdjango.core.authentication.exceptions import (
+    ExpiredRefreshTokenError,
+    InvalidRefreshTokenError,
+)
+from fastdjango.core.authentication.models import RefreshSession
+from fastdjango.core.user.models import User
 
 
 class RefreshSessionServiceSettings(BaseSettings):
@@ -101,15 +105,3 @@ class RefreshSessionService:
 class RefreshSessionResult(NamedTuple):
     refresh_token: str
     session: RefreshSession
-
-
-class RefreshTokenError(ApplicationError):
-    pass
-
-
-class InvalidRefreshTokenError(RefreshTokenError):
-    pass
-
-
-class ExpiredRefreshTokenError(RefreshTokenError):
-    pass

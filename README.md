@@ -44,7 +44,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from fastdjango.core.todo.services import TodoService
-from fastdjango.core.user.delivery.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 

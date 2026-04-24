@@ -3,11 +3,12 @@ from dataclasses import dataclass
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
+from fastdjango.core.user.exceptions import UserAlreadyExistsError, WeakPasswordError
 from fastdjango.core.user.models import User
 
 
 @dataclass(kw_only=True)
-class UserService:
+class UserUseCase:
     def get_user_by_id(self, user_id: int) -> User | None:
         return User.objects.filter(id=user_id).first()
 
@@ -72,6 +73,23 @@ class UserService:
         last_name: str,
         password: str,
     ) -> User:
+        is_valid_password = self.is_valid_password(
+            password=password,
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+        )
+        if not is_valid_password:
+            raise WeakPasswordError
+
+        existing_user = self.get_user_by_username_or_email(
+            username=username,
+            email=email,
+        )
+        if existing_user is not None:
+            raise UserAlreadyExistsError
+
         return User.objects.create_user(
             username=username,
             email=email,

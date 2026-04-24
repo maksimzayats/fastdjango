@@ -9,12 +9,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from fastdjango.core.authentication.delivery.fastapi.controllers import (
+    AuthenticationTokenController,
+)
 from fastdjango.core.health.delivery.fastapi.controllers import HealthController
 from fastdjango.core.shared.delivery.django.factories import DjangoWSGIFactory
-from fastdjango.core.user.delivery.fastapi.controllers import (
-    UserController,
-    UserTokenController,
-)
+from fastdjango.core.user.delivery.fastapi.controllers import UserController
 from fastdjango.infrastructure.anyio.configurator import AnyIOConfigurator
 from fastdjango.infrastructure.logfire.instrumentor import OpenTelemetryInstrumentor
 from fastdjango.infrastructure.shared import ApplicationSettings, Environment
@@ -55,7 +55,7 @@ class FastAPIFactory:
     _django_wsgi_factory: DjangoWSGIFactory
 
     _health_controller: HealthController
-    _user_token_controller: UserTokenController
+    _authentication_token_controller: AuthenticationTokenController
     _user_controller: UserController
 
     def __call__(
@@ -121,7 +121,7 @@ class FastAPIFactory:
         app.include_router(health_router)
 
         user_token_router = APIRouter(tags=["user", "token"])
-        self._user_token_controller.register(user_token_router)
+        self._authentication_token_controller.register(user_token_router)
         app.include_router(user_token_router)
 
         user_router = APIRouter(tags=["user"])

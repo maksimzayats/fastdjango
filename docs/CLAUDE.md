@@ -212,7 +212,7 @@ Use ASCII art for architecture diagrams:
 │                      Core Layer                             │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │                    Services                          │   │
-│  │   UserService  │  TodoService  │  SystemHealthUseCase     │   │
+│  │   UserUseCase  │  TodoService  │  SystemHealthUseCase     │   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │                     Models                           │   │

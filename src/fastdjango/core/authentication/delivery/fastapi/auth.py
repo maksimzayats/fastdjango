@@ -8,9 +8,9 @@ from fastapi.requests import Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.datastructures import State
 
+from fastdjango.core.authentication.services.jwt import JWTService
 from fastdjango.core.user.models import User
-from fastdjango.core.user.services.jwt import JWTService
-from fastdjango.core.user.services.user import UserService
+from fastdjango.core.user.use_cases import UserUseCase
 
 
 class AuthenticatedRequestState(State):
@@ -34,7 +34,7 @@ class JWTAuthFactory:
     """
 
     _jwt_service: JWTService
-    _user_service: UserService
+    _user_use_case: UserUseCase
 
     def __call__(
         self,
@@ -54,23 +54,23 @@ class JWTAuthFactory:
         if require_staff or require_superuser:
             return JWTAuthWithPermissions(
                 jwt_service=self._jwt_service,
-                user_service=self._user_service,
+                user_use_case=self._user_use_case,
                 require_staff=require_staff,
                 require_superuser=require_superuser,
             )
 
-        return JWTAuth(jwt_service=self._jwt_service, user_service=self._user_service)
+        return JWTAuth(jwt_service=self._jwt_service, user_use_case=self._user_use_case)
 
 
 class JWTAuth(HTTPBearer):
     def __init__(
         self,
         jwt_service: JWTService,
-        user_service: UserService,
+        user_use_case: UserUseCase,
     ) -> None:
         super().__init__()
         self._jwt_service = jwt_service
-        self._user_service = user_service
+        self._user_use_case = user_use_case
 
     async def __call__(self, request: Request) -> HTTPAuthorizationCredentials | None:
         credentials = await super().__call__(request)
@@ -90,7 +90,7 @@ class JWTAuth(HTTPBearer):
             )
 
         user = await sync_to_async(
-            self._user_service.get_active_user_by_id,
+            self._user_use_case.get_active_user_by_id,
             thread_sensitive=False,
         )(user_id=user_id)
 
@@ -125,12 +125,12 @@ class JWTAuthWithPermissions(JWTAuth):
     def __init__(
         self,
         jwt_service: JWTService,
-        user_service: UserService,
+        user_use_case: UserUseCase,
         *,
         require_staff: bool = False,
         require_superuser: bool = False,
     ) -> None:
-        super().__init__(jwt_service=jwt_service, user_service=user_service)
+        super().__init__(jwt_service=jwt_service, user_use_case=user_use_case)
         self._require_staff = require_staff
         self._require_superuser = require_superuser
 

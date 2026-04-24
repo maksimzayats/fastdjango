@@ -47,7 +47,7 @@ from typing import TypedDict
 from celery import Celery
 
 from fastdjango.core.email.services import EmailService
-from fastdjango.core.user.services.user import UserService
+from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.core.shared.delivery.celery.registry import TaskName
 from fastdjango.infrastructure.delivery.controllers import Controller
 
@@ -62,7 +62,7 @@ class SendEmailTaskController(Controller):
     """Task controller for sending emails."""
 
     _email_service: EmailService
-    _user_service: UserService
+    _user_use_case: UserUseCase
 
     def register(self, registry: Celery) -> None:
         registry.task(name=TaskName.SEND_EMAIL)(self.send_email)
@@ -83,7 +83,7 @@ class SendEmailTaskController(Controller):
         Returns:
             Result containing success status and message ID.
         """
-        user = self._user_service.get_user_by_id(user_id)
+        user = self._user_use_case.get_user_by_id(user_id)
 
         try:
             message_id = self._email_service.send(
@@ -159,7 +159,7 @@ class UserController(TransactionController):
     _tasks_registry: TasksRegistry
 
     def create_user(self, body: CreateUserSchema) -> UserSchema:
-        user = self._user_service.create_user(...)
+        user = self._user_use_case.create_user(...)
 
         # Queue welcome email
         self._tasks_registry.send_email.delay(
@@ -265,7 +265,7 @@ class TestSendEmailTask:
 ```python
 # Good - serializable
 def send_email(self, user_id: int, ...) -> SendEmailResult:
-    user = self._user_service.get_user_by_id(user_id)
+    user = self._user_use_case.get_user_by_id(user_id)
 
 # Bad - Django models aren't serializable
 def send_email(self, user: User, ...) -> SendEmailResult:

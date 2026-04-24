@@ -24,7 +24,8 @@ Understanding the codebase organization is essential for working effectively wit
 
 ### `src/fastdjango/core/` - Business Logic
 
-The core layer contains domain models and services. This is where business logic lives.
+The core layer contains domain models, use cases, and each component's delivery code.
+This is where application behavior lives.
 
 ```
 core/
@@ -37,28 +38,37 @@ core/
 │       │   └── controllers.py
 │       └── celery/
 │           └── tasks.py
+├── authentication/         # Token/session authentication
+│   ├── models.py           # RefreshSession
+│   ├── exceptions.py       # Authentication exceptions
+│   ├── use_cases.py        # TokenUseCase
+│   ├── services/           # Token/session primitives
+│   │   ├── jwt.py          # JWTService
+│   │   └── refresh_session.py  # RefreshSessionService
+│   └── delivery/
+│       └── fastapi/
+│           ├── auth.py         # JWT auth dependency
+│           ├── controllers.py  # Token endpoints
+│           ├── schemas.py      # Token schemas
+│           └── throttling.py   # Authenticated-user throttling
 ├── shared/                 # Cross-domain application wiring
 │   └── delivery/
 │       ├── django/         # Django URLs and WSGI factory
-│       ├── fastapi/        # FastAPI app/bootstrap/factory
+│       ├── fastapi/        # FastAPI app/bootstrap/factory/request/throttling
 │       └── celery/         # Celery app/factory/registry
 └── user/                   # User domain
-    ├── models.py           # User, RefreshSession models
-    ├── services/           # User-related services
-    │   ├── user.py         # UserService (CRUD)
-    │   ├── jwt.py          # JWTService (token operations)
-    │   └── refresh_session.py  # RefreshSessionService
+    ├── models.py           # User
+    ├── exceptions.py       # User domain exceptions
+    ├── use_cases.py        # UserUseCase
     └── delivery/
         ├── django/
         │   └── admin.py
         └── fastapi/
-            ├── auth.py
             ├── controllers.py
-            ├── schemas.py
-            └── services/
+            └── schemas.py
 ```
 
-**Key principle**: Services encapsulate all database operations. Controllers never access models directly.
+**Key principle**: Use cases encapsulate application behavior. Controllers never access models directly.
 
 ### Domain Delivery
 
@@ -153,7 +163,7 @@ The application has multiple entry points:
 │                      Core Layer                             │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │              Services and Use Cases                  │   │
-│  │   UserService  │  JWTService   │  SystemHealthUseCase│   │
+│  │   UserUseCase  │  TokenUseCase │  SystemHealthUseCase│   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │                     Models                           │   │

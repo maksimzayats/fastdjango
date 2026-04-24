@@ -179,7 +179,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from fastdjango.core.product.services import ProductNotFoundError, ProductService
-from fastdjango.core.user.delivery.fastapi.auth import JWTAuthFactory
+from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuthFactory
 from fastdjango.core.product.delivery.fastapi.schemas import (
     CreateProductRequestSchema,
     ProductSchema,

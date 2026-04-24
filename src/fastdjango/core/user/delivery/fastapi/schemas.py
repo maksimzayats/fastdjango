@@ -4,20 +4,6 @@ from annotated_types import Len
 from pydantic import BaseModel, EmailStr
 
 
-class IssueTokenRequestSchema(BaseModel):
-    username: str
-    password: str
-
-
-class RefreshTokenRequestSchema(BaseModel):
-    refresh_token: str
-
-
-class TokenResponseSchema(BaseModel):
-    access_token: str
-    refresh_token: str
-
-
 class CreateUserRequestSchema(BaseModel):
     email: EmailStr
     username: Annotated[str, Len(max_length=150)]

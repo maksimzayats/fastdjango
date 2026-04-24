@@ -39,11 +39,11 @@ The architecture follows a layered approach with clear boundaries:
 │                      Core Layer                             │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │                    Services                          │   │
-│  │   UserService  │  TodoService  │  JWTService        │   │
+│  │   UserUseCase  │  TodoService  │  JWTService        │   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │                     Models                           │   │
-│  │      User      │     Todo      │  RefreshSession    │   │
+│  │      User      │     Todo      │ Auth RefreshSession│   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```

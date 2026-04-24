@@ -19,6 +19,7 @@ class DjangoSettings(ApplicationSettings):
         "django.contrib.sessions",
         "django.contrib.messages",
         "django.contrib.staticfiles",
+        "fastdjango.core.authentication.apps.AuthenticationConfig",
         "fastdjango.core.user.apps.UserConfig",
     )
 

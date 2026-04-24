@@ -79,14 +79,14 @@ Controller → Service → Model
 
 ```python
 # src/fastdjango/core/user/delivery/fastapi/controllers.py
-from fastdjango.core.user.services.user import UserService  # ✅ Import service, not model
+from fastdjango.core.user.use_cases import UserUseCase  # ✅ Import use case, not model
 
 class UserController(Controller):
-    def __init__(self, user_service: UserService) -> None:
-        self._user_service = user_service
+    def __init__(self, user_use_case: UserUseCase) -> None:
+        self._user_use_case = user_use_case
 
     def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
-        user = self._user_service.get_user_by_id(user_id)  # ✅ Use service
+        user = self._user_use_case.get_user_by_id(user_id)  # ✅ Use use case
         return UserSchema.model_validate(user, from_attributes=True)
 ```
 
@@ -183,7 +183,7 @@ The `Container` automatically registers services when resolved:
 
 ```python
 # No explicit registration needed - just resolve
-user_service = container.resolve(UserService)
+user_use_case = container.resolve(UserUseCase)
 
 # Pydantic Settings are auto-detected and registered with factory
 jwt_settings = container.resolve(JWTServiceSettings)  # Loads from env vars
@@ -214,7 +214,7 @@ container.add_instance(mock_service, provides=MyConcreteService)
 ```python
 # The entire dependency graph is auto-resolved
 controller = container.resolve(UserController)
-# UserController -> UserService -> (auto-registered)
+# UserController -> UserUseCase -> (auto-registered)
 # UserController -> JWTAuthFactory -> JWTService -> JWTServiceSettings (auto from env)
 ```
 
@@ -242,12 +242,12 @@ Controllers auto-wrap public methods with exception handling. Override `handle_e
 ```python
 # ✅ CORRECT - Sync handler (recommended)
 def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
-    user = self._user_service.get_user_by_id(user_id)
+    user = self._user_use_case.get_user_by_id(user_id)
     return UserSchema.model_validate(user, from_attributes=True)
 
 # ❌ WRONG - Async handler calling sync service directly (blocks event loop)
 async def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
-    user = self._user_service.get_user_by_id(user_id)  # Blocks the event loop!
+    user = self._user_use_case.get_user_by_id(user_id)  # Blocks the event loop!
     return UserSchema.model_validate(user, from_attributes=True)
 ```
 
@@ -263,7 +263,7 @@ from asgiref.sync import sync_to_async
 async def get_user_async(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
     # thread_sensitive=False for read-only operations (parallel execution)
     user = await sync_to_async(
-        self._user_service.get_user_by_id,
+        self._user_use_case.get_user_by_id,
         thread_sensitive=False,
     )(user_id)
     return UserSchema.model_validate(user, from_attributes=True)
@@ -271,7 +271,7 @@ async def get_user_async(self, request: AuthenticatedRequest, user_id: int) -> U
 async def create_user_async(self, request: AuthenticatedRequest, body: CreateUserRequest) -> UserSchema:
     # thread_sensitive=True for write operations (transaction safety)
     user = await sync_to_async(
-        self._user_service.create_user,
+        self._user_use_case.create_user,
         thread_sensitive=True,
     )(**body.model_dump())
     return UserSchema.model_validate(user, from_attributes=True)
@@ -286,7 +286,7 @@ async def create_user_async(self, request: AuthenticatedRequest, body: CreateUse
 ```python
 from dataclasses import dataclass, field
 from fastapi import APIRouter, Depends
-from fastdjango.core.user.delivery.fastapi.auth import JWTAuth, JWTAuthFactory
+from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuth, JWTAuthFactory
 
 @dataclass
 class UserController(Controller):
@@ -313,7 +313,7 @@ Use `JWTAuthFactory` for JWT authentication with optional permission checks:
 ```python
 from dataclasses import dataclass, field
 from fastapi import APIRouter, Depends
-from fastdjango.core.user.delivery.fastapi.auth import JWTAuth, JWTAuthFactory
+from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuth, JWTAuthFactory
 
 @dataclass
 class AdminController(Controller):

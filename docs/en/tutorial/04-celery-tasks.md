@@ -32,7 +32,7 @@ from typing import TypedDict
 from celery import Celery
 
 from fastdjango.core.todo.services import TodoService
-from fastdjango.core.user.services.user import UserService
+from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.core.shared.delivery.celery.registry import TaskName
 from fastdjango.infrastructure.delivery.controllers import Controller
 
@@ -49,7 +49,7 @@ class TodoCleanupTaskController(Controller):
     """Task controller for cleaning up completed todos."""
 
     _todo_service: TodoService
-    _user_service: UserService
+    _user_use_case: UserUseCase
 
     def register(self, registry: Celery) -> None:
         """Register the task with Celery."""
@@ -64,7 +64,7 @@ class TodoCleanupTaskController(Controller):
         Returns:
             Dictionary with counts of users processed and todos deleted.
         """
-        users = self._user_service.list_all_users()
+        users = self._user_use_case.list_all_users()
 
         total_deleted = 0
         for user in users:
@@ -77,12 +77,12 @@ class TodoCleanupTaskController(Controller):
         )
 ```
 
-## Step 2: Add User List Method to UserService
+## Step 2: Add User List Method to UserUseCase
 
-The cleanup task needs to iterate over all users. Add this method to `src/fastdjango/core/user/services/user.py`:
+The cleanup task needs to iterate over all users. Add this method to `src/fastdjango/core/user/use_cases.py`:
 
 ```python
-# Add to UserService class in src/fastdjango/core/user/services/user.py
+# Add to UserUseCase class in src/fastdjango/core/user/use_cases.py
 def list_all_users(self) -> list[User]:
     """List all active users.
 
@@ -294,7 +294,7 @@ def process_user(self, user: User) -> None:
 
 # Good - Pass IDs instead
 def process_user(self, user_id: int) -> None:
-    user = self._user_service.get_user_by_id(user_id)
+    user = self._user_use_case.get_user_by_id(user_id)
     ...
 ```
 

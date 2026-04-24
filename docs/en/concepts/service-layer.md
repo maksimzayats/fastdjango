@@ -29,14 +29,14 @@ The service layer acts as an intermediary:
 
 ```python
 # ✅ Correct - Controller uses service
-from fastdjango.core.user.services import UserService
+from fastdjango.core.user.use_cases import UserUseCase
 
 class UserController:
-    def __init__(self, user_service: UserService) -> None:
-        self._user_service = user_service
+    def __init__(self, user_use_case: UserUseCase) -> None:
+        self._user_use_case = user_use_case
 
     def get_user(self, user_id: int) -> UserSchema:
-        user = self._user_service.get_user_by_id(user_id)
+        user = self._user_use_case.get_user_by_id(user_id)
         return UserSchema.model_validate(user, from_attributes=True)
 ```
 
@@ -112,7 +112,7 @@ Services can use two patterns for "not found" scenarios:
     - Controller explicitly checks for `None` and responds accordingly
 
 !!! tip "Choosing a pattern"
-    The existing `UserService` uses the **None pattern** because user lookups often occur during authentication where "not found" is expected. Choose the pattern that fits your domain semantics.
+    The existing `UserUseCase` uses the **None pattern** because user lookups often occur during authentication where "not found" is expected. Choose the pattern that fits your domain semantics.
 
 ## Benefits
 
@@ -241,7 +241,7 @@ from fastdjango.core.user.models import User  # For type hint only
 def get_user(self, request: AuthenticatedRequest) -> UserSchema:
     user: User = request.state.user  # Type hint is fine
     # But operations go through service
-    return self._user_service.get_user_details(user.id)
+    return self._user_use_case.get_user_details(user.id)
 ```
 
 ## Service Dependencies
@@ -251,13 +251,13 @@ Services can depend on other services:
 ```python
 @dataclass(kw_only=True)
 class OrderService:
-    _user_service: UserService
+    _user_use_case: UserUseCase
     _payment_service: PaymentService
     _notification_service: NotificationService
 
     @transaction.atomic
     def create_order(self, user_id: int, items: list[Item]) -> Order:
-        user = self._user_service.get_user_by_id(user_id)
+        user = self._user_use_case.get_user_by_id(user_id)
         order = Order.objects.create(user=user)
         self._payment_service.charge(user, order.total)
         self._notification_service.send_confirmation(user, order)
