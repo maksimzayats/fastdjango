@@ -11,7 +11,7 @@ class RefreshSession(models.Model):
     refresh_token_hash = models.CharField(max_length=128, unique=True)
 
     user_agent = models.TextField(blank=True)
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    ip_address_trace = models.TextField(blank=True, default="")
 
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True)

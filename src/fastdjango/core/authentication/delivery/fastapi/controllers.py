@@ -81,7 +81,9 @@ class AuthenticationTokenController(BaseTransactionController):
             data=body,
             context=TokenRequestContextDTO(
                 user_agent=self._request_info_service.get_user_agent(request=request),
-                ip_address=self._request_info_service.get_user_ip(request=request),
+                ip_address_trace=self._request_info_service.get_user_ip_trace(
+                    request=request,
+                ),
             ),
         )
 

@@ -34,7 +34,7 @@ class RefreshSessionService(BaseService):
         self,
         user: User,
         user_agent: str,
-        ip_address: str | None,
+        ip_address_trace: str | None,
     ) -> RefreshSessionResult:
         refresh_token = self._issue_refresh_token()
         refresh_token_hash = self._hash_refresh_token(refresh_token)
@@ -43,7 +43,7 @@ class RefreshSessionService(BaseService):
             user=user,
             refresh_token_hash=refresh_token_hash,
             user_agent=user_agent,
-            ip_address=ip_address,
+            ip_address_trace=ip_address_trace or "",
             expires_at=timezone.now() + self._settings.refresh_token_ttl,
         )
 

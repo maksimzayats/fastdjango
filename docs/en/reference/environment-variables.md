@@ -140,8 +140,10 @@ Prefix: `ANYIO_`
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `NUMBER_OF_PROXIES` | No | `0` | Number of proxies in front of app (for IP detection) |
-| `IP_HEADER` | No | `x-forwarded-for` | Header containing client IP |
+| `IP_HEADER` | No | `x-forwarded-for` | Header containing the forwarded IP address trace |
+
+`IP_HEADER` is used whenever present. In production, expose the application through a
+trusted proxy before relying on client-controlled forwarded headers.
 
 ## Example `.env` File
 

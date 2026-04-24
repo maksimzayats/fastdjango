@@ -9,13 +9,12 @@ from fastdjango.foundation.services import BaseService
 
 logger = logging.getLogger(__name__)
 
+type IPAddressTrace = tuple[str, ...]
+
 
 class RequestInfoServiceSettings(BaseSettings):
-    number_of_proxies: int = 0
-    """Number of proxies in front of the application. Used to determine the real client IP address."""
-
     ip_header: str = "x-forwarded-for"
-    """Header to look for the client IP address when behind proxies."""
+    """Header containing the forwarded IP address trace when behind proxies."""
 
     user_agent_header: str = "user-agent"
     """Header to look for the user agent string."""
@@ -28,28 +27,54 @@ class RequestInfoService(BaseService):
     def get_user_agent(self, request: Request) -> str:
         return request.headers.get(self._settings.user_agent_header, "")
 
-    def get_user_ip(self, request: Request) -> str | None:
-        xff = request.headers.get(self._settings.ip_header)
+    def get_user_ip_trace(self, request: Request) -> str | None:
+        header_value = request.headers.get(self._settings.ip_header)
+        if header_value is None:
+            return self._get_remote_address(request=request)
 
-        if self._settings.number_of_proxies == 0 or xff is None:
-            client = request.client
-            remote_address = client[0] if client else None
+        addresses = self._parse_ip_trace(header_value)
+        if addresses:
+            return ",".join(addresses)
 
-            # Validate that remote_address is a valid IP, otherwise return None
-            if remote_address and self._is_valid_ip(remote_address):
-                return remote_address
+        logger.warning(
+            "Forwarded IP header %s does not contain a valid IP trace: %s",
+            self._settings.ip_header,
+            header_value,
+        )
+        return self._get_remote_address(request=request)
 
-            logger.warning("Remote address is not a valid IP: %s", remote_address)
+    def _get_remote_address(self, request: Request) -> str | None:
+        client = request.client
+        remote_address = client[0] if client else None
+        if remote_address is None:
             return None
 
-        addresses = xff.split(",")
-        client_address = addresses[-min(self._settings.number_of_proxies, len(addresses))]
-        return client_address.strip()
+        normalized_address = self._normalize_ip(remote_address)
+        if normalized_address is not None:
+            return normalized_address
 
-    def _is_valid_ip(self, address: str) -> bool:
+        logger.warning("Remote address is not a valid IP: %s", remote_address)
+        return None
+
+    def _parse_ip_trace(self, value: str) -> IPAddressTrace:
+        addresses: list[str] = []
+        for raw_address in value.split(","):
+            address = raw_address.strip()
+            if not address:
+                return ()
+
+            normalized_address = self._normalize_ip(address)
+            if normalized_address is None:
+                return ()
+
+            addresses.append(normalized_address)
+
+        return tuple(addresses)
+
+    def _normalize_ip(self, address: str) -> str | None:
         try:
-            ipaddress.ip_address(address)
+            ip = ipaddress.ip_address(address)
         except ValueError:
-            return False
+            return None
         else:
-            return True
+            return str(ip)

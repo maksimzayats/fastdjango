@@ -65,7 +65,7 @@ class IPThrottler(BaseThrottler):
     _request_info_service: RequestInfoService
 
     def _build_key(self, request: Request) -> str:
-        user_ip = self._request_info_service.get_user_ip(request=request)
+        user_ip = self._request_info_service.get_user_ip_trace(request=request)
         path = request.url.path
         method = request.method
 

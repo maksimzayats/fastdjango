@@ -8,7 +8,7 @@ class IssueTokenDTO(BaseDTO):
 
 class TokenRequestContextDTO(BaseDTO):
     user_agent: str
-    ip_address: str | None
+    ip_address_trace: str | None
 
 
 class RefreshTokenDTO(BaseDTO):

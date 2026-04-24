@@ -36,7 +36,7 @@ class TokenUseCase(BaseUseCase):
         refresh_session = self._refresh_session_service.create_refresh_session(
             user=user,
             user_agent=context.user_agent,
-            ip_address=context.ip_address,
+            ip_address_trace=context.ip_address_trace,
         )
 
         return self._build_token_result(
