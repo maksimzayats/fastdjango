@@ -14,11 +14,11 @@ from fastdjango.core.user.delivery.fastapi.schemas import (
 )
 from fastdjango.core.user.exceptions import UserAlreadyExistsError, WeakPasswordError
 from fastdjango.core.user.use_cases import UserUseCase
-from fastdjango.infrastructure.delivery.controllers import TransactionController
+from fastdjango.infrastructure.delivery.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
-class UserController(TransactionController):
+class UserController(BaseTransactionController):
     _jwt_auth_factory: JWTAuthFactory
     _user_use_case: UserUseCase
 

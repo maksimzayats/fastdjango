@@ -6,6 +6,8 @@ from logfire import ScrubbingOptions
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from fastdjango.infrastructure.configurators import BaseConfigurator
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,7 +27,7 @@ class LogfireSettings(BaseSettings):
 
 
 @dataclass(kw_only=True)
-class LogfireConfigurator:
+class LogfireConfigurator(BaseConfigurator):
     _logfire_settings: LogfireSettings
 
     def configure(self) -> None:

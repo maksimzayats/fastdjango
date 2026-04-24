@@ -6,6 +6,8 @@ import django
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
+from fastdjango.infrastructure.configurators import BaseConfigurator
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,7 +16,7 @@ class DjangoConfiguratorSettings(BaseSettings):
 
 
 @dataclass(frozen=True, kw_only=True)
-class DjangoConfigurator:
+class DjangoConfigurator(BaseConfigurator):
     _settings: DjangoConfiguratorSettings
 
     def configure(self) -> None:

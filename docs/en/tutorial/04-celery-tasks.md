@@ -34,7 +34,7 @@ from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
 from fastdjango.core.todo.services import TodoService
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.entrypoints.celery.registry import TaskName
-from fastdjango.infrastructure.delivery.controllers import Controller
+from fastdjango.infrastructure.delivery.controllers import BaseController
 
 
 class CleanupResultSchema(BaseCelerySchema):
@@ -45,7 +45,7 @@ class CleanupResultSchema(BaseCelerySchema):
 
 
 @dataclass(kw_only=True)
-class TodoCleanupTaskController(Controller):
+class TodoCleanupTaskController(BaseController):
     """Task controller for cleaning up completed todos."""
 
     _todo_service: TodoService
@@ -179,7 +179,7 @@ from celery.schedules import crontab
 
 ```python
 @dataclass(kw_only=True)
-class MyTaskController(Controller):
+class MyTaskController(BaseController):
     # Dependencies injected automatically
     _my_service: MyService
 
@@ -193,7 +193,7 @@ class MyTaskController(Controller):
 ```
 
 !!! note "Dataclass decorator"
-    Add `@dataclass(kw_only=True)` only when your controller has dependencies to inject. Simple controllers without dependencies (like `PingTaskController`) don't need it because they inherit from the base `Controller` class which already uses `@dataclass(kw_only=True)`.
+    Add `@dataclass(kw_only=True)` only when your controller has dependencies to inject. Simple controllers without dependencies (like `PingTaskController`) don't need it because they inherit from the base `BaseController` class which already uses `@dataclass(kw_only=True)`.
 
 ### Task Naming Convention
 

@@ -60,7 +60,7 @@ class JWTAuthFactory(BaseFactory):
 
 ```python
 @dataclass(kw_only=True)
-class UserController(TransactionController):
+class UserController(BaseTransactionController):
     _jwt_auth_factory: JWTAuthFactory
     _user_use_case: UserUseCase
 

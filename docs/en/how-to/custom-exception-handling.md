@@ -8,7 +8,7 @@ Convert service-level exceptions into meaningful HTTP error responses.
 
 ## Prerequisites
 
-- A controller extending `Controller` or `TransactionController`
+- A controller extending `BaseController` or `BaseTransactionController`
 - Domain exceptions defined in your service
 
 ## The Pattern
@@ -102,11 +102,11 @@ from fastdjango.core.order.services import (
     OrderNotFoundError,
     OrderService,
 )
-from fastdjango.infrastructure.delivery.controllers import TransactionController
+from fastdjango.infrastructure.delivery.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
-class OrderController(TransactionController):
+class OrderController(BaseTransactionController):
     _order_service: OrderService
 
     def register(self, registry: APIRouter) -> None:

@@ -6,6 +6,7 @@ import logfire
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from fastdjango.infrastructure.configurators import BaseConfigurator
 from fastdjango.infrastructure.logfire.configurator import LogfireSettings
 
 
@@ -17,7 +18,7 @@ class LoggingSettings(BaseSettings):
 
 
 @dataclass(kw_only=True)
-class LoggingConfigurator:
+class LoggingConfigurator(BaseConfigurator):
     _settings: LoggingSettings
 
     def configure(self) -> None:

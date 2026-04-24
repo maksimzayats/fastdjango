@@ -8,7 +8,7 @@ from fastdjango.infrastructure.django.traced_atomic import traced_atomic
 
 
 @dataclass(kw_only=True)
-class Controller(ABC):
+class BaseController(ABC):
     def __post_init__(self) -> None:
         self._wrap_methods()
 
@@ -24,9 +24,9 @@ class Controller(ABC):
 
             if (
                 callable(attr)
-                and not hasattr(Controller, attr_name)
+                and not hasattr(BaseController, attr_name)
                 and not attr_name.startswith("_")
-                and attr_name not in dir(Controller)
+                and attr_name not in dir(BaseController)
             ):
                 setattr(self, attr_name, self._wrap_route(attr))
 
@@ -45,7 +45,7 @@ class Controller(ABC):
 
 
 @dataclass(kw_only=True)
-class TransactionController(Controller, ABC):
+class BaseTransactionController(BaseController, ABC):
     def _wrap_route(self, method: Callable[..., Any]) -> Callable[..., Any]:
         method = self._add_transaction(method)
         return super()._wrap_route(method)

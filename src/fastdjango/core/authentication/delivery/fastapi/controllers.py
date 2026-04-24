@@ -25,11 +25,11 @@ from fastdjango.core.authentication.exceptions import (
 from fastdjango.core.authentication.use_cases import TokenUseCase
 from fastdjango.core.shared.delivery.fastapi.request import RequestInfoService
 from fastdjango.core.shared.delivery.fastapi.throttling import IPThrottlerFactory
-from fastdjango.infrastructure.delivery.controllers import TransactionController
+from fastdjango.infrastructure.delivery.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
-class AuthenticationTokenController(TransactionController):
+class AuthenticationTokenController(BaseTransactionController):
     _jwt_auth_factory: JWTAuthFactory
     _request_info_service: RequestInfoService
     _ip_throttler_factory: IPThrottlerFactory

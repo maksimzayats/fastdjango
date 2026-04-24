@@ -49,7 +49,7 @@ from fastdjango.core.email.services import EmailService
 from fastdjango.core.shared.delivery.celery.schemas import BaseCelerySchema
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.entrypoints.celery.registry import TaskName
-from fastdjango.infrastructure.delivery.controllers import Controller
+from fastdjango.infrastructure.delivery.controllers import BaseController
 
 
 class SendEmailResultSchema(BaseCelerySchema):
@@ -58,7 +58,7 @@ class SendEmailResultSchema(BaseCelerySchema):
 
 
 @dataclass(kw_only=True)
-class SendEmailTaskController(Controller):
+class SendEmailTaskController(BaseController):
     """Task controller for sending emails."""
 
     _email_service: EmailService
@@ -155,7 +155,7 @@ From HTTP controllers or other services:
 
 ```python
 @dataclass(kw_only=True)
-class UserController(TransactionController):
+class UserController(BaseTransactionController):
     _tasks_registry: TasksRegistry
 
     def create_user(self, body: CreateUserSchema) -> UserSchema:

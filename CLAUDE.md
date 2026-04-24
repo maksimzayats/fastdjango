@@ -80,7 +80,7 @@ Controller → Service → Model
 # src/fastdjango/core/user/delivery/fastapi/controllers.py
 from fastdjango.core.user.use_cases import UserUseCase  # ✅ Import use case, not model
 
-class UserController(Controller):
+class UserController(BaseController):
     def __init__(self, user_use_case: UserUseCase) -> None:
         self._user_use_case = user_use_case
 
@@ -95,7 +95,7 @@ class UserController(Controller):
 # ❌ WRONG - Direct model import in controller
 from fastdjango.core.user.models import User
 
-class UserController(Controller):
+class UserController(BaseController):
     def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
         user = User.objects.get(id=user_id)  # ❌ Direct ORM access
         return UserSchema.model_validate(user, from_attributes=True)
@@ -226,7 +226,7 @@ Controllers are defined in `src/fastdjango/infrastructure/delivery/controllers.p
 ### Controller (HTTP API, Celery)
 
 ```python
-class Controller(ABC):
+class BaseController(ABC):
     @abstractmethod
     def register(self, registry: Any) -> None: ...
 
@@ -290,7 +290,7 @@ from fastapi import APIRouter, Depends
 from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuth, JWTAuthFactory
 
 @dataclass
-class UserController(Controller):
+class UserController(BaseController):
     _jwt_auth_factory: JWTAuthFactory
     _jwt_auth: JWTAuth = field(init=False)
 
@@ -317,7 +317,7 @@ from fastapi import APIRouter, Depends
 from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuth, JWTAuthFactory
 
 @dataclass
-class AdminController(Controller):
+class AdminController(BaseController):
     _jwt_auth_factory: JWTAuthFactory
     _jwt_auth: JWTAuth = field(init=False)
     _staff_auth: JWTAuth = field(init=False)
@@ -347,7 +347,7 @@ Permission denied returns `403 Forbidden` (not 401 - user is authenticated but n
 ### Celery Task Controller Registration
 
 ```python
-class PingTaskController(Controller):
+class PingTaskController(BaseController):
     def register(self, registry: Celery) -> None:
         registry.task(name=TaskName.PING)(self.ping)
 ```

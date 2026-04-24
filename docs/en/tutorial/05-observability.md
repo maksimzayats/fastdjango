@@ -132,9 +132,9 @@ class TodoService(BaseService):
             return deleted_count
 ```
 
-## Step 5: TransactionController Tracing
+## Step 5: BaseTransactionController Tracing
 
-The `TransactionController` uses `traced_atomic` to combine database transactions with Logfire tracing:
+The `BaseTransactionController` uses `traced_atomic` to combine database transactions with Logfire tracing:
 
 ```python
 # src/fastdjango/infrastructure/delivery/controllers.py
@@ -142,7 +142,7 @@ from fastdjango.infrastructure.django.traced_atomic import traced_atomic
 
 
 @dataclass(kw_only=True)
-class TransactionController(Controller, ABC):
+class BaseTransactionController(BaseController, ABC):
     def _add_transaction(self, method: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(method)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -156,16 +156,16 @@ class TransactionController(Controller, ABC):
         return wrapper
 ```
 
-When you extend `TransactionController`, every public method automatically gets:
+When you extend `BaseTransactionController`, every public method automatically gets:
 
 - **Database transaction**: Wrapped in `@transaction.atomic`
 - **Logfire span**: Named "controller transaction" with attributes
 - **Span attributes**: Controller name and method name for filtering
 
 ```python
-# Automatically traced when extending TransactionController
+# Automatically traced when extending BaseTransactionController
 @dataclass(kw_only=True)
-class TodoController(TransactionController):
+class TodoController(BaseTransactionController):
     def list_todos(self, request: AuthenticatedRequest) -> TodoListSchema:
         # This method is automatically wrapped with traced_atomic:
         # - Span name: "controller transaction"
@@ -180,7 +180,7 @@ The project includes a health check endpoint at `GET /v1/health`:
 ```python
 # src/fastdjango/core/health/delivery/fastapi/controllers.py
 @dataclass(kw_only=True)
-class HealthController(Controller):
+class HealthController(BaseController):
     _system_health_use_case: SystemHealthUseCase
 
     def check_health(self) -> dict[str, str]:

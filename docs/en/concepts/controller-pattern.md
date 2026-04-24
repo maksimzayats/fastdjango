@@ -4,7 +4,7 @@ Controllers provide a unified pattern for handling requests from any source: HTT
 
 ## The Core Abstraction
 
-All controllers inherit from the base `Controller` class:
+All controllers inherit from the base `BaseController` class:
 
 ```python
 # src/fastdjango/infrastructure/delivery/controllers.py
@@ -14,7 +14,7 @@ from typing import Any
 
 
 @dataclass(kw_only=True)
-class Controller(ABC):
+class BaseController(ABC):
     def __post_init__(self) -> None:
         self._wrap_methods()
 
@@ -58,9 +58,9 @@ def _wrap_methods(self) -> None:
 
         if (
             callable(attr)
-            and not hasattr(Controller, attr_name)
+            and not hasattr(BaseController, attr_name)
             and not attr_name.startswith("_")
-            and attr_name not in dir(Controller)
+            and attr_name not in dir(BaseController)
         ):
             setattr(self, attr_name, self._wrap_route(attr))
 
@@ -83,9 +83,9 @@ def handle_exception(self, exception: Exception) -> Any:
     return super().handle_exception(exception)
 ```
 
-## TransactionController
+## BaseTransactionController
 
-For database operations, use `TransactionController`:
+For database operations, use `BaseTransactionController`:
 
 ```python
 # src/fastdjango/infrastructure/delivery/controllers.py
@@ -93,7 +93,7 @@ from fastdjango.infrastructure.django.traced_atomic import traced_atomic
 
 
 @dataclass(kw_only=True)
-class TransactionController(Controller, ABC):
+class BaseTransactionController(BaseController, ABC):
     def _wrap_route(self, method: Callable[..., Any]) -> Callable[..., Any]:
         method = self._add_transaction(method)
         return super()._wrap_route(method)
@@ -127,11 +127,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuthFactory
-from fastdjango.infrastructure.delivery.controllers import TransactionController
+from fastdjango.infrastructure.delivery.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
-class UserController(TransactionController):
+class UserController(BaseTransactionController):
     """HTTP controller for user operations."""
 
     _jwt_auth_factory: JWTAuthFactory
@@ -178,10 +178,10 @@ from celery import Celery
 
 from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
 from fastdjango.entrypoints.celery.registry import TaskName
-from fastdjango.infrastructure.delivery.controllers import Controller
+from fastdjango.infrastructure.delivery.controllers import BaseController
 
 
-class PingTaskController(Controller):
+class PingTaskController(BaseController):
     """Simple task controller with no dependencies."""
 
     def register(self, registry: Celery) -> None:
@@ -192,7 +192,7 @@ class PingTaskController(Controller):
 ```
 
 !!! note "Dataclass decorator"
-    Controllers without dependencies don't need the `@dataclass` decorator. The base `Controller` class already uses `@dataclass(kw_only=True)`, so subclasses inherit that behavior. Only add `@dataclass(kw_only=True)` when you have dependency fields to inject.
+    Controllers without dependencies don't need the `@dataclass` decorator. The base `BaseController` class already uses `@dataclass(kw_only=True)`, so subclasses inherit that behavior. Only add `@dataclass(kw_only=True)` when you have dependency fields to inject.
 
 ## Sync vs Async Handlers
 
@@ -275,7 +275,7 @@ Same structure for HTTP and Celery:
 
 ### 2. Automatic Tracing
 
-`TransactionController` adds Logfire spans automatically.
+`BaseTransactionController` adds Logfire spans automatically.
 
 ### 3. Exception Isolation
 
@@ -299,5 +299,5 @@ The controller pattern:
 - **Unifies** request handling across HTTP and Celery
 - **Enforces** consistent structure via `register()`
 - **Wraps** methods with exception handling
-- **Provides** `TransactionController` for database operations
+- **Provides** `BaseTransactionController` for database operations
 - **Enables** easy testing through dependency injection

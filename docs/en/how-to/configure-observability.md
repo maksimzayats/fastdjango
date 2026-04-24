@@ -157,13 +157,13 @@ def process_order(order_id: int) -> Order:
         return order
 ```
 
-## TransactionController Tracing
+## BaseTransactionController Tracing
 
-`TransactionController` automatically creates spans:
+`BaseTransactionController` automatically creates spans:
 
 ```python
 @dataclass(kw_only=True)
-class OrderController(TransactionController):
+class OrderController(BaseTransactionController):
     def create_order(self, body: CreateOrderSchema) -> OrderSchema:
         # Automatically wrapped with span:
         # "OrderController.create_order"
@@ -281,7 +281,7 @@ Celery tasks are automatically instrumented. For additional logging:
 import logfire
 
 
-class SendEmailTaskController(Controller):
+class SendEmailTaskController(BaseController):
     def send_email(self, user_id: int, subject: str) -> SendResult:
         logfire.info("Starting email send", user_id=user_id)
 

@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import anyio
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from fastdjango.infrastructure.configurators import BaseConfigurator
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,7 +16,7 @@ class AnyIOSettings(BaseSettings):
 
 
 @dataclass(kw_only=True)
-class AnyIOConfigurator:
+class AnyIOConfigurator(BaseConfigurator):
     _settings: AnyIOSettings
 
     def configure(self) -> None:

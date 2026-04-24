@@ -112,11 +112,11 @@ from fastdjango.core.todo.delivery.fastapi.schemas import (
     TodoSchema,
     UpdateTodoRequestSchema,
 )
-from fastdjango.infrastructure.delivery.controllers import TransactionController
+from fastdjango.infrastructure.delivery.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
-class TodoController(TransactionController):
+class TodoController(BaseTransactionController):
     """HTTP controller for todo operations."""
 
     _todo_service: TodoService
@@ -257,9 +257,9 @@ class TodoController(TransactionController):
 
 ## Key Controller Patterns
 
-### TransactionController
+### BaseTransactionController
 
-Extending `TransactionController` provides:
+Extending `BaseTransactionController` provides:
 
 - **Automatic transaction wrapping**: Database operations run in atomic transactions
 - **Exception handling**: Public methods are wrapped with `handle_exception`

@@ -116,6 +116,7 @@ Infrastructure code that supports all layers.
 infrastructure/
 ├── anyio/                  # Thread pool configuration
 ├── celery/                 # Celery registry primitives
+├── configurators.py        # BaseConfigurator marker
 ├── delivery/               # Delivery infrastructure
 │   └── controllers.py      # Base Controller classes
 ├── django/                 # Django setup and settings
@@ -127,7 +128,8 @@ infrastructure/
 
 Key files:
 
-- **`delivery/controllers.py`**: Defines `Controller` and `TransactionController` base classes
+- **`delivery/controllers.py`**: Defines `BaseController` and `BaseTransactionController` base classes
+- **`configurators.py`**: Defines `BaseConfigurator` for infrastructure configuration classes
 - **`django/settings.py`**: Adapts Pydantic settings to Django's settings format
 - **`logging/configurator.py`**: Configures application logging
 

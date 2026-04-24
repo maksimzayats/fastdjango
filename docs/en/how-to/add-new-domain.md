@@ -187,11 +187,11 @@ from fastdjango.core.product.delivery.fastapi.schemas import (
     CreateProductRequestSchema,
     ProductSchema,
 )
-from fastdjango.infrastructure.delivery.controllers import TransactionController
+from fastdjango.infrastructure.delivery.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
-class ProductController(TransactionController):
+class ProductController(BaseTransactionController):
     _product_service: ProductService
     _jwt_auth_factory: JWTAuthFactory
 

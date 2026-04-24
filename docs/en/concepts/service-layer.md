@@ -198,7 +198,7 @@ class TodoService(BaseService):
         return todo
 ```
 
-The `TransactionController` also wraps methods in transactions automatically.
+The `BaseTransactionController` also wraps methods in transactions automatically.
 
 ## Acceptable Exceptions
 

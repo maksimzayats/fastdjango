@@ -126,8 +126,10 @@ The project loads `.env` files via `python-dotenv`:
 # src/fastdjango/infrastructure/django/configurator.py
 from dotenv import load_dotenv
 
+from fastdjango.infrastructure.configurators import BaseConfigurator
 
-class DjangoConfigurator:
+
+class DjangoConfigurator(BaseConfigurator):
     def configure(self) -> None:
         load_dotenv()  # Loads .env file
         # ...
