@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import NamedTuple
 
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 from pydantic_settings import BaseSettings
 
@@ -51,7 +51,7 @@ class RefreshSessionService(BaseService):
 
     @transaction.atomic
     def rotate_refresh_token(self, refresh_token: str) -> RefreshSessionResult:
-        session = self._get_refresh_session(refresh_token)
+        session = self._get_refresh_session_for_update(refresh_token)
 
         new_refresh_token = self._issue_refresh_token()
         session.refresh_token_hash = self._hash_refresh_token(new_refresh_token)
@@ -73,7 +73,7 @@ class RefreshSessionService(BaseService):
         refresh_token: str,
         user: User,
     ) -> None:
-        session = self._get_refresh_session(refresh_token)
+        session = self._get_refresh_session_for_update(refresh_token)
         if session.user.pk != user.pk:
             raise InvalidRefreshTokenError
 
@@ -86,12 +86,34 @@ class RefreshSessionService(BaseService):
     def _hash_refresh_token(self, refresh_token: str) -> str:
         return hashlib.sha256(refresh_token.encode()).hexdigest()
 
-    def _get_refresh_session(
+    def _get_refresh_session_for_update(
         self,
         refresh_token: str,
     ) -> RefreshSession:
+        return self._get_active_refresh_session(
+            refresh_token,
+            for_update=True,
+        )
+
+    def _get_refresh_session_query(
+        self,
+        *,
+        for_update: bool = False,
+    ) -> models.QuerySet[RefreshSession]:
+        queryset = RefreshSession.objects.all()
+        if for_update:
+            queryset = queryset.select_for_update()
+
+        return queryset
+
+    def _get_active_refresh_session(
+        self,
+        refresh_token: str,
+        *,
+        for_update: bool = False,
+    ) -> RefreshSession:
         try:
-            session = RefreshSession.objects.get(
+            session = self._get_refresh_session_query(for_update=for_update).get(
                 refresh_token_hash=self._hash_refresh_token(refresh_token),
             )
         except RefreshSession.DoesNotExist as e:
