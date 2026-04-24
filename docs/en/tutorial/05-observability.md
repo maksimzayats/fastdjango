@@ -176,20 +176,20 @@ The project includes a health check endpoint at `GET /v1/health`:
 ```python
 # src/fastdjango/core/health/delivery/fastapi/controllers.py
 @dataclass(kw_only=True)
-class HealthController(TransactionController):
-    _health_service: HealthService
+class HealthController(Controller):
+    _system_health_use_case: SystemHealthUseCase
 
     def check_health(self) -> dict[str, str]:
-        self._health_service.check_system_health()
+        self._system_health_use_case.check()
         return {"status": "ok"}
 ```
 
-The `HealthService` checks database connectivity:
+The `SystemHealthUseCase` checks database connectivity:
 
 ```python
-# src/fastdjango/core/health/services.py
-class HealthService:
-    def check_system_health(self) -> None:
+# src/fastdjango/core/health/use_cases.py
+class SystemHealthUseCase:
+    def check(self) -> None:
         try:
             # Verify database connection
             Session.objects.first()

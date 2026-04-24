@@ -173,7 +173,7 @@ class UserController(TransactionController):
 ## Celery Task Controller Example
 
 ```python
-# src/fastdjango/core/health/delivery/celery/ping.py
+# src/fastdjango/core/health/delivery/celery/tasks.py
 from typing import Literal, TypedDict
 
 from celery import Celery

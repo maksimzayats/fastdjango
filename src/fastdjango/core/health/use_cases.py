@@ -2,17 +2,13 @@ import logging
 
 from django.contrib.sessions.models import Session
 
-from fastdjango.core.exceptions import ApplicationError
+from fastdjango.core.health.exceptions import HealthCheckError
 
 logger = logging.getLogger(__name__)
 
 
-class HealthCheckError(ApplicationError):
-    pass
-
-
-class HealthService:
-    def check_system_health(self) -> None:
+class SystemHealthUseCase:
+    def check(self) -> None:
         """Check the health of the system components.
 
         Raises:

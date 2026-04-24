@@ -6,7 +6,8 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from fastdjango.core.health.services import HealthCheckError, HealthService
+from fastdjango.core.health.exceptions import HealthCheckError
+from fastdjango.core.health.use_cases import SystemHealthUseCase
 from fastdjango.infrastructure.delivery.controllers import Controller
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ class HealthCheckResponseSchema(BaseModel):
 
 @dataclass(kw_only=True)
 class HealthController(Controller):
-    _health_service: HealthService
+    _system_health_use_case: SystemHealthUseCase
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
@@ -29,7 +30,7 @@ class HealthController(Controller):
 
     def health_check(self) -> HealthCheckResponseSchema:
         try:
-            self._health_service.check_system_health()
+            self._system_health_use_case.check()
         except HealthCheckError as e:
             raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,

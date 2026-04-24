@@ -4,7 +4,7 @@ from celery import Celery
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from fastdjango.core.health.delivery.celery.ping import PingTaskController
+from fastdjango.core.health.delivery.celery.tasks import PingTaskController
 from fastdjango.core.shared.delivery.celery.registry import TaskName, TasksRegistry
 from fastdjango.infrastructure.shared import ApplicationSettings
 

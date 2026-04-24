@@ -1,4 +1,4 @@
-from fastdjango.core.health.delivery.celery.ping import PingResult
+from fastdjango.core.health.delivery.celery.tasks import PingResult
 from tests.integration.factories import TestCeleryWorkerFactory, TestTasksRegistryFactory
 
 

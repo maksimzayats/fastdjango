@@ -5,7 +5,8 @@ import pytest
 from diwire import Container
 
 from fastdjango.core.health.delivery.fastapi.controllers import HealthCheckResponseSchema
-from fastdjango.core.health.services import HealthCheckError, HealthService
+from fastdjango.core.health.exceptions import HealthCheckError
+from fastdjango.core.health.use_cases import SystemHealthUseCase
 from tests.integration.factories import TestClientFactory
 
 
@@ -24,13 +25,13 @@ class TestHealthController:
         assert response.status_code == HTTPStatus.OK
         assert response_data.status == "ok"
 
-    def test_health_check_service_unavailable(
+    def test_health_check_use_case_unavailable(
         self,
         container: Container,
     ) -> None:
-        mock_service = MagicMock(spec=HealthService)
-        mock_service.check_system_health.side_effect = HealthCheckError()
-        container.add_instance(mock_service, provides=HealthService)
+        mock_use_case = MagicMock(spec=SystemHealthUseCase)
+        mock_use_case.check.side_effect = HealthCheckError()
+        container.add_instance(mock_use_case, provides=SystemHealthUseCase)
 
         test_client_factory = TestClientFactory(container=container)
 

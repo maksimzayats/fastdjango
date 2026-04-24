@@ -7,7 +7,7 @@ from celery import Task
 from fastdjango.infrastructure.celery.registry import BaseTasksRegistry
 
 if TYPE_CHECKING:
-    from fastdjango.core.health.delivery.celery.ping import PingResult
+    from fastdjango.core.health.delivery.celery.tasks import PingResult
 
 
 class TaskName(StrEnum):

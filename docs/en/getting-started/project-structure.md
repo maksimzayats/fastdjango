@@ -30,12 +30,13 @@ The core layer contains domain models and services. This is where business logic
 core/
 ├── exceptions.py           # Base application exception
 ├── health/                 # Health check domain
-│   ├── services.py         # HealthService
+│   ├── exceptions.py       # Health domain exceptions
+│   ├── use_cases.py        # SystemHealthUseCase
 │   └── delivery/           # Health FastAPI/Celery delivery
 │       ├── fastapi/
 │       │   └── controllers.py
 │       └── celery/
-│           └── ping.py
+│           └── tasks.py
 ├── shared/                 # Cross-domain application wiring
 │   └── delivery/
 │       ├── django/         # Django URLs and WSGI factory
@@ -116,7 +117,7 @@ tests/
 │   ├── fastapi/            # FastAPI endpoint tests
 │   │   └── test_v1_users.py
 │   └── celery/             # Celery task tests
-│       └── test_ping_task.py
+│       └── test_tasks.py
 └── unit/                   # Unit tests
     └── services/           # Service unit tests
 ```
@@ -151,8 +152,8 @@ The application has multiple entry points:
 ┌─────────────────────────────────────────────────────────────┐
 │                      Core Layer                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │                    Services                          │   │
-│  │   UserService  │  JWTService   │  HealthService     │   │
+│  │              Services and Use Cases                  │   │
+│  │   UserService  │  JWTService   │  SystemHealthUseCase│   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │                     Models                           │   │
