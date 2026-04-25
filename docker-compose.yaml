@@ -31,7 +31,7 @@ services:
       - "8009:8000"
     command:
       - gunicorn
-      - delivery.http.app:app
+      - fastdjango.entrypoints.fastapi.app:app
       - --workers=4
       - --worker-class=uvicorn.workers.UvicornWorker
       - --bind=0.0.0.0:8000
@@ -47,7 +47,7 @@ services:
     <<: *common
     command:
       - celery
-      - --app=delivery.tasks.app
+      - --app=fastdjango.entrypoints.celery.app
       - worker
       - --loglevel=${LOGGING_LEVEL:-INFO}
       - --concurrency=4
@@ -61,7 +61,7 @@ services:
     <<: *common
     command:
       - celery
-      - --app=delivery.tasks.app
+      - --app=fastdjango.entrypoints.celery.app
       - beat
       - --loglevel=${LOGGING_LEVEL:-INFO}
     depends_on:
@@ -72,13 +72,13 @@ services:
 
   migrations:
     <<: *common
-    command: python src/manage.py migrate --noinput
+    command: python src/fastdjango/manage.py migrate --noinput
     depends_on:
       - pgbouncer
 
   collectstatic:
     <<: *common
-    command: python src/manage.py collectstatic --noinput
+    command: python src/fastdjango/manage.py collectstatic --noinput
     depends_on:
       - pgbouncer
       - minio-create-buckets

@@ -15,8 +15,8 @@ The project uses multiple tools for code quality. All are configured in `pyproje
 make format
 
 # Or directly
-ruff format src tests
-ruff check --fix src tests
+uv run ruff format .
+uv run ruff check --fix-only .
 ```
 
 ### Type Checking
@@ -25,9 +25,9 @@ The project is configured for strict type checking. You can use any of the follo
 
 | Tool | Command | Configuration |
 |------|---------|---------------|
-| **mypy** | `mypy src tests` | `mypy.ini` |
-| **ty** | `ty check src tests` | Built-in |
-| **pyrefly** | `pyrefly check src tests` | Built-in |
+| **mypy** | `uv run --env-file .env.test.example mypy src tests` | `pyproject.toml` |
+| **ty** | `uv run ty check src tests` | Built-in |
+| **pyrefly** | `uv run pyrefly check src` | Built-in |
 
 Why three type checkers? Different tools catch different issues. Use the one you prefer, but the CI pipeline uses `mypy --strict`.
 
@@ -79,7 +79,7 @@ Create `.vscode/settings.json`:
         }
     },
     "python.analysis.typeCheckingMode": "strict",
-    "mypy-type-checker.args": ["--config-file=mypy.ini"],
+    "mypy-type-checker.args": [],
     "ruff.configurationPreference": "filesystemFirst"
 }
 ```
@@ -109,7 +109,7 @@ DJANGO_SECRET_KEY=development-secret-key-change-in-production
 DJANGO_DEBUG=true
 
 # Database
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+DATABASE_URL=postgres://postgres:example-postgres-password@localhost:5432/postgres
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -123,10 +123,11 @@ LOGFIRE_ENABLED=false
 
 ### Test Environment
 
-Tests use `.env.test` which is loaded automatically by pytest:
+Tests load `.env.test` automatically when it exists. If it does not, pytest falls
+back to the committed `.env.test.example` defaults.
 
 ```bash
-# tests/conftest.py loads .env.test
+# tests/conftest.py loads .env.test, then falls back to .env.test.example
 ```
 
 ## Running the Application
@@ -136,15 +137,15 @@ Tests use `.env.test` which is loaded automatically by pytest:
 ```bash
 # FastAPI (HTTP API)
 make dev
-# Equivalent to: uvicorn delivery.http.app:app --reload --host 0.0.0.0 --port 8000
+# Equivalent to: uv run uvicorn fastdjango.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
 
 # Celery Worker
 make celery-dev
-# Equivalent to: celery -A delivery.tasks.app:celery_app worker --loglevel=info
+# Equivalent to the watched Celery worker command in the Makefile
 
 # Celery Beat (Scheduler)
 make celery-beat-dev
-# Equivalent to: celery -A delivery.tasks.app:celery_app beat --loglevel=info
+# Equivalent to the watched Celery beat command in the Makefile
 ```
 
 ### Database Operations
@@ -157,8 +158,8 @@ make makemigrations
 make migrate
 
 # Or using Django manage.py directly
-uv run python src/manage.py makemigrations
-uv run python src/manage.py migrate
+uv run src/fastdjango/manage.py makemigrations
+uv run src/fastdjango/manage.py migrate
 ```
 
 ## Testing
@@ -170,7 +171,7 @@ uv run python src/manage.py migrate
 make test
 
 # Run specific test file
-pytest tests/integration/http/v1/test_v1_users.py
+pytest tests/integration/fastapi/test_v1_users.py
 
 # Run with verbose output
 pytest -v tests/
@@ -184,10 +185,9 @@ pytest --cov=src --cov-report=html tests/
 
 ### Test Configuration
 
-Tests require:
-
-- PostgreSQL running (for integration tests)
-- Redis running (for Celery tests)
+The default suite is self-contained: `.env.test.example` uses SQLite, and the
+Celery test worker uses an in-memory broker/backend. Use PostgreSQL or Redis
+only when you add project-specific integration tests that need those services.
 
 The test fixtures automatically:
 
@@ -202,7 +202,7 @@ The test fixtures automatically:
 With `DJANGO_DEBUG=true`, the API documentation is available at:
 
 - Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+ReDoc is disabled in this template; use Swagger UI for interactive API testing.
 
 ### Logging
 
@@ -217,7 +217,7 @@ LOGGING_LEVEL=DEBUG make dev
 For detailed Celery logs:
 
 ```bash
-celery -A delivery.tasks.app:celery_app worker --loglevel=debug
+uv run celery -A fastdjango.entrypoints.celery.app worker --loglevel=debug
 ```
 
 ## Docker Development

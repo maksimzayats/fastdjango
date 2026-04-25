@@ -8,13 +8,17 @@ Complete reference for all configuration options.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `ENVIRONMENT` | No | `local` | Deployment environment (`local`, `development`, `staging`, `production`, `test`, `ci`) |
+| `ENVIRONMENT` | No | `production` | Deployment environment (`local`, `development`, `staging`, `production`, `test`, `ci`). `.env.example` sets this to `local` for development. |
+| `VERSION` | No | `0.1.0` | Application version used by shared settings |
+| `TIME_ZONE` | No | `UTC` | Application timezone; also used by Celery |
 
 ### Database
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | - | PostgreSQL connection string |
+| `DATABASE_CONN_MAX_AGE` | No | `600` | Django persistent connection lifetime in seconds |
+| `DATABASE_DEFAULT_AUTO_FIELD` | No | `django.db.models.BigAutoField` | Default primary-key field type for Django models |
 
 Example:
 ```bash
@@ -45,8 +49,8 @@ Prefix: `DJANGO_`
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `ALLOWED_HOSTS` | No | `["*"]` | Allowed host headers |
-| `CSRF_TRUSTED_ORIGINS` | No | `[]` | Trusted origins for CSRF |
+| `ALLOWED_HOSTS` | No | `["localhost", "127.0.0.1"]` | Allowed host headers for Django and FastAPI trusted-host middleware |
+| `CSRF_TRUSTED_ORIGINS` | No | `["http://localhost"]` | Trusted origins for CSRF |
 
 Example:
 ```bash
@@ -62,11 +66,12 @@ Prefix: `JWT_`
 |----------|----------|---------|-------------|
 | `JWT_SECRET_KEY` | Yes | - | Secret key for signing tokens |
 | `JWT_ALGORITHM` | No | `HS256` | JWT signing algorithm |
-| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | No | `30` | Access token expiration in minutes |
+| `JWT_TYP` | No | `at+jwt` | JWT `typ` claim for access tokens |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | No | `15` | Access token expiration in minutes |
 
 Example:
 ```bash
-JWT_SECRET_KEY=your-super-secret-jwt-key
+JWT_SECRET_KEY=your-super-secret-jwt-key-with-at-least-32-bytes
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```
@@ -77,6 +82,8 @@ Prefix: `AWS_S3_`
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
+| `STATIC_URL` | No | `/static/` | URL prefix for static files |
+| `MEDIA_URL` | No | `/media/` | URL prefix for uploaded media |
 | `AWS_S3_ACCESS_KEY_ID` | Yes* | - | S3 access key |
 | `AWS_S3_SECRET_ACCESS_KEY` | Yes* | - | S3 secret key |
 | `AWS_S3_ENDPOINT_URL` | Yes* | - | Internal S3 endpoint used by Django and `collectstatic` (for Docker: `http://minio:9000`) |
@@ -88,8 +95,8 @@ Prefix: `AWS_S3_`
 
 Example (MinIO local):
 ```bash
-AWS_S3_ACCESS_KEY_ID=minioadmin
-AWS_S3_SECRET_ACCESS_KEY=minioadmin
+AWS_S3_ACCESS_KEY_ID=example-minio-access-key-id
+AWS_S3_SECRET_ACCESS_KEY=example-minio-secret-access-key
 AWS_S3_ENDPOINT_URL=http://minio:9000
 AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
 AWS_S3_PUBLIC_BUCKET_NAME=public
@@ -102,7 +109,7 @@ Prefix: `CORS_`
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `CORS_ALLOW_ORIGINS` | No | `["*"]` | Allowed origins |
+| `CORS_ALLOW_ORIGINS` | No | `["http://localhost"]` | Allowed origins |
 | `CORS_ALLOW_METHODS` | No | `["*"]` | Allowed HTTP methods |
 | `CORS_ALLOW_HEADERS` | No | `["*"]` | Allowed headers |
 | `CORS_ALLOW_CREDENTIALS` | No | `true` | Allow credentials |
@@ -127,6 +134,17 @@ Prefix: `LOGFIRE_`
 |----------|----------|---------|-------------|
 | `LOGFIRE_ENABLED` | No | `false` | Enable Logfire instrumentation |
 | `LOGFIRE_TOKEN` | No | - | Logfire authentication token |
+| `LOGFIRE_SERVICE_NAME` | No | `fastdjango` | Service name reported to Logfire |
+| `LOGFIRE_SERVICE_VERSION` | No | `0.1.0` | Service version reported to Logfire |
+| `LOGFIRE_ENVIRONMENT` | No | `production` | Environment name reported to Logfire |
+
+## Instrumentation Settings
+
+Prefix: `INSTRUMENTOR_`
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `INSTRUMENTOR_FASTAPI_EXCLUDED_URLS` | No | `[".*/v1/health"]` | FastAPI URL patterns excluded from tracing |
 
 ## Thread Pool Settings
 
@@ -136,12 +154,49 @@ Prefix: `ANYIO_`
 |----------|----------|---------|-------------|
 | `ANYIO_THREAD_LIMITER_TOKENS` | No | `40` | Max concurrent threads for sync handlers |
 
+## Celery Settings
+
+Prefix: `CELERY_`
+
+Most projects only need `REDIS_URL` for local development. Tune these when you
+need different worker, retry, or serialization behavior.
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CELERY_WORKER_PREFETCH_MULTIPLIER` | No | `1` | Number of tasks a worker prefetches |
+| `CELERY_WORKER_MAX_TASKS_PER_CHILD` | No | `1000` | Restart worker child after this many tasks |
+| `CELERY_WORKER_MAX_MEMORY_PER_CHILD` | No | - | Optional worker child memory limit in KB |
+| `CELERY_TASK_ACKS_LATE` | No | `true` | Acknowledge tasks after execution |
+| `CELERY_TASK_REJECT_ON_WORKER_LOST` | No | `true` | Requeue tasks if a worker process is lost |
+| `CELERY_TASK_TIME_LIMIT` | No | `300` | Hard task time limit in seconds |
+| `CELERY_TASK_SOFT_TIME_LIMIT` | No | `270` | Soft task time limit in seconds |
+| `CELERY_RESULT_EXPIRES` | No | `3600` | Result expiration in seconds |
+| `CELERY_RESULT_BACKEND_ALWAYS_RETRY` | No | `true` | Retry result backend operations on transient errors |
+| `CELERY_RESULT_BACKEND_MAX_RETRIES` | No | `10` | Maximum result backend retries |
+| `CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP` | No | `true` | Retry broker connection on worker startup |
+| `CELERY_BROKER_CONNECTION_MAX_RETRIES` | No | `10` | Maximum broker connection retries; empty means unlimited |
+| `CELERY_TASK_SERIALIZER` | No | `json` | Task serialization format |
+| `CELERY_RESULT_SERIALIZER` | No | `json` | Result serialization format |
+| `CELERY_ACCEPT_CONTENT` | No | `["json"]` | Accepted content types |
+| `CELERY_WORKER_SEND_TASK_EVENTS` | No | `true` | Emit worker task events for monitoring |
+| `CELERY_TASK_SEND_SENT_EVENT` | No | `true` | Emit task-sent events |
+
 ## Rate Limiting Settings
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `NUMBER_OF_PROXIES` | No | `0` | Number of proxies in front of app (for IP detection) |
-| `IP_HEADER` | No | `x-forwarded-for` | Header containing client IP |
+| `IP_HEADER` | No | `x-forwarded-for` | Header containing the forwarded IP address trace |
+| `USER_AGENT_HEADER` | No | `user-agent` | Header containing the user agent |
+
+`IP_HEADER` is used whenever present. In production, expose the application through a
+trusted proxy before relying on client-controlled forwarded headers.
+
+## Refresh Session Settings
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `REFRESH_TOKEN_NBYTES` | No | `32` | Random byte length used when issuing refresh tokens |
+| `REFRESH_TOKEN_TTL_DAYS` | No | `30` | Refresh token lifetime in days |
 
 ## Example `.env` File
 
@@ -150,7 +205,7 @@ Prefix: `ANYIO_`
 ENVIRONMENT=local
 
 # Database
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+DATABASE_URL=postgres://postgres:example-postgres-password@localhost:5432/postgres
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -160,12 +215,12 @@ DJANGO_SECRET_KEY=your-secret-key-change-in-production
 DJANGO_DEBUG=true
 
 # JWT
-JWT_SECRET_KEY=your-jwt-secret-key
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_SECRET_KEY=your-jwt-secret-key-with-at-least-32-bytes
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
 
 # S3/MinIO
-AWS_S3_ACCESS_KEY_ID=minioadmin
-AWS_S3_SECRET_ACCESS_KEY=minioadmin
+AWS_S3_ACCESS_KEY_ID=example-minio-access-key-id
+AWS_S3_SECRET_ACCESS_KEY=example-minio-secret-access-key
 AWS_S3_ENDPOINT_URL=http://minio:9000
 AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
 AWS_S3_PUBLIC_BUCKET_NAME=public

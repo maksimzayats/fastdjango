@@ -2,19 +2,21 @@ from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
 from typing import Any
 
+from celery import Celery
 from celery.contrib.testing import worker
 from celery.worker import WorkController
 from diwire import Container
 from fastapi.testclient import TestClient
 
-from core.user.models import User
-from core.user.services.jwt import JWTService
-from delivery.http.factories import FastAPIFactory
-from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
-from delivery.tasks.registry import TasksRegistry
+from fastdjango.core.authentication.services.jwt import JWTService
+from fastdjango.core.user.models import User
+from fastdjango.entrypoints.celery.factories import CeleryAppFactory, TasksRegistryFactory
+from fastdjango.entrypoints.celery.registry import TasksRegistry
+from fastdjango.entrypoints.fastapi.factories import FastAPIFactory
+from fastdjango.foundation.factories import BaseFactory
 
 
-class BaseFactory(ABC):
+class BaseTestFactory(BaseFactory, ABC):
     __test__ = False
 
     @abstractmethod
@@ -22,7 +24,7 @@ class BaseFactory(ABC):
         pass
 
 
-class ContainerBasedFactory(BaseFactory, ABC):
+class ContainerBasedFactory(BaseTestFactory, ABC):
     def __init__(
         self,
         container: Container,
@@ -65,11 +67,13 @@ class TestUserFactory(ContainerBasedFactory):
         self,
         username: str = "test_user",
         password: str = "password123",  # noqa: S107
-        email: str = "user@test.com",
+        email: str | None = None,
         *,
         is_staff: bool = False,
         **kwargs: Any,
     ) -> User:
+        email = email or f"{username}@test.com"
+
         return User.objects.create_user(
             username=username,
             email=email,
@@ -82,14 +86,26 @@ class TestUserFactory(ContainerBasedFactory):
 class TestCeleryWorkerFactory(ContainerBasedFactory):
     def __call__(self) -> AbstractContextManager[WorkController]:
         celery_app_factory = self._container.resolve(CeleryAppFactory)
+        celery_app = celery_app_factory()
+        configure_celery_app_for_tests(celery_app)
 
         return worker.start_worker(
-            app=celery_app_factory(),
+            app=celery_app,
             perform_ping_check=False,
         )
 
 
 class TestTasksRegistryFactory(ContainerBasedFactory):
     def __call__(self) -> TasksRegistry:
+        celery_app_factory = self._container.resolve(CeleryAppFactory)
+        configure_celery_app_for_tests(celery_app_factory())
+
         factory = self._container.resolve(TasksRegistryFactory)
         return factory()
+
+
+def configure_celery_app_for_tests(celery_app: Celery) -> None:
+    celery_app.conf.update(
+        broker_url="memory://",
+        result_backend="cache+memory://",
+    )

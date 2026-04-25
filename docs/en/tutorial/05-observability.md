@@ -50,19 +50,21 @@ The project automatically instruments these libraries:
 | HTTPX | Outbound HTTP calls |
 | Pydantic | Validation |
 
-This is configured in `src/infrastructure/frameworks/logfire/instrumentor.py`.
+This is configured in `src/fastdjango/infrastructure/logfire/instrumentor.py`.
 
 ## Step 3: Add Custom Logging
 
 Use structured logging in your services:
 
 ```python
-# src/core/todo/services.py
+# src/fastdjango/core/todo/services.py
 import logfire
+
+from fastdjango.foundation.services import BaseService
 
 
 @dataclass(kw_only=True)
-class TodoService:
+class TodoService(BaseService):
     def create_todo(
         self,
         user: User,
@@ -106,12 +108,14 @@ class TodoService:
 Create spans for complex operations:
 
 ```python
-# src/core/todo/services.py
+# src/fastdjango/core/todo/services.py
 import logfire
+
+from fastdjango.foundation.services import BaseService
 
 
 @dataclass(kw_only=True)
-class TodoService:
+class TodoService(BaseService):
     def delete_completed_todos(self, user: User) -> int:
         with logfire.span(
             "delete_completed_todos",
@@ -128,40 +132,54 @@ class TodoService:
             return deleted_count
 ```
 
-## Step 5: TransactionController Tracing
+## Step 5: BaseTransactionController Tracing
 
-The `TransactionController` uses `traced_atomic` to combine database transactions with Logfire tracing:
+The `BaseTransactionController` uses `traced_atomic` to combine database transactions with Logfire tracing:
 
 ```python
-# src/infrastructure/delivery/controllers.py
-from infrastructure.frameworks.logfire.transaction import traced_atomic
+# src/fastdjango/infrastructure/django/controllers.py
+from inspect import iscoroutinefunction
+
+from fastdjango.foundation.delivery.controllers import BaseController
+from fastdjango.infrastructure.django.traced_atomic import traced_atomic
 
 
 @dataclass(kw_only=True)
-class TransactionController(Controller, ABC):
+class BaseTransactionController(BaseController, ABC):
+    def _wrap_route(self, method: Callable[..., Any]) -> Callable[..., Any]:
+        method = self._add_transaction(method)
+        return super()._wrap_route(method)
+
     def _add_transaction(self, method: Callable[..., Any]) -> Callable[..., Any]:
+        method_name = getattr(method, "__name__", type(method).__name__)
+
+        if iscoroutinefunction(method):
+            msg = f"Async route '{method_name}' cannot use BaseTransactionController."
+            raise TypeError(msg)
+
         @wraps(method)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             with traced_atomic(
                 "controller transaction",
                 controller=type(self).__name__,
-                method=method.__name__,
+                method=method_name,
             ):
                 return method(*args, **kwargs)
 
         return wrapper
 ```
 
-When you extend `TransactionController`, every public method automatically gets:
+When you extend `BaseTransactionController`, every public method automatically gets:
 
 - **Database transaction**: Wrapped in `@transaction.atomic`
 - **Logfire span**: Named "controller transaction" with attributes
 - **Span attributes**: Controller name and method name for filtering
+- **Sync guard**: Async routes fail fast; use `BaseAsyncController` for async endpoints
 
 ```python
-# Automatically traced when extending TransactionController
+# Automatically traced when extending BaseTransactionController
 @dataclass(kw_only=True)
-class TodoController(TransactionController):
+class TodoController(BaseTransactionController):
     def list_todos(self, request: AuthenticatedRequest) -> TodoListSchema:
         # This method is automatically wrapped with traced_atomic:
         # - Span name: "controller transaction"
@@ -174,27 +192,38 @@ class TodoController(TransactionController):
 The project includes a health check endpoint at `GET /v1/health`:
 
 ```python
-# src/delivery/http/controllers/health/controllers.py
+# src/fastdjango/core/health/delivery/fastapi/controllers.py
 @dataclass(kw_only=True)
-class HealthController(TransactionController):
-    _health_service: HealthService
+class HealthController(BaseController):
+    _system_health_use_case: SystemHealthUseCase
 
-    def check_health(self) -> dict[str, str]:
-        self._health_service.check_system_health()
-        return {"status": "ok"}
+    def health_check(self) -> HealthCheckResponseSchema:
+        try:
+            self._system_health_use_case.check()
+        except HealthCheckError as e:
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="Service is unavailable",
+            ) from e
+
+        return HealthCheckResponseSchema(status="ok")
 ```
 
-The `HealthService` checks database connectivity:
+The `SystemHealthUseCase` checks database connectivity:
 
 ```python
-# src/core/health/services.py
-class HealthService:
-    def check_system_health(self) -> None:
+# src/fastdjango/core/health/use_cases.py
+from fastdjango.foundation.use_cases import BaseUseCase
+
+
+class SystemHealthUseCase(BaseUseCase):
+    def check(self) -> None:
         try:
             # Verify database connection
             Session.objects.first()
         except Exception as e:
-            raise HealthCheckError("Database unavailable") from e
+            logger.exception("Health check failed: database is not reachable")
+            raise HealthCheckError from e
 ```
 
 ## Step 7: Configure Logging Level
@@ -273,7 +302,7 @@ logfire.error("Failed to process", error=e)    # Needs attention
 Logfire is configured to scrub sensitive fields:
 
 ```python
-# src/infrastructure/frameworks/logfire/configurator.py
+# src/fastdjango/infrastructure/logfire/configurator.py
 logfire.configure(
     scrubbing=logfire.ScrubbingOptions(
         extra_patterns=["access_token", "refresh_token"],

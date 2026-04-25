@@ -8,7 +8,7 @@ Without a service layer, controllers directly access the database:
 
 ```python
 # ❌ Wrong - Controller accesses model directly
-from core.user.models import User
+from fastdjango.core.user.models import User
 
 class UserController:
     def get_user(self, user_id: int) -> UserSchema:
@@ -28,50 +28,48 @@ This causes problems:
 The service layer acts as an intermediary:
 
 ```python
-# ✅ Correct - Controller uses service
-from core.user.services import UserService
+# ✅ Correct - Controller uses a use case or service
+from fastdjango.core.user.use_cases import UserUseCase
 
 class UserController:
-    def __init__(self, user_service: UserService) -> None:
-        self._user_service = user_service
+    def __init__(self, user_use_case: UserUseCase) -> None:
+        self._user_use_case = user_use_case
 
     def get_user(self, user_id: int) -> UserSchema:
-        user = self._user_service.get_user_by_id(user_id)
+        user = self._user_use_case.get_user_by_id(user_id)
         return UserSchema.model_validate(user, from_attributes=True)
 ```
 
 ## The Golden Rule
 
 ```
-Controller → Service → Model
+Controller → Use Case / Service → Model
 
-✅ Controller imports Service
-✅ Service imports Model
-❌ Controller imports Model (NEVER)
+✅ Controller calls a use case or service
+✅ Use cases and services own ORM access
+❌ Controller queries models directly
 ```
 
-This boundary is absolute. Controllers never import models.
+This boundary is absolute: controllers handle delivery concerns, not ORM queries.
 
 ## Service Structure
 
 Services are dataclasses with injected dependencies:
 
 ```python
-# src/core/todo/services.py
+# src/fastdjango/core/todo/services.py
 from dataclasses import dataclass
 
 from django.db import transaction
 
-from core.todo.models import Todo
-from core.user.models import User
-
-
-class TodoNotFoundError(Exception):
-    """Domain exception for missing todos."""
+from fastdjango.core.todo.exceptions import TodoNotFoundError
+from fastdjango.foundation.services import BaseService
+from fastdjango.core.todo.models import Todo
+from fastdjango.core.user.models import User
 
 
 @dataclass(kw_only=True)
-class TodoService:
+class TodoService(BaseService):
     """Service for todo operations."""
 
     def get_todo_by_id(self, todo_id: int) -> Todo:
@@ -112,7 +110,7 @@ Services can use two patterns for "not found" scenarios:
     - Controller explicitly checks for `None` and responds accordingly
 
 !!! tip "Choosing a pattern"
-    The existing `UserService` uses the **None pattern** because user lookups often occur during authentication where "not found" is expected. Choose the pattern that fits your domain semantics.
+    The existing `UserUseCase` uses the **None pattern** because user lookups often occur during authentication where "not found" is expected. Choose the pattern that fits your domain semantics.
 
 ## Benefits
 
@@ -160,6 +158,10 @@ Each layer has a single responsibility:
 Services raise meaningful exceptions:
 
 ```python
+# src/fastdjango/core/todo/exceptions.py
+from fastdjango.core.exceptions import ApplicationError
+
+
 class TodoNotFoundError(ApplicationError):
     """Raised when a todo cannot be found."""
 
@@ -185,8 +187,10 @@ Use `@transaction.atomic` for database writes:
 ```python
 from django.db import transaction
 
+from fastdjango.foundation.services import BaseService
+
 @dataclass(kw_only=True)
-class TodoService:
+class TodoService(BaseService):
     @transaction.atomic
     def create_todo(self, user: User, title: str) -> Todo:
         todo = Todo.objects.create(user=user, title=title)
@@ -195,7 +199,7 @@ class TodoService:
         return todo
 ```
 
-The `TransactionController` also wraps methods in transactions automatically.
+The `BaseTransactionController` also wraps methods in transactions automatically.
 
 ## Acceptable Exceptions
 
@@ -204,9 +208,9 @@ Model imports are acceptable in:
 ### Django Admin
 
 ```python
-# src/core/todo/admin.py
+# src/fastdjango/core/todo/delivery/django/admin.py
 from django.contrib import admin
-from core.todo.models import Todo  # ✅ OK in admin
+from fastdjango.core.todo.models import Todo  # ✅ OK in admin
 
 @admin.register(Todo)
 class TodoAdmin(admin.ModelAdmin):
@@ -224,7 +228,7 @@ from django.db import migrations, models
 
 ```python
 # tests/integration/conftest.py
-from core.todo.models import Todo  # ✅ OK in tests
+from fastdjango.core.todo.models import Todo  # ✅ OK in tests
 
 @pytest.fixture
 def todo(user: User) -> Todo:
@@ -236,12 +240,12 @@ def todo(user: User) -> Todo:
 Controllers can reference models in type hints for validation, but must use services for operations:
 
 ```python
-from core.user.models import User  # For type hint only
+from fastdjango.core.user.models import User  # For type hint only
 
 def get_user(self, request: AuthenticatedRequest) -> UserSchema:
     user: User = request.state.user  # Type hint is fine
     # But operations go through service
-    return self._user_service.get_user_details(user.id)
+    return self._user_use_case.get_user_details(user.id)
 ```
 
 ## Service Dependencies
@@ -249,15 +253,17 @@ def get_user(self, request: AuthenticatedRequest) -> UserSchema:
 Services can depend on other services:
 
 ```python
+from fastdjango.foundation.services import BaseService
+
 @dataclass(kw_only=True)
-class OrderService:
-    _user_service: UserService
+class OrderService(BaseService):
+    _user_use_case: UserUseCase
     _payment_service: PaymentService
     _notification_service: NotificationService
 
     @transaction.atomic
     def create_order(self, user_id: int, items: list[Item]) -> Order:
-        user = self._user_service.get_user_by_id(user_id)
+        user = self._user_use_case.get_user_by_id(user_id)
         order = Order.objects.create(user=user)
         self._payment_service.charge(user, order.total)
         self._notification_service.send_confirmation(user, order)

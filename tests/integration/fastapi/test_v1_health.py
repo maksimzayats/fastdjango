@@ -1,0 +1,42 @@
+from http import HTTPStatus
+from unittest.mock import MagicMock
+
+import pytest
+from diwire import Container
+
+from fastdjango.core.health.delivery.fastapi.schemas import HealthCheckResponseSchema
+from fastdjango.core.health.exceptions import HealthCheckError
+from fastdjango.core.health.use_cases import SystemHealthUseCase
+from tests.integration.factories import TestClientFactory
+
+
+@pytest.mark.django_db(transaction=True)
+class TestHealthController:
+    """Tests for HealthController endpoints."""
+
+    def test_health_check_success(
+        self,
+        test_client_factory: TestClientFactory,
+    ) -> None:
+        with test_client_factory() as test_client:
+            response = test_client.get("/v1/health")
+
+        response_data = HealthCheckResponseSchema.model_validate(response.json())
+        assert response.status_code == HTTPStatus.OK
+        assert response_data.status == "ok"
+
+    def test_health_check_use_case_unavailable(
+        self,
+        container: Container,
+    ) -> None:
+        mock_use_case = MagicMock(spec=SystemHealthUseCase)
+        mock_use_case.check.side_effect = HealthCheckError()
+        container.add_instance(mock_use_case, provides=SystemHealthUseCase)
+
+        test_client_factory = TestClientFactory(container=container)
+
+        with test_client_factory() as test_client:
+            response = test_client.get("/v1/health")
+
+        assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
+        assert response.json()["detail"] == "Service is unavailable"

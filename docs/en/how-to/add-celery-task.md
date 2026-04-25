@@ -13,66 +13,53 @@ Add a new Celery task for background processing.
 
 ## Checklist
 
-- [ ] Add task name to `TaskName` enum
 - [ ] Create task controller
+- [ ] Add task name to `TaskName` enum
 - [ ] Register controller in factory
 - [ ] Add task to registry (optional, for type-safe access)
 - [ ] Write tests
 
 ## Step-by-Step
 
-### 1. Add Task Name
+### 1. Create Task Controller
 
-Edit `src/delivery/tasks/registry.py`:
-
-```python
-# src/delivery/tasks/registry.py
-from enum import StrEnum
-
-
-class TaskName(StrEnum):
-    PING = "ping"
-    SEND_EMAIL = "email.send"  # Add new task
-```
-
-### 2. Create Task Controller
-
-Create `src/delivery/tasks/tasks/send_email.py`:
+Create `src/fastdjango/core/email/delivery/celery/send_email.py`:
 
 ```python
-# src/delivery/tasks/tasks/send_email.py
+# src/fastdjango/core/email/delivery/celery/send_email.py
 from dataclasses import dataclass
-from typing import TypedDict
 
 from celery import Celery
 
-from core.email.services import EmailService
-from core.user.services.user import UserService
-from delivery.tasks.registry import TaskName
-from infrastructure.delivery.controllers import Controller
+from fastdjango.core.email.services import EmailService
+from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
+from fastdjango.core.user.use_cases import UserUseCase
+from fastdjango.foundation.delivery.controllers import BaseController
+
+SEND_EMAIL_TASK_NAME = "email.send"
 
 
-class SendEmailResult(TypedDict):
+class SendEmailResultSchema(BaseCelerySchema):
     success: bool
     message_id: str | None
 
 
 @dataclass(kw_only=True)
-class SendEmailTaskController(Controller):
+class SendEmailTaskController(BaseController):
     """Task controller for sending emails."""
 
     _email_service: EmailService
-    _user_service: UserService
+    _user_use_case: UserUseCase
 
     def register(self, registry: Celery) -> None:
-        registry.task(name=TaskName.SEND_EMAIL)(self.send_email)
+        registry.task(name=SEND_EMAIL_TASK_NAME)(self.send_email)
 
     def send_email(
         self,
         user_id: int,
         subject: str,
         body: str,
-    ) -> SendEmailResult:
+    ) -> SendEmailResultSchema:
         """Send an email to a user.
 
         Args:
@@ -83,7 +70,7 @@ class SendEmailTaskController(Controller):
         Returns:
             Result containing success status and message ID.
         """
-        user = self._user_service.get_user_by_id(user_id)
+        user = self._user_use_case.get_user_by_id(user_id)
 
         try:
             message_id = self._email_service.send(
@@ -91,23 +78,42 @@ class SendEmailTaskController(Controller):
                 subject=subject,
                 body=body,
             )
-            return SendEmailResult(success=True, message_id=message_id)
+            return SendEmailResultSchema(success=True, message_id=message_id)
         except Exception:
-            return SendEmailResult(success=False, message_id=None)
+            return SendEmailResultSchema(success=False, message_id=None)
 ```
+
+### 2. Add Task Name to the Registry
+
+Edit `src/fastdjango/entrypoints/celery/registry.py`:
+
+```python
+# src/fastdjango/entrypoints/celery/registry.py
+from enum import StrEnum
+
+from fastdjango.core.email.delivery.celery.send_email import SEND_EMAIL_TASK_NAME
+from fastdjango.core.health.delivery.celery.tasks import PING_TASK_NAME
+
+
+class TaskName(StrEnum):
+    PING = PING_TASK_NAME
+    SEND_EMAIL = SEND_EMAIL_TASK_NAME
+```
+
+This keeps domain task modules independent from the entrypoint registry.
 
 ### 3. Register Task Controller
 
-Edit `src/delivery/tasks/factories.py`:
+Edit `src/fastdjango/entrypoints/celery/factories.py`:
 
 ```python
-# src/delivery/tasks/factories.py
+# src/fastdjango/entrypoints/celery/factories.py
 # Add import
-from delivery.tasks.tasks.send_email import SendEmailTaskController
+from fastdjango.core.email.delivery.celery.send_email import SendEmailTaskController
 
 
 @dataclass(kw_only=True)
-class TasksRegistryFactory:
+class TasksRegistryFactory(BaseFactory):
     _celery_app_factory: CeleryAppFactory
     _ping_controller: PingTaskController
     _send_email_controller: SendEmailTaskController  # Add as field
@@ -133,20 +139,20 @@ Controllers are declared as dataclass fields and auto-resolved by the IoC contai
 For type-safe task access, add to `TasksRegistry`:
 
 ```python
-# src/delivery/tasks/registry.py
+# src/fastdjango/entrypoints/celery/registry.py
 from celery import Task
 
-from delivery.tasks.base import BaseTasksRegistry
+from fastdjango.infrastructure.celery.registry import BaseTasksRegistry
 
 
 class TasksRegistry(BaseTasksRegistry):
     @property
     def ping(self) -> Task:
-        return self._celery_app.tasks[TaskName.PING]
+        return self._get_task_by_name(TaskName.PING)
 
     @property
     def send_email(self) -> Task:  # Add this
-        return self._celery_app.tasks[TaskName.SEND_EMAIL]
+        return self._get_task_by_name(TaskName.SEND_EMAIL)
 ```
 
 ### 5. Call the Task
@@ -155,11 +161,11 @@ From HTTP controllers or other services:
 
 ```python
 @dataclass(kw_only=True)
-class UserController(TransactionController):
+class UserController(BaseTransactionController):
     _tasks_registry: TasksRegistry
 
     def create_user(self, body: CreateUserSchema) -> UserSchema:
-        user = self._user_service.create_user(...)
+        user = self._user_use_case.create_user(...)
 
         # Queue welcome email
         self._tasks_registry.send_email.delay(
@@ -173,13 +179,13 @@ class UserController(TransactionController):
 
 ### 6. Schedule the Task (Optional)
 
-For periodic tasks, add to beat schedule in `src/delivery/tasks/factories.py`:
+For periodic tasks, add to beat schedule in `src/fastdjango/entrypoints/celery/factories.py`:
 
 ```python
 from celery.schedules import crontab
 
 
-class CeleryAppFactory:
+class CeleryAppFactory(BaseFactory):
     def __call__(self) -> Celery:
         celery_app = Celery(...)
 
@@ -208,13 +214,13 @@ make celery-beat-dev
 ### 7. Write Tests
 
 ```python
-# tests/integration/tasks/test_send_email.py
+# tests/integration/celery/test_send_email.py
 from unittest.mock import MagicMock
 
 import pytest
 
-from core.email.services import EmailService
-from core.user.models import User
+from fastdjango.core.email.services import EmailService
+from fastdjango.core.user.models import User
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
     TestTasksRegistryFactory,
@@ -264,23 +270,23 @@ class TestSendEmailTask:
 
 ```python
 # Good - serializable
-def send_email(self, user_id: int, ...) -> SendEmailResult:
-    user = self._user_service.get_user_by_id(user_id)
+def send_email(self, user_id: int, ...) -> SendEmailResultSchema:
+    user = self._user_use_case.get_user_by_id(user_id)
 
 # Bad - Django models aren't serializable
-def send_email(self, user: User, ...) -> SendEmailResult:
+def send_email(self, user: User, ...) -> SendEmailResultSchema:
     ...
 ```
 
 ### Make Tasks Idempotent
 
 ```python
-def process_order(self, order_id: int) -> ProcessResult:
+def process_order(self, order_id: int) -> ProcessResultSchema:
     order = self._order_service.get_order_by_id(order_id)
 
     # Check if already processed
     if order.status == OrderStatus.PROCESSED:
-        return ProcessResult(already_processed=True)
+        return ProcessResultSchema(already_processed=True)
 
     # Process order
     ...
@@ -289,23 +295,23 @@ def process_order(self, order_id: int) -> ProcessResult:
 ### Handle Failures Gracefully
 
 ```python
-def send_notification(self, user_id: int) -> NotifyResult:
+def send_notification(self, user_id: int) -> NotifyResultSchema:
     try:
         self._push_service.send(user_id, message)
-        return NotifyResult(success=True)
+        return NotifyResultSchema(success=True)
     except PushServiceError as e:
         # Log error but don't crash
         logfire.error("Push failed", user_id=user_id, error=str(e))
-        return NotifyResult(success=False, error=str(e))
+        return NotifyResultSchema(success=False, error=str(e))
 ```
 
-### Use TypedDict for Results
+### Use BaseCelerySchema for Results
 
 ```python
-from typing import TypedDict
+from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
 
 
-class ProcessResult(TypedDict):
+class ProcessResultSchema(BaseCelerySchema):
     success: bool
     items_processed: int
     errors: list[str]
@@ -315,10 +321,10 @@ class ProcessResult(TypedDict):
 
 | Action | File |
 |--------|------|
-| Modify | `src/delivery/tasks/registry.py` |
-| Create | `src/delivery/tasks/tasks/send_email.py` |
-| Modify | `src/delivery/tasks/factories.py` |
-| Create | `tests/integration/tasks/test_send_email.py` |
+| Modify | `src/fastdjango/entrypoints/celery/registry.py` |
+| Create | `src/fastdjango/core/email/delivery/celery/send_email.py` |
+| Modify | `src/fastdjango/entrypoints/celery/factories.py` |
+| Create | `tests/integration/celery/test_send_email.py` |
 
 ## Verification
 
@@ -326,11 +332,11 @@ class ProcessResult(TypedDict):
 2. Trigger task in shell:
 
 ```python
-from ioc.container import ContainerFactory
-from delivery.tasks.registry import TasksRegistry
+from fastdjango.ioc.container import get_container
+from fastdjango.entrypoints.celery.factories import TasksRegistryFactory
 
-container = ContainerFactory()()
-registry = container.resolve(TasksRegistry)
+container = get_container()
+registry = container.resolve(TasksRegistryFactory)()
 result = registry.send_email.delay(user_id=1, subject="Test", body="Hello")
 print(result.get(timeout=10))
 ```

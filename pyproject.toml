@@ -53,9 +53,6 @@ docs = [
 requires = ["uv_build>=0.11.7,<0.12.0"]
 build-backend = "uv_build"
 
-[tool.uv.build-backend]
-namespace = true
-
 [tool.mypy]
 python_version = "3.14"
 strict = true
@@ -81,11 +78,11 @@ disable_error_code = [
 ]
 
 [[tool.mypy.overrides]]
-module = "api.*.migrations.*"
+module = "fastdjango.*.migrations.*"
 disable_error_code = ["no-untyped-def"]
 
 [tool.django-stubs]
-django_settings_module = "configs.django"
+django_settings_module = "fastdjango.infrastructure.django.settings"
 
 [tool.ty.rules]
 unused-ignore-comment = "ignore"
@@ -103,15 +100,13 @@ branch = true
 source = ["src"]
 omit = [
     # Entry points
-    "src/manage.py",
-    "src/delivery/http/app.py",
-    "src/delivery/tasks/app.py",
+    "src/fastdjango/manage.py",
+    "src/fastdjango/entrypoints/fastapi/app.py",
+    "src/fastdjango/entrypoints/celery/app.py",
     # Django admin (requires manual testing)
     "src/**/admin.py",
     # Observability/telemetry (requires external services)
     "src/**/logfire/**",
-    # Celery event handlers (signal-based, hard to test in isolation)
-    "src/delivery/tasks/events.py",
 ]
 
 [tool.coverage.report]

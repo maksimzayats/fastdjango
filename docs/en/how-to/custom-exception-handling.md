@@ -8,8 +8,8 @@ Convert service-level exceptions into meaningful HTTP error responses.
 
 ## Prerequisites
 
-- A controller extending `Controller` or `TransactionController`
-- Domain exceptions defined in your service
+- A controller extending `BaseController` or `BaseTransactionController`
+- Domain exceptions defined in `exceptions.py`
 
 ## The Pattern
 
@@ -34,11 +34,11 @@ def handle_exception(self, exception: Exception) -> Any:
 
 ### 1. Define Domain Exceptions
 
-Create exceptions in your service file:
+Create exceptions in the domain exception module:
 
 ```python
-# src/core/order/services.py
-from core.exceptions import ApplicationError
+# src/fastdjango/core/order/exceptions.py
+from fastdjango.core.exceptions import ApplicationError
 
 
 class OrderNotFoundError(ApplicationError):
@@ -60,8 +60,16 @@ class InvalidOrderStateError(ApplicationError):
 ### 2. Raise Exceptions in Service
 
 ```python
+from fastdjango.foundation.services import BaseService
+from fastdjango.core.order.exceptions import (
+    InsufficientStockError,
+    InvalidOrderStateError,
+    OrderAlreadyPaidError,
+    OrderNotFoundError,
+)
+
 @dataclass(kw_only=True)
-class OrderService:
+class OrderService(BaseService):
     def get_order_by_id(self, order_id: int) -> Order:
         try:
             return Order.objects.get(id=order_id)
@@ -87,24 +95,26 @@ class OrderService:
 ### 3. Map Exceptions in Controller
 
 ```python
-# src/delivery/http/controllers/order/controllers.py
+# src/fastdjango/core/order/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from core.order.services import (
+from fastdjango.core.order.exceptions import (
     InsufficientStockError,
     InvalidOrderStateError,
     OrderAlreadyPaidError,
     OrderNotFoundError,
+)
+from fastdjango.core.order.services import (
     OrderService,
 )
-from infrastructure.delivery.controllers import TransactionController
+from fastdjango.infrastructure.django.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
-class OrderController(TransactionController):
+class OrderController(BaseTransactionController):
     _order_service: OrderService
 
     def register(self, registry: APIRouter) -> None:
@@ -168,11 +178,11 @@ class OrderController(TransactionController):
 For more detailed error responses, create an error schema:
 
 ```python
-# src/delivery/http/controllers/common/schemas.py
-from pydantic import BaseModel
+# src/fastdjango/core/common/delivery/fastapi/schemas.py
+from fastdjango.foundation.delivery.fastapi.schemas import BaseFastAPISchema
 
 
-class ErrorResponseSchema(BaseModel):
+class ErrorResponseSchema(BaseFastAPISchema):
     error: str
     code: str
     details: dict | None = None

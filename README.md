@@ -18,12 +18,14 @@ featuring dependency injection, type-safe configuration, and comprehensive obser
 **Define a service** with business logic and database operations:
 
 ```python
-# src/core/todo/services.py
+# src/fastdjango/core/todo/services.py
 from django.db import transaction
-from core.todo.models import Todo
+
+from fastdjango.foundation.services import BaseService
+from fastdjango.core.todo.models import Todo
 
 
-class TodoService:
+class TodoService(BaseService):
     def get_todo_by_id(self, todo_id: int) -> Todo | None:
         return Todo.objects.filter(id=todo_id).first()
 
@@ -38,33 +40,37 @@ class TodoService:
 **Create a controller** — services are auto-injected via the IoC container:
 
 ```python
-# src/delivery/http/todo/controllers.py
+# src/fastdjango/core/todo/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 
-from core.todo.services import TodoService
-from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
-from infrastructure.delivery.controllers import Controller
+from fastdjango.core.todo.services import TodoService
+from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuthFactory
+from fastdjango.foundation.delivery.fastapi.schemas import BaseFastAPISchema
+from fastdjango.foundation.delivery.controllers import BaseController
 
 
-class TodoSchema(BaseModel):
+class TodoSchema(BaseFastAPISchema):
     id: int
     title: str
     completed: bool
 
 
-@dataclass
-class TodoController(Controller):
+@dataclass(kw_only=True)
+class TodoController(BaseController):
     _jwt_auth_factory: JWTAuthFactory
     _todo_service: TodoService  # Auto-injected
+
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
+        super().__post_init__()
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
             path="/v1/todos",
             endpoint=self.list_todos,
             methods=["GET"],
-            dependencies=[Depends(self._jwt_auth_factory())],
+            dependencies=[Depends(self._jwt_auth)],
         )
 
     def list_todos(self, request: AuthenticatedRequest) -> list[TodoSchema]:
@@ -72,7 +78,7 @@ class TodoController(Controller):
         return [TodoSchema.model_validate(t, from_attributes=True) for t in todos]
 ```
 
-> **The Golden Rule:** Controllers never access models directly → all database operations go through services.
+> **The Golden Rule:** Controllers never query models directly → database operations live in use cases or services.
 
 ## Prerequisites
 
@@ -99,7 +105,7 @@ Use lowercase letters, numbers, and hyphens (e.g., `my-awesome-api`, `backend-se
 ### 3. Install Dependencies
 
 ```bash
-uv sync --locked --all-extras --dev
+uv sync --locked --all-groups
 ```
 
 ### 4. Configure Environment
@@ -122,12 +128,14 @@ The `.env.example` contains sensible defaults for local development. Key variabl
 docker compose up -d postgres redis minio
 ```
 
-This starts:
+This starts the services you need for local development:
 
 - **PostgreSQL 18** — Primary database
-- **PgBouncer** — Connection pooling (transaction mode)
 - **Redis** — Cache and Celery broker
 - **MinIO** — S3-compatible object storage
+
+PgBouncer is used by the Dockerized app and migration services; Compose starts it
+automatically when those services need it.
 
 ### 6. Initialize Database and Storage
 
@@ -181,7 +189,7 @@ Full documentation is available at [fastdjango.zayats.dev](https://fastdjango.za
 
 | Component       | Technology        | Documentation                                                                              |
 |-----------------|-------------------|--------------------------------------------------------------------------------------------|
-| HTTP API        | FastAPI 0.128+    | [fastapi.tiangolo.com](https://fastapi.tiangolo.com/)                                      |
+| HTTP API        | FastAPI 0.136+    | [fastapi.tiangolo.com](https://fastapi.tiangolo.com/)                                      |
 | ORM & Admin     | Django 6+         | [docs.djangoproject.com](https://docs.djangoproject.com/en/stable/)                        |
 | Task Queue      | Celery 5.x        | [docs.celeryq.dev](https://docs.celeryq.dev/en/stable/)                                    |
 | Validation      | Pydantic 2.x      | [docs.pydantic.dev](https://docs.pydantic.dev/latest/)                                     |

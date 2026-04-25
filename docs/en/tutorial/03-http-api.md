@@ -13,11 +13,12 @@ Expose the Todo service via REST API with JWT authentication.
 
 | Action | File Path |
 |--------|-----------|
-| Create | `src/delivery/http/controllers/todo/__init__.py` |
-| Create | `src/delivery/http/controllers/todo/schemas.py` |
-| Create | `src/delivery/http/controllers/todo/controllers.py` |
-| Create | `src/core/todo/admin.py` |
-| Modify | `src/delivery/http/factories.py` |
+| Create | `src/fastdjango/core/todo/delivery/fastapi/__init__.py` |
+| Create | `src/fastdjango/core/todo/delivery/fastapi/schemas.py` |
+| Create | `src/fastdjango/core/todo/delivery/fastapi/controllers.py` |
+| Create | `src/fastdjango/core/todo/delivery/django/__init__.py` |
+| Create | `src/fastdjango/core/todo/delivery/django/admin.py` |
+| Modify | `src/fastdjango/entrypoints/fastapi/factories.py` |
 
 ## Concept Reference
 
@@ -26,29 +27,33 @@ Expose the Todo service via REST API with JWT authentication.
 ## Step 1: Create the Directory Structure
 
 ```bash
-mkdir -p src/delivery/http/controllers/todo
-touch src/delivery/http/controllers/todo/__init__.py
+mkdir -p src/fastdjango/core/todo/delivery/fastapi
+touch src/fastdjango/core/todo/delivery/fastapi/__init__.py
+mkdir -p src/fastdjango/core/todo/delivery/django
+touch src/fastdjango/core/todo/delivery/django/__init__.py
 ```
 
 ## Step 2: Define Pydantic Schemas
 
-Create request and response schemas in `src/delivery/http/controllers/todo/schemas.py`:
+Create request and response schemas in `src/fastdjango/core/todo/delivery/fastapi/schemas.py`:
 
 ```python
-# src/delivery/http/controllers/todo/schemas.py
+# src/fastdjango/core/todo/delivery/fastapi/schemas.py
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from fastdjango.foundation.delivery.fastapi.schemas import BaseFastAPISchema
 
 
-class CreateTodoRequestSchema(BaseModel):
+class CreateTodoRequestSchema(BaseFastAPISchema):
     """Request schema for creating a todo."""
 
     title: str = Field(..., min_length=1, max_length=200)
     description: str = Field(default="", max_length=1000)
 
 
-class UpdateTodoRequestSchema(BaseModel):
+class UpdateTodoRequestSchema(BaseFastAPISchema):
     """Request schema for updating a todo."""
 
     title: str | None = Field(default=None, min_length=1, max_length=200)
@@ -56,7 +61,7 @@ class UpdateTodoRequestSchema(BaseModel):
     completed: bool | None = None
 
 
-class TodoSchema(BaseModel):
+class TodoSchema(BaseFastAPISchema):
     """Response schema for a todo item."""
 
     id: int
@@ -68,7 +73,7 @@ class TodoSchema(BaseModel):
     user_id: int
 
 
-class TodoListSchema(BaseModel):
+class TodoListSchema(BaseFastAPISchema):
     """Response schema for a list of todos."""
 
     todos: list[TodoSchema]
@@ -83,35 +88,37 @@ Key points:
 
 ## Step 3: Create the Controller
 
-Create `src/delivery/http/controllers/todo/controllers.py`:
+Create `src/fastdjango/core/todo/delivery/fastapi/controllers.py`:
 
 ```python
-# src/delivery/http/controllers/todo/controllers.py
+# src/fastdjango/core/todo/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from core.todo.services import (
+from fastdjango.core.todo.exceptions import (
     TodoAccessDeniedError,
     TodoNotFoundError,
+)
+from fastdjango.core.todo.services import (
     TodoService,
 )
-from delivery.http.auth.jwt import (
+from fastdjango.core.authentication.delivery.fastapi.auth import (
     AuthenticatedRequest,
     JWTAuthFactory,
 )
-from delivery.http.controllers.todo.schemas import (
+from fastdjango.core.todo.delivery.fastapi.schemas import (
     CreateTodoRequestSchema,
     TodoListSchema,
     TodoSchema,
     UpdateTodoRequestSchema,
 )
-from infrastructure.delivery.controllers import TransactionController
+from fastdjango.infrastructure.django.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
-class TodoController(TransactionController):
+class TodoController(BaseTransactionController):
     """HTTP controller for todo operations."""
 
     _todo_service: TodoService
@@ -252,9 +259,9 @@ class TodoController(TransactionController):
 
 ## Key Controller Patterns
 
-### TransactionController
+### BaseTransactionController
 
-Extending `TransactionController` provides:
+Extending `BaseTransactionController` provides:
 
 - **Automatic transaction wrapping**: Database operations run in atomic transactions
 - **Exception handling**: Public methods are wrapped with `handle_exception`
@@ -293,16 +300,16 @@ Override `handle_exception` to map domain exceptions to HTTP responses:
 
 ## Step 4: Register the Controller
 
-Modify `src/delivery/http/factories.py` to include the TodoController:
+Modify `src/fastdjango/entrypoints/fastapi/factories.py` to include the TodoController:
 
 ```python
-# src/delivery/http/factories.py
+# src/fastdjango/entrypoints/fastapi/factories.py
 # Add this import at the top
-from delivery.http.controllers.todo.controllers import TodoController
+from fastdjango.core.todo.delivery.fastapi.controllers import TodoController
 
 
 @dataclass(kw_only=True)
-class FastAPIFactory:
+class FastAPIFactory(BaseFactory):
     # ... existing controller fields ...
     _todo_controller: TodoController  # Add this field
 
@@ -319,13 +326,13 @@ The controller is declared as a dataclass field and auto-resolved by the IoC con
 
 ## Step 5: Register with Django Admin
 
-Create `src/core/todo/admin.py`:
+Create `src/fastdjango/core/todo/delivery/django/admin.py`:
 
 ```python
-# src/core/todo/admin.py
+# src/fastdjango/core/todo/delivery/django/admin.py
 from django.contrib import admin
 
-from core.todo.models import Todo
+from fastdjango.core.todo.models import Todo
 
 
 @admin.register(Todo)
@@ -340,6 +347,14 @@ class TodoAdmin(admin.ModelAdmin):
         (None, {"fields": ["title", "description", "completed", "user"]}),
         ("Timestamps", {"fields": ["created_at", "updated_at"]}),
     ]
+```
+
+Import the admin module from `TodoConfig.ready()` so Django registers it:
+
+```python
+# src/fastdjango/core/todo/apps.py
+def ready(self) -> None:
+    from fastdjango.core.todo.delivery.django import admin as _todo_admin  # noqa: F401, I001, PLC0415
 ```
 
 ## Verification
@@ -363,7 +378,7 @@ curl -X POST http://localhost:8000/v1/users/ \
   -d '{"username": "testuser", "email": "test@example.com", "password": "SecurePass123!"}'
 
 # Get token
-curl -X POST http://localhost:8000/v1/users/me/token \
+curl -X POST http://localhost:8000/v1/auth/token \
   -H "Content-Type: application/json" \
   -d '{"username": "testuser", "password": "SecurePass123!"}'
 ```
@@ -389,7 +404,7 @@ curl http://localhost:8000/v1/todos \
 1. Create a superuser:
 
 ```bash
-uv run python src/manage.py createsuperuser
+uv run src/fastdjango/manage.py createsuperuser
 ```
 
 2. Visit http://localhost:8000/django/admin/

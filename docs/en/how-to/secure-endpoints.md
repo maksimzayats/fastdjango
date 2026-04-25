@@ -27,11 +27,11 @@ Protect endpoints with JWT authentication and role-based access control.
 ```python
 from dataclasses import dataclass
 
-from delivery.http.auth.jwt import JWTAuthFactory
+from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuthFactory
 
 
 @dataclass(kw_only=True)
-class ProductController(TransactionController):
+class ProductController(BaseTransactionController):
     _product_service: ProductService
     _jwt_auth_factory: JWTAuthFactory
 
@@ -92,7 +92,7 @@ def register(self, registry: APIRouter) -> None:
 Use `AuthenticatedRequest` to access the user:
 
 ```python
-from delivery.http.auth.jwt import AuthenticatedRequest
+from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest
 
 
 def list_favorites(self, request: AuthenticatedRequest) -> list[ProductSchema]:
@@ -103,26 +103,27 @@ def list_favorites(self, request: AuthenticatedRequest) -> list[ProductSchema]:
 ## Complete Example
 
 ```python
-# src/delivery/http/controllers/product/controllers.py
+# src/fastdjango/core/product/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from core.product.services import ProductNotFoundError, ProductService
-from delivery.http.auth.jwt import (
+from fastdjango.core.product.exceptions import ProductNotFoundError
+from fastdjango.core.product.services import ProductService
+from fastdjango.core.authentication.delivery.fastapi.auth import (
     AuthenticatedRequest,
     JWTAuthFactory,
 )
-from delivery.http.controllers.product.schemas import (
+from fastdjango.core.product.delivery.fastapi.schemas import (
     CreateProductRequestSchema,
     ProductSchema,
 )
-from infrastructure.delivery.controllers import TransactionController
+from fastdjango.infrastructure.django.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
-class ProductController(TransactionController):
+class ProductController(BaseTransactionController):
     _product_service: ProductService
     _jwt_auth_factory: JWTAuthFactory
 
@@ -207,26 +208,26 @@ class ProductController(TransactionController):
 For additional security, add rate limiting:
 
 ```python
-from delivery.http.services.throttler import IPThrottler, UserThrottler
+from fastapi import Depends
 from throttled import rate_limiter
+
+from fastdjango.core.shared.delivery.fastapi.throttling import IPThrottlerFactory
 
 
 @dataclass(kw_only=True)
-class AuthController(TransactionController):
-    _ip_throttler: IPThrottler
+class AuthController(BaseTransactionController):
+    _ip_throttler_factory: IPThrottlerFactory
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
-            path="/v1/auth/login",
-            endpoint=self.login,
+            path="/v1/auth/token",
+            endpoint=self.issue_token,
             methods=["POST"],
+            dependencies=[Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10)))],
         )
 
-    def login(self, request: Request, body: LoginSchema) -> TokenSchema:
-        # Rate limit by IP: 10 attempts per minute
-        self._ip_throttler.check(request, rate_limiter.per_min(10))
-
-        # ... login logic ...
+    def issue_token(self, request: Request, body: IssueTokenRequestSchema) -> TokenResponseSchema:
+        # ... token issuing logic ...
 ```
 
 ## Testing Secured Endpoints

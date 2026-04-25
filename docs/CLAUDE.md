@@ -98,8 +98,8 @@ Use MkDocs Material admonitions for callouts:
 Always specify the language and include file path comments for context:
 
 ```python
-# src/core/todo/services.py
-from core.exceptions import ApplicationError
+# src/fastdjango/core/todo/exceptions.py
+from fastdjango.core.exceptions import ApplicationError
 
 class TodoNotFoundError(ApplicationError):
     """Raised when a todo item cannot be found."""
@@ -120,8 +120,8 @@ In tutorials, use tables to show which files are created/modified:
 ```markdown
 | Action | File Path |
 |--------|-----------|
-| Create | `src/core/todo/models.py` |
-| Modify | `src/ioc/container.py` |
+| Create | `src/fastdjango/core/todo/models.py` |
+| Modify | `src/fastdjango/entrypoints/fastapi/factories.py` |
 ```
 
 ## Tutorial-Specific Guidelines
@@ -187,11 +187,11 @@ def get_todo_by_id(self, todo_id: int, user: User) -> Todo:
 Always emphasize the architectural boundary:
 
 ```
-Controller → Service → Model
+Controller → Use Case / Service → Model
 
-✅ Controller imports Service
-✅ Service imports Model
-❌ Controller imports Model (NEVER)
+✅ Controller calls a use case or service
+✅ Use cases and services own ORM access
+❌ Controller queries models directly
 ```
 
 ### ASCII Diagrams
@@ -211,8 +211,8 @@ Use ASCII art for architecture diagrams:
 ┌─────────────────────────────────────────────────────────────┐
 │                      Core Layer                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │                    Services                          │   │
-│  │   UserService  │  TodoService  │  HealthService     │   │
+│  │              Use Cases and Services                   │   │
+│  │   UserUseCase  │  TodoService  │  SystemHealthUseCase     │   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │                     Models                           │   │
@@ -246,10 +246,8 @@ For multi-step processes like adding a new domain, use checklists:
 - [ ] Create Django app in `core/<domain>/`
 - [ ] Add to `installed_apps` in Pydantic settings
 - [ ] Create model in `models.py`
-- [ ] Create service in `services.py`
-- [ ] Register service in IoC
+- [ ] Create use case or service
 - [ ] Create controller
-- [ ] Register controller in IoC
 - [ ] Update factory
 - [ ] Run migrations
 - [ ] Write tests
@@ -346,7 +344,7 @@ Key patterns:
 | Element | Convention |
 |---------|------------|
 | Headings | Title Case for H1, Sentence case for H2+ |
-| Code paths | Backticks: `src/core/todo/` |
+| Code paths | Backticks: `src/fastdjango/core/todo/` |
 | Commands | Code blocks with `bash` language |
 | Python code | Include file path as comment |
 | Lists | Use `-` for unordered, `1.` for ordered |

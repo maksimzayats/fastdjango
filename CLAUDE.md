@@ -50,43 +50,43 @@ All code must be compatible with `mypy --strict` mode.
 
 ## Architecture Overview
 
-This is a Django + Celery application using **diwire** for dependency injection.
+This is a FastAPI + Django + Celery application using **diwire** for dependency injection.
 
 ### Module Structure
 
-- **`configs/`** - Application configuration (Django settings, logging, Pydantic settings classes).
-- **`core/`** - Business logic, domain models, and **services**. All database operations are encapsulated in services.
-- **`delivery/`** - External interfaces (HTTP API, Celery tasks, JWT auth, delivery-specific services). **Controllers NEVER access models directly.**
-- **`infrastructure/`** - Cross-cutting concerns (settings adapters, controller base classes, telemetry).
-- **`ioc/`** - Dependency injection container configuration.
-- **`delivery/tasks/`** - Celery task definitions using controller pattern.
+- **`src/fastdjango/core/`** - Business logic, domain models, use cases, services, and domain-owned delivery.
+- **`src/fastdjango/core/shared/`** - Shared component helpers, such as FastAPI request and throttling helpers.
+- **`src/fastdjango/foundation/`** - Neutral base contracts (`BaseService`, `BaseUseCase`, `BaseFactory`, `BaseController`, schemas, DTOs).
+- **`src/fastdjango/entrypoints/`** - FastAPI, Celery, and Django composition roots.
+- **`src/fastdjango/infrastructure/`** - Cross-cutting concerns (Django settings, transaction controllers, telemetry, logging, throttling).
+- **`src/fastdjango/ioc/`** - Dependency injection container configuration.
 
-## Service Layer Architecture
+## Use Case / Service Layer Architecture
 
 **CRITICAL**: All new features must follow this pattern. Controllers must NEVER import or use Django models directly.
 
 ### The Golden Rule
 
 ```
-Controller → Service → Model
+Controller → Use Case / Service → Model
 
-✅ Controller imports Service
-✅ Service imports Model
-❌ Controller imports Model (NEVER)
+✅ Controller calls a use case or service
+✅ Use cases and services own ORM access
+❌ Controller queries models directly
 ```
 
 ### Correct Pattern
 
 ```python
-# delivery/http/user/controllers.py
-from core.user.services.user import UserService  # ✅ Import service, not model
+# src/fastdjango/core/user/delivery/fastapi/controllers.py
+from fastdjango.core.user.use_cases import UserUseCase  # ✅ Import use case, not model
 
-class UserController(Controller):
-    def __init__(self, user_service: UserService) -> None:
-        self._user_service = user_service
+class UserController(BaseController):
+    def __init__(self, user_use_case: UserUseCase) -> None:
+        self._user_use_case = user_use_case
 
     def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
-        user = self._user_service.get_user_by_id(user_id)  # ✅ Use service
+        user = self._user_use_case.get_user_by_id(user_id)  # ✅ Use use case
         return UserSchema.model_validate(user, from_attributes=True)
 ```
 
@@ -94,9 +94,9 @@ class UserController(Controller):
 
 ```python
 # ❌ WRONG - Direct model import in controller
-from core.user.models import User
+from fastdjango.core.user.models import User
 
-class UserController(Controller):
+class UserController(BaseController):
     def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
         user = User.objects.get(id=user_id)  # ❌ Direct ORM access
         return UserSchema.model_validate(user, from_attributes=True)
@@ -104,17 +104,17 @@ class UserController(Controller):
 
 ### Creating Services
 
-Services belong in `core/<domain>/services.py` or `core/<domain>/services/<service_name>.py` for domains with multiple services:
+Services belong in `src/fastdjango/core/<domain>/services.py` or `src/fastdjango/core/<domain>/services/<service_name>.py` for domains with multiple services. Domain exceptions belong in `src/fastdjango/core/<domain>/exceptions.py`.
 
 ```python
-# core/item/services.py
+# src/fastdjango/core/item/services.py
 from django.db import transaction
-from core.item.models import Item
 
-class ItemNotFoundError(Exception):
-    """Domain exception for missing items."""
+from fastdjango.core.item.exceptions import ItemNotFoundError
+from fastdjango.foundation.services import BaseService
+from fastdjango.core.item.models import Item
 
-class ItemService:
+class ItemService(BaseService):
     def get_item_by_id(self, item_id: int) -> Item:
         try:
             return Item.objects.get(id=item_id)
@@ -131,7 +131,7 @@ class ItemService:
 
 ### Registering Services
 
-Services are **auto-wired** by the IoC container - no explicit registration needed. When a service is resolved, `diwire` builds the dependency graph from constructor type annotations and caches scoped instances at the app root scope.
+Services are **auto-wired** by the IoC container - no explicit registration needed. When a service is resolved, `diwire` builds the dependency graph from constructor type annotations.
 
 ```python
 # No registration needed - just resolve the service
@@ -143,7 +143,7 @@ Manual registration is optional and uses native `diwire` APIs (`add`, `add_facto
 ### Data Flow
 
 ```
-HTTP Request → Controller → Service → Model → Database
+HTTP Request → Controller → Use Case / Service → Model → Database
                    ↓            ↓
               Pydantic      Domain
               Schemas     Exceptions
@@ -151,15 +151,19 @@ HTTP Request → Controller → Service → Model → Database
 
 ### Acceptable Exceptions
 
-Direct model imports are acceptable ONLY in:
+Direct ORM access belongs in:
+- **Use cases and services** - Application behavior and persistence
 - **Django Admin** (`admin.py`) - Required for admin registration
 - **Migrations** - Auto-generated by Django
 - **Tests** - For creating test data with factories
 
+Delivery code may use model types for annotations, but it should not query the
+ORM directly.
+
 ### Entry Points
 
-1. **HTTP API**: `delivery/http/app.py` (FastAPI)
-2. **Celery Worker**: `delivery/tasks/app.py`
+1. **FastAPI App**: `src/fastdjango/entrypoints/fastapi/app.py`
+2. **Celery Worker**: `src/fastdjango/entrypoints/celery/app.py`
 
 All entry points share the same IoC container for consistent dependency resolution.
 
@@ -169,13 +173,12 @@ The container uses `diwire` recursive auto-wiring. Services are resolved by type
 
 ### Container Setup
 
-The container is created via `ContainerFactory` in `src/ioc/container.py`:
+The container is created via `get_container()` in `src/fastdjango/ioc/container.py`:
 
 ```python
-from ioc.container import ContainerFactory
+from fastdjango.ioc.container import get_container
 
-container_factory = ContainerFactory()
-container = container_factory()  # Creates Container
+container = get_container()
 ```
 
 ### Container
@@ -184,7 +187,7 @@ The `Container` automatically registers services when resolved:
 
 ```python
 # No explicit registration needed - just resolve
-user_service = container.resolve(UserService)
+user_use_case = container.resolve(UserUseCase)
 
 # Pydantic Settings are auto-detected and registered with factory
 jwt_settings = container.resolve(JWTServiceSettings)  # Loads from env vars
@@ -193,7 +196,7 @@ jwt_settings = container.resolve(JWTServiceSettings)  # Loads from env vars
 The container:
 1. Recursively resolves constructor dependencies from type hints
 2. Integrates with Pydantic `BaseSettings` resolution
-3. Caches scoped instances in the app root scope by default
+3. Uses `diwire` defaults for instance lifetime and scope
 
 ### Manual Registration (When Needed)
 
@@ -215,18 +218,19 @@ container.add_instance(mock_service, provides=MyConcreteService)
 ```python
 # The entire dependency graph is auto-resolved
 controller = container.resolve(UserController)
-# UserController -> UserService -> (auto-registered)
+# UserController -> UserUseCase -> (auto-registered)
 # UserController -> JWTAuthFactory -> JWTService -> JWTServiceSettings (auto from env)
 ```
 
 ## Controller Pattern
 
-Controllers are defined in `infrastructure/delivery/controllers.py`.
+Base controllers are defined in `src/fastdjango/foundation/delivery/controllers.py`.
+The sync Django transaction controller lives in `src/fastdjango/infrastructure/django/controllers.py`.
 
 ### Controller (HTTP API, Celery)
 
 ```python
-class Controller(ABC):
+class BaseController(ABC):
     @abstractmethod
     def register(self, registry: Any) -> None: ...
 
@@ -243,16 +247,16 @@ Controllers auto-wrap public methods with exception handling. Override `handle_e
 ```python
 # ✅ CORRECT - Sync handler (recommended)
 def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
-    user = self._user_service.get_user_by_id(user_id)
+    user = self._user_use_case.get_user_by_id(user_id)
     return UserSchema.model_validate(user, from_attributes=True)
 
 # ❌ WRONG - Async handler calling sync service directly (blocks event loop)
 async def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
-    user = self._user_service.get_user_by_id(user_id)  # Blocks the event loop!
+    user = self._user_use_case.get_user_by_id(user_id)  # Blocks the event loop!
     return UserSchema.model_validate(user, from_attributes=True)
 ```
 
-**Thread pool configuration:** Control parallelism via `ANYIO_THREAD_LIMITER_TOKENS` environment variable (default: 40 concurrent threads per worker). See `src/infrastructure/anyio/configurator.py`.
+**Thread pool configuration:** Control parallelism via `ANYIO_THREAD_LIMITER_TOKENS` environment variable (default: 40 concurrent threads per worker). See `src/fastdjango/infrastructure/anyio/configurator.py`.
 
 ### Async Handlers (Advanced)
 
@@ -264,7 +268,7 @@ from asgiref.sync import sync_to_async
 async def get_user_async(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
     # thread_sensitive=False for read-only operations (parallel execution)
     user = await sync_to_async(
-        self._user_service.get_user_by_id,
+        self._user_use_case.get_user_by_id,
         thread_sensitive=False,
     )(user_id)
     return UserSchema.model_validate(user, from_attributes=True)
@@ -272,7 +276,7 @@ async def get_user_async(self, request: AuthenticatedRequest, user_id: int) -> U
 async def create_user_async(self, request: AuthenticatedRequest, body: CreateUserRequest) -> UserSchema:
     # thread_sensitive=True for write operations (transaction safety)
     user = await sync_to_async(
-        self._user_service.create_user,
+        self._user_use_case.create_user,
         thread_sensitive=True,
     )(**body.model_dump())
     return UserSchema.model_validate(user, from_attributes=True)
@@ -285,17 +289,17 @@ async def create_user_async(self, request: AuthenticatedRequest, body: CreateUse
 ### HTTP Controller Registration
 
 ```python
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from fastapi import APIRouter, Depends
-from delivery.http.auth.jwt import JWTAuth, JWTAuthFactory
+from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuthFactory
 
-@dataclass
-class UserController(Controller):
+@dataclass(kw_only=True)
+class UserController(BaseController):
     _jwt_auth_factory: JWTAuthFactory
-    _jwt_auth: JWTAuth = field(init=False)
 
     def __post_init__(self) -> None:
         self._jwt_auth = self._jwt_auth_factory()
+        super().__post_init__()
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
@@ -312,21 +316,19 @@ class UserController(Controller):
 Use `JWTAuthFactory` for JWT authentication with optional permission checks:
 
 ```python
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from fastapi import APIRouter, Depends
-from delivery.http.auth.jwt import JWTAuth, JWTAuthFactory
+from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuthFactory
 
-@dataclass
-class AdminController(Controller):
+@dataclass(kw_only=True)
+class AdminController(BaseController):
     _jwt_auth_factory: JWTAuthFactory
-    _jwt_auth: JWTAuth = field(init=False)
-    _staff_auth: JWTAuth = field(init=False)
-    _superuser_auth: JWTAuth = field(init=False)
 
     def __post_init__(self) -> None:
         self._jwt_auth = self._jwt_auth_factory()  # Basic auth
         self._staff_auth = self._jwt_auth_factory(require_staff=True)
         self._superuser_auth = self._jwt_auth_factory(require_superuser=True)
+        super().__post_init__()
 
     def register(self, registry: APIRouter) -> None:
         # Staff-only endpoint
@@ -347,9 +349,12 @@ Permission denied returns `403 Forbidden` (not 401 - user is authenticated but n
 ### Celery Task Controller Registration
 
 ```python
-class PingTaskController(Controller):
+PING_TASK_NAME = "ping"
+
+
+class PingTaskController(BaseController):
     def register(self, registry: Celery) -> None:
-        registry.task(name=TaskName.PING)(self.ping)
+        registry.task(name=PING_TASK_NAME)(self.ping)
 ```
 
 ## Testing Architecture
@@ -378,8 +383,7 @@ Each test gets a fresh container (function-scoped fixtures in `tests/integration
 ```python
 @pytest.fixture(scope="function")
 def container() -> Container:
-    container_factory = ContainerFactory()
-    return container_factory()
+    return get_container()
 
 @pytest.fixture(scope="function")
 def test_client_factory(container: Container) -> TestClientFactory:
@@ -430,6 +434,9 @@ class TestUserController:
 Use `TestTasksRegistryFactory` to get the registry and `TestCeleryWorkerFactory` as context manager:
 
 ```python
+from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
+
+
 class TestPingTaskController:
     def test_ping_task(
         self,
@@ -438,9 +445,9 @@ class TestPingTaskController:
     ) -> None:
         registry = tasks_registry_factory()
         with celery_worker_factory():  # Starts worker in context
-            ping_result = registry.ping.delay().get(timeout=1)
+            ping_result = registry.ping.delay().get(timeout=10)
 
-        assert ping_result == PingResult(result="pong")
+        assert ping_result == PingResultSchema(result="pong")
 ```
 
 ### Overriding IoC Registrations in Tests
@@ -480,9 +487,10 @@ Settings classes are auto-registered in IoC and injected into services.
 
 ## Test Environment
 
-Tests use `.env.test` file loaded in `tests/conftest.py`. Required services:
-- PostgreSQL (or SQLite for unit tests)
-- Redis (for Celery tests)
+Tests load `.env.test` when present and fall back to `.env.test.example`.
+The default test configuration uses SQLite, and Celery test factories use an
+in-memory broker/backend. Add PostgreSQL or Redis-backed tests only when a
+project-specific integration scenario needs them.
 
 ## Code Quality & Best Practices
 
@@ -504,7 +512,7 @@ All new code MUST adhere to these requirements:
 4. **Testing** - Maintain 80%+ code coverage. Use provided test factories. Write both unit and integration tests.
 
 5. **Code Review Checklist**:
-   - Does the code follow the Controller → Service → Model pattern?
+   - Does the code follow the Controller → Use Case / Service → Model pattern?
    - Are all dependencies injected via IoC container?
    - Are there proper type hints on all functions?
    - Are domain exceptions used instead of generic ones?

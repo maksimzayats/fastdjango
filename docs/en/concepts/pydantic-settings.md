@@ -16,13 +16,13 @@ class JWTServiceSettings(BaseSettings):
 
     secret_key: SecretStr
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 15
 ```
 
 Environment variables:
 
 ```bash
-JWT_SECRET_KEY=my-secret-key
+JWT_SECRET_KEY=my-secret-key-with-at-least-32-bytes
 JWT_ALGORITHM=HS512
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```
@@ -44,11 +44,12 @@ Settings classes use `env_prefix` to namespace variables:
 |--------|---------------|-------------------|
 | `DJANGO_` | `DjangoSecuritySettings` | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG` |
 | `JWT_` | `JWTServiceSettings` | `JWT_SECRET_KEY`, `JWT_ALGORITHM` |
-| `AWS_S3_` | `AWSS3Settings` | `AWS_S3_ACCESS_KEY_ID`, `AWS_S3_ENDPOINT_URL` |
+| `AWS_S3_` | `DjangoStorageSettings` | `AWS_S3_ACCESS_KEY_ID`, `AWS_S3_ENDPOINT_URL` |
 | `CORS_` | `CORSSettings` | `CORS_ALLOW_ORIGINS`, `CORS_ALLOW_METHODS` |
 | `LOGFIRE_` | `LogfireSettings` | `LOGFIRE_ENABLED`, `LOGFIRE_TOKEN` |
+| `INSTRUMENTOR_` | `InstrumentorSettings` | `INSTRUMENTOR_FASTAPI_EXCLUDED_URLS` |
 | `ANYIO_` | `AnyIOSettings` | `ANYIO_THREAD_LIMITER_TOKENS` |
-| `LOGGING_` | (logging config) | `LOGGING_LEVEL` |
+| `LOGGING_` | `LoggingSettings` | `LOGGING_LEVEL` |
 
 Unprefixed variables:
 
@@ -78,18 +79,17 @@ No explicit registration is needed for settings classes.
 Pydantic validates settings at startup:
 
 ```python
-class DatabaseSettings(BaseSettings):
+class DjangoDatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DATABASE_")
 
-    url: str  # Required - no default
-    pool_size: int = Field(default=5, ge=1, le=100)
-    timeout: int = Field(default=30, ge=1)
+    url: SecretStr  # Required - no default
+    conn_max_age: int = 600
 ```
 
 If `DATABASE_URL` is missing, the application fails fast with a clear error:
 
 ```
-ValidationError: 1 validation error for DatabaseSettings
+ValidationError: 1 validation error for DjangoDatabaseSettings
 url
   field required
 ```
@@ -123,23 +123,30 @@ print(settings)  # secret_key='**********'
 The project loads `.env` files via `python-dotenv`:
 
 ```python
-# src/infrastructure/frameworks/django/configurator.py
+# src/fastdjango/infrastructure/django/configurator.py
 from dotenv import load_dotenv
 
+from fastdjango.foundation.configurators import BaseConfigurator
 
-class DjangoConfigurator:
+
+class DjangoConfigurator(BaseConfigurator):
     def configure(self) -> None:
         load_dotenv()  # Loads .env file
         # ...
 ```
 
-For tests, `.env.test` is loaded:
+For tests, `.env.test` is loaded when present; otherwise the committed
+`.env.test.example` fallback is used:
 
 ```python
 # tests/conftest.py
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
-load_dotenv(".env.test")
+test_env_path = find_dotenv(".env.test", raise_error_if_not_found=False)
+if test_env_path:
+    load_dotenv(test_env_path, override=True)
+else:
+    load_dotenv(".env.test.example", override=True)
 ```
 
 ## Settings in Services
@@ -147,8 +154,10 @@ load_dotenv(".env.test")
 Inject settings into services:
 
 ```python
+from fastdjango.foundation.services import BaseService
+
 @dataclass(kw_only=True)
-class JWTService:
+class JWTService(BaseService):
     _settings: JWTServiceSettings
 
     def issue_access_token(self, user_id: int) -> str:
@@ -171,7 +180,7 @@ The IoC container resolves settings automatically.
 Django settings are adapted from Pydantic using `PydanticSettingsAdapter`:
 
 ```python
-# src/configs/django.py
+# src/fastdjango/infrastructure/django/settings.py
 class DjangoSecuritySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DJANGO_")
 
@@ -180,8 +189,9 @@ class DjangoSecuritySettings(BaseSettings):
 
 
 class DjangoDatabaseSettings(BaseSettings):
-    # Multiple settings combined
-    url: str = Field(alias="DATABASE_URL")
+    model_config = SettingsConfigDict(env_prefix="DATABASE_")
+
+    url: SecretStr
     conn_max_age: int = 600
 
 
@@ -206,34 +216,47 @@ from pydantic import computed_field
 
 
 class DjangoStorageSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="AWS_S3_")
+    model_config = SettingsConfigDict(populate_by_name=True)
 
-    access_key_id: str
-    secret_access_key: SecretStr
-    endpoint_url: str
-    public_endpoint_url: str | None = None
-    public_bucket_name: str = "public"
-    protected_bucket_name: str = "protected"
+    access_key_id: str = Field(validation_alias="AWS_S3_ACCESS_KEY_ID")
+    secret_access_key: SecretStr = Field(validation_alias="AWS_S3_SECRET_ACCESS_KEY")
+    endpoint_url: str = Field(validation_alias="AWS_S3_ENDPOINT_URL")
+    public_endpoint_url: str | None = Field(
+        default=None,
+        validation_alias="AWS_S3_PUBLIC_ENDPOINT_URL",
+    )
+    public_bucket_name: str = Field(
+        default="public",
+        validation_alias="AWS_S3_PUBLIC_BUCKET_NAME",
+    )
+    protected_bucket_name: str = Field(
+        default="protected",
+        validation_alias="AWS_S3_PROTECTED_BUCKET_NAME",
+    )
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def storages(self) -> dict[str, dict[str, str]]:
         """Generate Django STORAGES configuration."""
+        base_options = {
+            "access_key": self.access_key_id,
+            "secret_key": self.secret_access_key.get_secret_value(),
+            "endpoint_url": self.endpoint_url,
+        }
+
         return {
             "default": {
-                "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+                "BACKEND": "storages.backends.s3.S3Storage",
                 "OPTIONS": {
-                    "access_key": self.access_key_id,
-                    "secret_key": self.secret_access_key.get_secret_value(),
+                    **base_options,
                     "bucket_name": self.protected_bucket_name,
-                    "endpoint_url": self.endpoint_url,
                 },
             },
             "staticfiles": {
-                "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
+                "BACKEND": "storages.backends.s3.S3Storage",
                 "OPTIONS": {
+                    **base_options,
                     "bucket_name": self.public_bucket_name,
-                    "endpoint_url": self.endpoint_url,
                 },
             },
         }
@@ -244,15 +267,14 @@ class DjangoStorageSettings(BaseSettings):
 Parse complex values from environment:
 
 ```python
-class HTTPSettings(BaseSettings):
-    allowed_hosts: list[str] = ["*"]  # From ALLOWED_HOSTS="host1,host2"
-    csrf_trusted_origins: list[str] = []
+class FastAPISettings(BaseSettings):
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
 
 
 class CORSSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CORS_")
 
-    allow_origins: list[str] = ["*"]
+    allow_origins: list[str] = ["http://localhost"]
     allow_methods: list[str] = ["*"]
     allow_headers: list[str] = ["*"]
     allow_credentials: bool = True
@@ -275,7 +297,7 @@ class JWTServiceSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="JWT_")
     secret_key: SecretStr
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 15
 ```
 
 ### Do: Use Defaults for Optional Config
@@ -292,7 +314,7 @@ class LogfireSettings(BaseSettings):
 
 ```python
 # Settings validated when container creates them
-container = ContainerFactory()()
+container = get_container()
 # If any required env vars are missing, fails here
 ```
 

@@ -37,11 +37,11 @@ Before starting, ensure you have:
 Throughout this tutorial, we follow the core architectural principle:
 
 ```
-Controller → Service → Model
+Controller → Use Case / Service → Model
 
-✅ Controller imports Service
-✅ Service imports Model
-❌ Controller imports Model (NEVER)
+✅ Controller calls a use case or service
+✅ Use cases and services own ORM access
+❌ Controller queries models directly
 ```
 
 This separation ensures:
