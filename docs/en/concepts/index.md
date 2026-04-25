@@ -6,7 +6,7 @@ Understand the architectural patterns and design decisions behind the template.
 
 | Concept | What You'll Learn |
 |---------|-------------------|
-| [Service Layer](service-layer.md) | Why controllers don't access models directly |
+| [Service Layer](service-layer.md) | Why controllers use use cases or services instead of querying models directly |
 | [IoC Container](ioc-container.md) | How dependency injection works |
 | [Controller Pattern](controller-pattern.md) | Unified handling for HTTP and Celery |
 | [Factory Pattern](factory-pattern.md) | Complex object construction |
@@ -27,10 +27,9 @@ The architecture follows a layered approach with clear boundaries:
                │                            │
                ▼                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Infrastructure                           │
+│              Composition, Foundation, Infrastructure        │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │              IoC Container (diwire)                    │   │
-│  │   Auto-registration │ Settings │ Factories           │   │
+│  │ Entrypoints │ IoC (diwire) │ Base classes │ Settings │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
                │                            │
@@ -53,11 +52,11 @@ The architecture follows a layered approach with clear boundaries:
 ### 1. The Golden Rule
 
 ```
-Controller → Service → Model
+Controller → Use Case / Service → Model
 
-✅ Controller imports Service
-✅ Service imports Model
-❌ Controller imports Model (NEVER)
+✅ Controller calls a use case or service
+✅ Use cases and services own ORM access
+❌ Controller queries models directly
 ```
 
 This boundary ensures testability and maintainability.

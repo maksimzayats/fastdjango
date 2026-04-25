@@ -82,7 +82,7 @@ make docs-build
 
 Runs:
 ```bash
-uvicorn fastdjango.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn fastdjango.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - Hot reloading enabled
@@ -93,7 +93,11 @@ uvicorn fastdjango.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 80
 
 Runs:
 ```bash
-celery -A fastdjango.entrypoints.celery.app:app worker --loglevel=info
+OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run watchmedo auto-restart \
+    --directory=src \
+    --pattern='*.py' \
+    --recursive \
+    -- celery -A fastdjango.entrypoints.celery.app worker --loglevel=DEBUG
 ```
 
 - Processes background tasks
@@ -104,7 +108,11 @@ celery -A fastdjango.entrypoints.celery.app:app worker --loglevel=info
 
 Runs:
 ```bash
-celery -A fastdjango.entrypoints.celery.app:app beat --loglevel=info
+uv run watchmedo auto-restart \
+    --directory=src \
+    --pattern='*.py' \
+    --recursive \
+    -- celery -A fastdjango.entrypoints.celery.app beat --loglevel=DEBUG
 ```
 
 - Schedules periodic tasks
@@ -115,8 +123,8 @@ celery -A fastdjango.entrypoints.celery.app:app beat --loglevel=info
 
 Runs:
 ```bash
-ruff format src tests
-ruff check --fix src tests
+uv run ruff format .
+uv run ruff check --fix-only .
 ```
 
 - Formats Python files
@@ -126,10 +134,10 @@ ruff check --fix src tests
 
 Runs multiple type checkers:
 ```bash
-ruff check src tests
-ty check src tests
-pyrefly check src tests
-mypy src tests
+uv run ruff check .
+uv run ty check .
+uv run pyrefly check src/
+uv run --env-file .env.test.example mypy src/ tests/
 ```
 
 - All must pass for CI
@@ -139,18 +147,18 @@ mypy src tests
 
 Runs:
 ```bash
-pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=80
+uv run pytest tests/
 ```
 
 - Requires 80%+ code coverage
-- Generates coverage report
+- Generates an HTML coverage report in `htmlcov/`
 - Fails if coverage is below threshold
 
 ### `make migrate`
 
 Runs:
 ```bash
-uv run python src/fastdjango/manage.py migrate
+uv run src/fastdjango/manage.py migrate
 ```
 
 - Applies all pending migrations
@@ -160,7 +168,7 @@ uv run python src/fastdjango/manage.py migrate
 
 Runs:
 ```bash
-uv run python src/fastdjango/manage.py makemigrations
+uv run src/fastdjango/manage.py makemigrations
 ```
 
 - Detects model changes
@@ -170,7 +178,7 @@ uv run python src/fastdjango/manage.py makemigrations
 
 Runs:
 ```bash
-mkdocs serve -f docs/mkdocs.yml
+uv run mkdocs serve --livereload -f docs/mkdocs.yml
 ```
 
 - Serves docs at http://localhost:8000
@@ -180,10 +188,10 @@ mkdocs serve -f docs/mkdocs.yml
 
 Runs:
 ```bash
-mkdocs build -f docs/mkdocs.yml
+uv run mkdocs build -f docs/mkdocs.yml
 ```
 
-- Builds static HTML to `docs/site/`
+- Builds static HTML to `site/`
 - Validates all links
 
 ## Common Workflows

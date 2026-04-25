@@ -28,7 +28,7 @@ This causes problems:
 The service layer acts as an intermediary:
 
 ```python
-# ✅ Correct - Controller uses service
+# ✅ Correct - Controller uses a use case or service
 from fastdjango.core.user.use_cases import UserUseCase
 
 class UserController:
@@ -43,14 +43,14 @@ class UserController:
 ## The Golden Rule
 
 ```
-Controller → Service → Model
+Controller → Use Case / Service → Model
 
-✅ Controller imports Service
-✅ Service imports Model
-❌ Controller imports Model (NEVER)
+✅ Controller calls a use case or service
+✅ Use cases and services own ORM access
+❌ Controller queries models directly
 ```
 
-This boundary is absolute. Controllers never import models.
+This boundary is absolute: controllers handle delivery concerns, not ORM queries.
 
 ## Service Structure
 
@@ -62,13 +62,10 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
+from fastdjango.core.todo.exceptions import TodoNotFoundError
 from fastdjango.foundation.services import BaseService
 from fastdjango.core.todo.models import Todo
 from fastdjango.core.user.models import User
-
-
-class TodoNotFoundError(Exception):
-    """Domain exception for missing todos."""
 
 
 @dataclass(kw_only=True)
@@ -161,6 +158,10 @@ Each layer has a single responsibility:
 Services raise meaningful exceptions:
 
 ```python
+# src/fastdjango/core/todo/exceptions.py
+from fastdjango.core.exceptions import ApplicationError
+
+
 class TodoNotFoundError(ApplicationError):
     """Raised when a todo cannot be found."""
 

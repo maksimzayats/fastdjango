@@ -49,7 +49,7 @@ def register(self, registry: APIRouter) -> None:
 
 # Celery Task Controller
 def register(self, registry: Celery) -> None:
-    registry.task(name=TaskName.PING)(self.ping)
+    registry.task(name=PING_TASK_NAME)(self.ping)
 ```
 
 ### 2. Automatic Exception Handling
@@ -101,6 +101,8 @@ inside synchronous services or use cases.
 
 ```python
 # src/fastdjango/infrastructure/django/controllers.py
+from inspect import iscoroutinefunction
+
 from fastdjango.foundation.delivery.controllers import BaseController
 from fastdjango.infrastructure.django.traced_atomic import traced_atomic
 
@@ -112,12 +114,18 @@ class BaseTransactionController(BaseController, ABC):
         return super()._wrap_route(method)
 
     def _add_transaction(self, method: Callable[..., Any]) -> Callable[..., Any]:
+        method_name = getattr(method, "__name__", type(method).__name__)
+
+        if iscoroutinefunction(method):
+            msg = f"Async route '{method_name}' cannot use BaseTransactionController."
+            raise TypeError(msg)
+
         @wraps(method)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             with traced_atomic(
                 "controller transaction",
                 controller=type(self).__name__,
-                method=method.__name__,
+                method=method_name,
             ):
                 return method(*args, **kwargs)
 
@@ -128,6 +136,7 @@ This wraps methods with:
 
 - `traced_atomic` - Combined database transaction and Logfire tracing
 - Controller and method names as span attributes
+- A sync-only guard so async routes use `BaseAsyncController`
 
 ## HTTP Controller Example
 
@@ -190,15 +199,16 @@ class UserController(BaseTransactionController):
 from celery import Celery
 
 from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
-from fastdjango.entrypoints.celery.registry import TaskName
 from fastdjango.foundation.delivery.controllers import BaseController
+
+PING_TASK_NAME = "ping"
 
 
 class PingTaskController(BaseController):
     """Simple task controller with no dependencies."""
 
     def register(self, registry: Celery) -> None:
-        registry.task(name=TaskName.PING)(self.ping)
+        registry.task(name=PING_TASK_NAME)(self.ping)
 
     def ping(self) -> PingResultSchema:
         return PingResultSchema(result="pong")
@@ -296,13 +306,12 @@ Exceptions are caught and handled uniformly.
 
 ### 4. Easy Testing
 
-Mock dependencies, test business logic:
+Test business logic at the use-case or service layer, and keep controller tests focused on delivery behavior:
 
 ```python
-def test_get_user():
-    mock_service = MagicMock()
-    controller = UserController(_user_use_case=mock_service, ...)
-    # Test controller methods directly
+def test_get_user_by_id(user_use_case: UserUseCase):
+    user = user_use_case.get_user_by_id(1)
+    assert user is not None
 ```
 
 ## Summary

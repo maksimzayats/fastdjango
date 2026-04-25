@@ -6,9 +6,10 @@ Reference for container configuration and management.
 
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
-| `postgres` | `postgres:17` | 5432 | Database |
-| `redis` | `redis:7` | 6379 | Cache, Celery broker |
-| `minio` | `minio/minio` | 9000, 9001 | Object storage (S3-compatible) |
+| `postgres` | `postgres:18-alpine` | 5432 | Database |
+| `pgbouncer` | `edoburu/pgbouncer` | internal | PostgreSQL connection pool |
+| `redis` | `redis:latest` | 6379 | Cache, throttling, Celery broker/result backend |
+| `minio` | `minio/minio:latest` | 9000, 9001 | Object storage (S3-compatible) |
 
 ## PostgreSQL
 
@@ -16,21 +17,27 @@ Reference for container configuration and management.
 
 ```yaml
 postgres:
-  image: postgres:17
+  image: postgres:18-alpine
   environment:
     POSTGRES_USER: postgres
-    POSTGRES_PASSWORD: postgres
+    POSTGRES_PASSWORD: example-postgres-password
     POSTGRES_DB: postgres
   ports:
     - "5432:5432"
   volumes:
-    - postgres_data:/var/lib/postgresql/data
+    - postgres_data:/var/lib/postgresql
 ```
 
 ### Connection String
 
 ```bash
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+DATABASE_URL=postgres://postgres:example-postgres-password@localhost:5432/postgres
+```
+
+Containers connect through PgBouncer by default:
+
+```bash
+DATABASE_URL=postgres://postgres:example-postgres-password@pgbouncer:5432/postgres
 ```
 
 ### Commands
@@ -55,7 +62,7 @@ docker compose stop postgres
 
 ```yaml
 redis:
-  image: redis:7
+  image: redis:latest
   ports:
     - "6379:6379"
   volumes:
@@ -93,11 +100,11 @@ docker compose stop redis
 
 ```yaml
 minio:
-  image: minio/minio
+  image: minio/minio:latest
   command: server /data --console-address ":9001"
   environment:
-    MINIO_ROOT_USER: minioadmin
-    MINIO_ROOT_PASSWORD: minioadmin
+    MINIO_ROOT_USER: ${AWS_S3_ACCESS_KEY_ID}
+    MINIO_ROOT_PASSWORD: ${AWS_S3_SECRET_ACCESS_KEY}
   ports:
     - "9000:9000"  # API
     - "9001:9001"  # Console
@@ -108,8 +115,8 @@ minio:
 ### Environment Variables
 
 ```bash
-AWS_S3_ACCESS_KEY_ID=minioadmin
-AWS_S3_SECRET_ACCESS_KEY=minioadmin
+AWS_S3_ACCESS_KEY_ID=example-minio-access-key-id
+AWS_S3_SECRET_ACCESS_KEY=example-minio-secret-access-key
 AWS_S3_ENDPOINT_URL=http://minio:9000
 AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
 AWS_S3_PUBLIC_BUCKET_NAME=public
@@ -136,8 +143,8 @@ docker compose stop minio
 
 Access MinIO console at http://localhost:9001
 
-- Username: `minioadmin`
-- Password: `minioadmin`
+- Username: value of `AWS_S3_ACCESS_KEY_ID`
+- Password: value of `AWS_S3_SECRET_ACCESS_KEY`
 
 ## Init Containers
 
@@ -146,11 +153,11 @@ Access MinIO console at http://localhost:9001
 ```yaml
 migrations:
   build: .
-  command: python src/fastdjango/manage.py migrate
+  command: python src/fastdjango/manage.py migrate --noinput
   depends_on:
-    - postgres
+    - pgbouncer
   environment:
-    - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+    - DATABASE_URL=postgres://postgres:example-postgres-password@pgbouncer:5432/postgres
 ```
 
 Run:
@@ -165,7 +172,7 @@ collectstatic:
   build: .
   command: python src/fastdjango/manage.py collectstatic --noinput
   depends_on:
-    - minio
+    - minio-create-buckets
   environment:
     - AWS_S3_ENDPOINT_URL=http://minio:9000
     - AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
@@ -181,7 +188,7 @@ must be browser-reachable for Django admin static files.
 
 ## Common Operations
 
-### Start All Infrastructure
+### Start Core Local Services
 
 ```bash
 docker compose up -d postgres redis minio minio-create-buckets
@@ -230,23 +237,23 @@ docker compose restart postgres
 ### Inspect Volume
 
 ```bash
-docker volume inspect aiogram-django-template_postgres_data
+docker volume inspect <project>_postgres_data
 ```
 
 ### Remove Volume
 
 ```bash
-docker volume rm aiogram-django-template_postgres_data
+docker volume rm <project>_postgres_data
 ```
 
 ## Network
 
-All services connect to a shared network for inter-service communication.
+All services connect to the default Compose network for inter-service communication.
 
 ```yaml
 networks:
-  default:
-    name: fastdjango-network
+  main:
+    driver: bridge
 ```
 
 Internal hostnames:
@@ -263,8 +270,7 @@ Internal hostnames:
 # Find process
 lsof -i :5432
 
-# Or use different port
-docker compose up -d postgres -p 5433:5432
+# Or change the published port in docker-compose.local.yaml
 ```
 
 ### Container Won't Start

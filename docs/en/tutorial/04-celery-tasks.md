@@ -33,8 +33,9 @@ from celery import Celery
 from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
 from fastdjango.core.todo.services import TodoService
 from fastdjango.core.user.use_cases import UserUseCase
-from fastdjango.entrypoints.celery.registry import TaskName
 from fastdjango.foundation.delivery.controllers import BaseController
+
+TODO_CLEANUP_TASK_NAME = "todo.cleanup"
 
 
 class CleanupResultSchema(BaseCelerySchema):
@@ -53,7 +54,7 @@ class TodoCleanupTaskController(BaseController):
 
     def register(self, registry: Celery) -> None:
         """Register the task with Celery."""
-        registry.task(name=TaskName.TODO_CLEANUP)(self.cleanup_completed_todos)
+        registry.task(name=TODO_CLEANUP_TASK_NAME)(self.cleanup_completed_todos)
 
     def cleanup_completed_todos(self) -> CleanupResultSchema:
         """Delete all completed todos for all users.
@@ -100,12 +101,15 @@ Add the task name to the registry in `src/fastdjango/entrypoints/celery/registry
 # src/fastdjango/entrypoints/celery/registry.py
 from enum import StrEnum
 
+from fastdjango.core.health.delivery.celery.tasks import PING_TASK_NAME
+from fastdjango.core.todo.delivery.celery.todo_cleanup import TODO_CLEANUP_TASK_NAME
+
 
 class TaskName(StrEnum):
     """Enumeration of all task names."""
 
-    PING = "ping"
-    TODO_CLEANUP = "todo.cleanup"  # Add this line
+    PING = PING_TASK_NAME
+    TODO_CLEANUP = TODO_CLEANUP_TASK_NAME  # Add this line
 ```
 
 Also add the task property to `TasksRegistry`:
@@ -114,7 +118,7 @@ Also add the task property to `TasksRegistry`:
 # In the TasksRegistry class
 @property
 def todo_cleanup(self) -> Task:
-    return self._celery_app.tasks[TaskName.TODO_CLEANUP]
+    return self._get_task_by_name(TaskName.TODO_CLEANUP)
 ```
 
 ## Step 4: Register the Task Controller
@@ -178,6 +182,9 @@ from celery.schedules import crontab
 ### Task Controller Structure
 
 ```python
+MY_TASK_NAME = "my.task"
+
+
 @dataclass(kw_only=True)
 class MyTaskController(BaseController):
     # Dependencies injected automatically
@@ -185,7 +192,7 @@ class MyTaskController(BaseController):
 
     def register(self, registry: Celery) -> None:
         # Register task with Celery
-        registry.task(name=TaskName.MY_TASK)(self.my_task_method)
+        registry.task(name=MY_TASK_NAME)(self.my_task_method)
 
     def my_task_method(self, arg1: str) -> dict:
         # Task logic here
@@ -208,10 +215,10 @@ Use dotted names for task organization:
 Use the task registry for type-safe calls:
 
 ```python
-from fastdjango.entrypoints.celery.registry import TasksRegistry
+from fastdjango.entrypoints.celery.factories import TasksRegistryFactory
 
-# Get registry (typically injected)
-registry = container.resolve(TasksRegistry)
+# Get registry (typically injected as TasksRegistry in your own code)
+registry = container.resolve(TasksRegistryFactory)()
 
 # Call task asynchronously
 result = registry.todo_cleanup.delay()
@@ -234,16 +241,16 @@ make celery-dev
 
 ```python
 # Using Django shell
-uv run python src/fastdjango/manage.py shell
+uv run src/fastdjango/manage.py shell
 ```
 
 ```python
 from fastdjango.ioc.container import get_container
-from fastdjango.entrypoints.celery.registry import TasksRegistry
+from fastdjango.entrypoints.celery.factories import TasksRegistryFactory
 
 # Create container and get registry
 container = get_container()
-registry = container.resolve(TasksRegistry)
+registry = container.resolve(TasksRegistryFactory)()
 
 # Trigger the cleanup task
 result = registry.todo_cleanup.delay()

@@ -13,29 +13,15 @@ Add a new Celery task for background processing.
 
 ## Checklist
 
-- [ ] Add task name to `TaskName` enum
 - [ ] Create task controller
+- [ ] Add task name to `TaskName` enum
 - [ ] Register controller in factory
 - [ ] Add task to registry (optional, for type-safe access)
 - [ ] Write tests
 
 ## Step-by-Step
 
-### 1. Add Task Name
-
-Edit `src/fastdjango/entrypoints/celery/registry.py`:
-
-```python
-# src/fastdjango/entrypoints/celery/registry.py
-from enum import StrEnum
-
-
-class TaskName(StrEnum):
-    PING = "ping"
-    SEND_EMAIL = "email.send"  # Add new task
-```
-
-### 2. Create Task Controller
+### 1. Create Task Controller
 
 Create `src/fastdjango/core/email/delivery/celery/send_email.py`:
 
@@ -48,8 +34,9 @@ from celery import Celery
 from fastdjango.core.email.services import EmailService
 from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
 from fastdjango.core.user.use_cases import UserUseCase
-from fastdjango.entrypoints.celery.registry import TaskName
 from fastdjango.foundation.delivery.controllers import BaseController
+
+SEND_EMAIL_TASK_NAME = "email.send"
 
 
 class SendEmailResultSchema(BaseCelerySchema):
@@ -65,7 +52,7 @@ class SendEmailTaskController(BaseController):
     _user_use_case: UserUseCase
 
     def register(self, registry: Celery) -> None:
-        registry.task(name=TaskName.SEND_EMAIL)(self.send_email)
+        registry.task(name=SEND_EMAIL_TASK_NAME)(self.send_email)
 
     def send_email(
         self,
@@ -95,6 +82,25 @@ class SendEmailTaskController(BaseController):
         except Exception:
             return SendEmailResultSchema(success=False, message_id=None)
 ```
+
+### 2. Add Task Name to the Registry
+
+Edit `src/fastdjango/entrypoints/celery/registry.py`:
+
+```python
+# src/fastdjango/entrypoints/celery/registry.py
+from enum import StrEnum
+
+from fastdjango.core.email.delivery.celery.send_email import SEND_EMAIL_TASK_NAME
+from fastdjango.core.health.delivery.celery.tasks import PING_TASK_NAME
+
+
+class TaskName(StrEnum):
+    PING = PING_TASK_NAME
+    SEND_EMAIL = SEND_EMAIL_TASK_NAME
+```
+
+This keeps domain task modules independent from the entrypoint registry.
 
 ### 3. Register Task Controller
 
@@ -142,11 +148,11 @@ from fastdjango.infrastructure.celery.registry import BaseTasksRegistry
 class TasksRegistry(BaseTasksRegistry):
     @property
     def ping(self) -> Task:
-        return self._celery_app.tasks[TaskName.PING]
+        return self._get_task_by_name(TaskName.PING)
 
     @property
     def send_email(self) -> Task:  # Add this
-        return self._celery_app.tasks[TaskName.SEND_EMAIL]
+        return self._get_task_by_name(TaskName.SEND_EMAIL)
 ```
 
 ### 5. Call the Task
@@ -327,10 +333,10 @@ class ProcessResultSchema(BaseCelerySchema):
 
 ```python
 from fastdjango.ioc.container import get_container
-from fastdjango.entrypoints.celery.registry import TasksRegistry
+from fastdjango.entrypoints.celery.factories import TasksRegistryFactory
 
 container = get_container()
-registry = container.resolve(TasksRegistry)
+registry = container.resolve(TasksRegistryFactory)()
 result = registry.send_email.delay(user_id=1, subject="Test", body="Hello")
 print(result.get(timeout=10))
 ```

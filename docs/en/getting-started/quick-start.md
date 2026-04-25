@@ -29,7 +29,7 @@ The default `.env` file is configured for local development. Key variables inclu
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DATABASE_URL` | `postgresql://...` | PostgreSQL connection string |
+| `DATABASE_URL` | `postgres://...` | PostgreSQL connection string |
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection string |
 | `DJANGO_SECRET_KEY` | Development key | Django security key |
 | `DJANGO_DEBUG` | `true` | Enable debug mode |
@@ -119,13 +119,13 @@ make celery-beat-dev
 To access Django Admin:
 
 ```bash
-docker compose exec app python src/fastdjango/manage.py createsuperuser
+docker compose exec api python src/fastdjango/manage.py createsuperuser
 ```
 
 Or use the shell directly:
 
 ```bash
-uv run python src/fastdjango/manage.py createsuperuser
+uv run src/fastdjango/manage.py createsuperuser
 ```
 
 ## Common Issues
@@ -139,7 +139,7 @@ If port 8000 is occupied:
 lsof -i :8000
 
 # Or use a different port
-uvicorn fastdjango.entrypoints.fastapi.app:app --host 0.0.0.0 --port 8001
+uv run uvicorn fastdjango.entrypoints.fastapi.app:app --host 0.0.0.0 --port 8001
 ```
 
 ### Database Connection Error

@@ -16,7 +16,7 @@ Use factories when:
 The most common factory in this project is `JWTAuthFactory`:
 
 ```python
-# src/fastdjango/core/user/delivery/fastapi/auth.py
+# src/fastdjango/core/authentication/delivery/fastapi/auth.py
 from dataclasses import dataclass
 
 
@@ -29,9 +29,10 @@ class JWTAuthFactory(BaseFactory):
 
     def __call__(
         self,
+        *,
         require_staff: bool = False,
         require_superuser: bool = False,
-    ) -> JWTAuth | JWTAuthWithPermissions:
+    ) -> JWTAuth:
         """Create a JWT auth dependency.
 
         Args:
@@ -41,19 +42,15 @@ class JWTAuthFactory(BaseFactory):
         Returns:
             JWTAuth or JWTAuthWithPermissions instance
         """
-        auth = JWTAuth(
-            jwt_service=self._jwt_service,
-            user_use_case=self._user_use_case,
-        )
-
         if require_staff or require_superuser:
             return JWTAuthWithPermissions(
-                auth=auth,
+                jwt_service=self._jwt_service,
+                user_use_case=self._user_use_case,
                 require_staff=require_staff,
                 require_superuser=require_superuser,
             )
 
-        return auth
+        return JWTAuth(jwt_service=self._jwt_service, user_use_case=self._user_use_case)
 ```
 
 ### Usage in Controllers
@@ -156,24 +153,15 @@ Test factories extend `ContainerBasedFactory` to access the IoC container:
 
 ```python
 # tests/integration/factories.py
-from abc import ABC
-from dataclasses import dataclass
-
-from diwire import Container
-
-
-@dataclass
-class ContainerBasedFactory(BaseFactory, ABC):
-    """Base factory with access to IoC container."""
-
-    _container: Container
+class ContainerBasedFactory(BaseTestFactory, ABC):
+    def __init__(self, container: Container) -> None:
+        self._container = container
 ```
 
 ### TestClientFactory
 
 ```python
 # tests/integration/factories.py
-@dataclass
 class TestClientFactory(ContainerBasedFactory):
     """Factory for creating test HTTP clients."""
 
@@ -181,27 +169,32 @@ class TestClientFactory(ContainerBasedFactory):
         self,
         auth_for_user: User | None = None,
         headers: dict[str, str] | None = None,
-    ) -> Generator[TestClient, None, None]:
+        **kwargs: Any,
+    ) -> TestClient:
         """Create a test client.
 
         Args:
             auth_for_user: User to authenticate as (auto-generates token)
             headers: Additional headers to include
 
-        Yields:
+        Returns:
             Configured TestClient
         """
-        final_headers = headers or {}
+        headers = headers or {}
 
-        if auth_for_user:
+        if auth_for_user is not None:
             jwt_service = self._container.resolve(JWTService)
             token = jwt_service.issue_access_token(user_id=auth_for_user.id)
-            final_headers["Authorization"] = f"Bearer {token}"
+            headers["Authorization"] = f"Bearer {token}"
 
-        app = self._create_test_app()
+        api_factory = self._container.resolve(FastAPIFactory)
+        app = api_factory(
+            include_django=False,
+            add_trusted_hosts_middleware=False,
+            add_cors_middleware=False,
+        )
 
-        with TestClient(app, headers=final_headers) as client:
-            yield client
+        return TestClient(app=app, headers=headers, base_url="http://testserver", **kwargs)
 ```
 
 ## Factory vs Direct Instantiation
@@ -250,25 +243,31 @@ container.add_factory(
 class CeleryAppFactory(BaseFactory):
     """Factory for creating Celery applications."""
 
+    _application_settings: ApplicationSettings
     _broker_settings: CeleryBrokerSettings
     _celery_settings: CelerySettings
 
-    _instance: ClassVar[Celery | None] = None
+    _instance: Celery | None = field(default=None, init=False)
 
     def __call__(self) -> Celery:
         """Create or return the Celery application.
 
-        Uses singleton pattern - only one Celery app per process.
+        Reuses the same Celery app for this factory instance.
         """
-        if CeleryAppFactory._instance is not None:
-            return CeleryAppFactory._instance
+        if self._instance is not None:
+            return self._instance
 
         celery_app = Celery(
-            "tasks",
-            broker=self._redis_settings.url,
-            backend=self._redis_settings.url,
+            "main",
+            broker=self._broker_settings.url.get_secret_value(),
+            backend=self._broker_settings.url.get_secret_value(),
         )
 
+        celery_app.conf.update(
+            timezone=self._application_settings.time_zone,
+            enable_utc=True,
+            **self._celery_settings.model_dump(),
+        )
         celery_app.conf.beat_schedule = {
             "ping-every-minute": {
                 "task": TaskName.PING,
@@ -276,11 +275,12 @@ class CeleryAppFactory(BaseFactory):
             },
         }
 
-        CeleryAppFactory._instance = celery_app
-        return celery_app
+        self._instance = celery_app
+        return self._instance
 ```
 
-Note the singleton pattern: Celery should only have one app per process.
+The factory caches the app instance so task registration and worker setup share
+the same Celery application object.
 
 ## Benefits
 

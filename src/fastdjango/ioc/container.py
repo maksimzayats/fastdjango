@@ -19,7 +19,7 @@ def get_container(
         dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE,
     )
 
-    # It's required to configure Django before any registrations due to model imports
+    # Django must be configured before dependency resolution touches model imports.
     if configure_django:
         _configure_django(container)
 

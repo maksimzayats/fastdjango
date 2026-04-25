@@ -109,7 +109,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from fastdjango.core.product.services import ProductNotFoundError, ProductService
+from fastdjango.core.product.exceptions import ProductNotFoundError
+from fastdjango.core.product.services import ProductService
 from fastdjango.core.authentication.delivery.fastapi.auth import (
     AuthenticatedRequest,
     JWTAuthFactory,
@@ -219,14 +220,14 @@ class AuthController(BaseTransactionController):
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
-            path="/v1/auth/login",
-            endpoint=self.login,
+            path="/v1/auth/token",
+            endpoint=self.issue_token,
             methods=["POST"],
             dependencies=[Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10)))],
         )
 
-    def login(self, request: Request, body: LoginSchema) -> TokenSchema:
-        # ... login logic ...
+    def issue_token(self, request: Request, body: IssueTokenRequestSchema) -> TokenResponseSchema:
+        # ... token issuing logic ...
 ```
 
 ## Testing Secured Endpoints

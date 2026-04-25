@@ -56,27 +56,23 @@ When you call `container.resolve(TodoService)`, `diwire`:
 
 1. Inspects constructor type hints
 2. Recursively resolves dependencies
-3. Caches instances in root app scope (`Lifetime.SCOPED`)
+3. Applies the container's lifetime/scope defaults
 4. Returns the instance
 
 ```python
 service = container.resolve(TodoService)
-service_again = container.resolve(TodoService)
-assert service is service_again
+assert service is not None
 ```
 
 ## `FastAPIFactory` Resolution by Type
 
-The HTTP app now resolves by type with delayed import:
+The HTTP app resolves the factory by type from the bootstrap container:
 
 ```python
-from fastdjango.ioc.container import get_container
-
-_container = get_container()
-
+from fastdjango.entrypoints.fastapi.bootstrap import container
 from fastdjango.entrypoints.fastapi.factories import FastAPIFactory
 
-api_factory = _container.resolve(FastAPIFactory)
+api_factory = container.resolve(FastAPIFactory)
 ```
 
 No string-key registration is used.

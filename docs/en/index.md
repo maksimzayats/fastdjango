@@ -15,7 +15,7 @@ This template provides a solid foundation for building scalable Python applicati
 
 ## Key Features
 
-- **Service Layer Architecture**: Clean separation between HTTP controllers and database operations
+- **Use Case / Service Layer Architecture**: Clean separation between delivery and database operations
 - **Auto-Registration IoC**: Minimal boilerplate dependency injection with automatic wiring
 - **Type Safety**: Full `mypy --strict` compatibility with Python 3.14+
 - **Test Isolation**: Per-test container instances with easy mocking
@@ -64,14 +64,14 @@ This template provides a solid foundation for building scalable Python applicati
 This template enforces a strict architectural boundary:
 
 ```
-Controller → Service → Model
+Controller → Use Case / Service → Model
 
-✅ Controller imports Service
-✅ Service imports Model
-❌ Controller imports Model (NEVER)
+✅ Controller calls a use case or service
+✅ Use cases and services own ORM access
+❌ Controller queries models directly
 ```
 
-Controllers handle HTTP/Celery concerns. Services contain business logic and database operations. Models define data structures.
+Controllers handle HTTP/Celery concerns. Use cases and services contain application logic and database operations. Models define data structures.
 
 ## Requirements
 

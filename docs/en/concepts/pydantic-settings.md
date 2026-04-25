@@ -16,7 +16,7 @@ class JWTServiceSettings(BaseSettings):
 
     secret_key: SecretStr
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 15
 ```
 
 Environment variables:
@@ -47,8 +47,9 @@ Settings classes use `env_prefix` to namespace variables:
 | `AWS_S3_` | `DjangoStorageSettings` | `AWS_S3_ACCESS_KEY_ID`, `AWS_S3_ENDPOINT_URL` |
 | `CORS_` | `CORSSettings` | `CORS_ALLOW_ORIGINS`, `CORS_ALLOW_METHODS` |
 | `LOGFIRE_` | `LogfireSettings` | `LOGFIRE_ENABLED`, `LOGFIRE_TOKEN` |
+| `INSTRUMENTOR_` | `InstrumentorSettings` | `INSTRUMENTOR_FASTAPI_EXCLUDED_URLS` |
 | `ANYIO_` | `AnyIOSettings` | `ANYIO_THREAD_LIMITER_TOKENS` |
-| `LOGGING_` | (logging config) | `LOGGING_LEVEL` |
+| `LOGGING_` | `LoggingSettings` | `LOGGING_LEVEL` |
 
 Unprefixed variables:
 
@@ -81,9 +82,8 @@ Pydantic validates settings at startup:
 class DjangoDatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DATABASE_")
 
-    url: str  # Required - no default
-    pool_size: int = Field(default=5, ge=1, le=100)
-    timeout: int = Field(default=30, ge=1)
+    url: SecretStr  # Required - no default
+    conn_max_age: int = 600
 ```
 
 If `DATABASE_URL` is missing, the application fails fast with a clear error:
@@ -135,13 +135,18 @@ class DjangoConfigurator(BaseConfigurator):
         # ...
 ```
 
-For tests, `.env.test` is loaded:
+For tests, `.env.test` is loaded when present; otherwise the committed
+`.env.test.example` fallback is used:
 
 ```python
 # tests/conftest.py
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
-load_dotenv(".env.test")
+test_env_path = find_dotenv(".env.test", raise_error_if_not_found=False)
+if test_env_path:
+    load_dotenv(test_env_path, override=True)
+else:
+    load_dotenv(".env.test.example", override=True)
 ```
 
 ## Settings in Services
@@ -186,7 +191,7 @@ class DjangoSecuritySettings(BaseSettings):
 class DjangoDatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DATABASE_")
 
-    url: str
+    url: SecretStr
     conn_max_age: int = 600
 
 
@@ -233,21 +238,25 @@ class DjangoStorageSettings(BaseSettings):
     @property
     def storages(self) -> dict[str, dict[str, str]]:
         """Generate Django STORAGES configuration."""
+        base_options = {
+            "access_key": self.access_key_id,
+            "secret_key": self.secret_access_key.get_secret_value(),
+            "endpoint_url": self.endpoint_url,
+        }
+
         return {
             "default": {
-                "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+                "BACKEND": "storages.backends.s3.S3Storage",
                 "OPTIONS": {
-                    "access_key": self.access_key_id,
-                    "secret_key": self.secret_access_key.get_secret_value(),
+                    **base_options,
                     "bucket_name": self.protected_bucket_name,
-                    "endpoint_url": self.endpoint_url,
                 },
             },
             "staticfiles": {
-                "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
+                "BACKEND": "storages.backends.s3.S3Storage",
                 "OPTIONS": {
+                    **base_options,
                     "bucket_name": self.public_bucket_name,
-                    "endpoint_url": self.endpoint_url,
                 },
             },
         }
@@ -259,13 +268,13 @@ Parse complex values from environment:
 
 ```python
 class FastAPISettings(BaseSettings):
-    allowed_hosts: list[str] = ["*"]  # From ALLOWED_HOSTS="host1,host2"
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
 
 
 class CORSSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CORS_")
 
-    allow_origins: list[str] = ["*"]
+    allow_origins: list[str] = ["http://localhost"]
     allow_methods: list[str] = ["*"]
     allow_headers: list[str] = ["*"]
     allow_credentials: bool = True
@@ -288,7 +297,7 @@ class JWTServiceSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="JWT_")
     secret_key: SecretStr
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 15
 ```
 
 ### Do: Use Defaults for Optional Config

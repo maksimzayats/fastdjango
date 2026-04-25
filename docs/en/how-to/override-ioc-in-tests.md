@@ -106,7 +106,8 @@ def test_product_with_mock_inventory(
 ### Mock to Raise Exceptions
 
 ```python
-from fastdjango.core.email.services import EmailService, EmailDeliveryError
+from fastdjango.core.email.exceptions import EmailDeliveryError
+from fastdjango.core.email.services import EmailService
 
 
 @pytest.mark.django_db(transaction=True)
@@ -179,8 +180,8 @@ def mock_external_api(container: Container) -> MagicMock:
 # Usage in tests
 @pytest.mark.django_db(transaction=True)
 def test_uses_external_api(
-    test_client_factory: TestClientFactory,
     mock_external_api: MagicMock,
+    test_client_factory: TestClientFactory,
     user: User,
 ) -> None:
     mock_external_api.fetch_data.return_value = {"special": "value"}

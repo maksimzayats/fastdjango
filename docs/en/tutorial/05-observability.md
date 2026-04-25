@@ -138,19 +138,31 @@ The `BaseTransactionController` uses `traced_atomic` to combine database transac
 
 ```python
 # src/fastdjango/infrastructure/django/controllers.py
+from inspect import iscoroutinefunction
+
 from fastdjango.foundation.delivery.controllers import BaseController
 from fastdjango.infrastructure.django.traced_atomic import traced_atomic
 
 
 @dataclass(kw_only=True)
 class BaseTransactionController(BaseController, ABC):
+    def _wrap_route(self, method: Callable[..., Any]) -> Callable[..., Any]:
+        method = self._add_transaction(method)
+        return super()._wrap_route(method)
+
     def _add_transaction(self, method: Callable[..., Any]) -> Callable[..., Any]:
+        method_name = getattr(method, "__name__", type(method).__name__)
+
+        if iscoroutinefunction(method):
+            msg = f"Async route '{method_name}' cannot use BaseTransactionController."
+            raise TypeError(msg)
+
         @wraps(method)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             with traced_atomic(
                 "controller transaction",
                 controller=type(self).__name__,
-                method=method.__name__,
+                method=method_name,
             ):
                 return method(*args, **kwargs)
 
@@ -162,6 +174,7 @@ When you extend `BaseTransactionController`, every public method automatically g
 - **Database transaction**: Wrapped in `@transaction.atomic`
 - **Logfire span**: Named "controller transaction" with attributes
 - **Span attributes**: Controller name and method name for filtering
+- **Sync guard**: Async routes fail fast; use `BaseAsyncController` for async endpoints
 
 ```python
 # Automatically traced when extending BaseTransactionController
@@ -184,9 +197,16 @@ The project includes a health check endpoint at `GET /v1/health`:
 class HealthController(BaseController):
     _system_health_use_case: SystemHealthUseCase
 
-    def check_health(self) -> dict[str, str]:
-        self._system_health_use_case.check()
-        return {"status": "ok"}
+    def health_check(self) -> HealthCheckResponseSchema:
+        try:
+            self._system_health_use_case.check()
+        except HealthCheckError as e:
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="Service is unavailable",
+            ) from e
+
+        return HealthCheckResponseSchema(status="ok")
 ```
 
 The `SystemHealthUseCase` checks database connectivity:
@@ -202,7 +222,8 @@ class SystemHealthUseCase(BaseUseCase):
             # Verify database connection
             Session.objects.first()
         except Exception as e:
-            raise HealthCheckError("Database unavailable") from e
+            logger.exception("Health check failed: database is not reachable")
+            raise HealthCheckError from e
 ```
 
 ## Step 7: Configure Logging Level

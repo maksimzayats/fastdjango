@@ -33,7 +33,7 @@ container = Container()
 service = container.resolve(UserUseCase)
 ```
 
-`resolve(UserUseCase)` recursively builds and caches dependencies in the app root scope.
+`resolve(UserUseCase)` recursively builds dependencies from constructor type hints and applies `diwire`'s default lifetime behavior.
 
 ## Container Creation
 

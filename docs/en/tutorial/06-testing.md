@@ -5,7 +5,7 @@ Write comprehensive tests for the Todo feature.
 ## What You'll Build
 
 - Integration tests for HTTP endpoints
-- Service unit tests
+- Service or use-case unit tests
 - Celery task tests
 - IoC override patterns for mocking
 
@@ -14,7 +14,7 @@ Write comprehensive tests for the Todo feature.
 | Action | File Path |
 |--------|-----------|
 | Create | `tests/integration/fastapi/test_v1_todos.py` |
-| Create | `tests/unit/services/test_todo_service.py` |
+| Create | `tests/unit/core/todo/test_services.py` |
 
 ## Concept Reference
 
@@ -40,7 +40,6 @@ from http import HTTPStatus
 import pytest
 
 from fastdjango.core.todo.models import Todo
-from fastdjango.core.todo.services import TodoService
 from fastdjango.core.user.models import User
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
@@ -286,16 +285,18 @@ class TestTodoController:
 
 ## Step 2: Create Service Unit Tests
 
-Create `tests/unit/services/test_todo_service.py`:
+Create `tests/unit/core/todo/test_services.py`:
 
 ```python
-# tests/unit/services/test_todo_service.py
+# tests/unit/core/todo/test_services.py
 import pytest
 
 from fastdjango.core.todo.models import Todo
-from fastdjango.core.todo.services import (
+from fastdjango.core.todo.exceptions import (
     TodoAccessDeniedError,
     TodoNotFoundError,
+)
+from fastdjango.core.todo.services import (
     TodoService,
 )
 from fastdjango.core.user.models import User
@@ -513,19 +514,19 @@ class TestTodoCleanupTask:
 make test
 
 # Run with coverage report
-pytest --cov=src --cov-report=html tests/
+uv run pytest tests/
 
 # Run specific test file
-pytest tests/integration/fastapi/test_v1_todos.py
+uv run pytest tests/integration/fastapi/test_v1_todos.py
 
 # Run with verbose output
-pytest -v tests/
+uv run pytest -v tests/
 
 # Run specific test class
-pytest tests/integration/fastapi/test_v1_todos.py::TestTodoController
+uv run pytest tests/integration/fastapi/test_v1_todos.py::TestTodoController
 
 # Run specific test method
-pytest tests/integration/fastapi/test_v1_todos.py::TestTodoController::test_create_todo
+uv run pytest tests/integration/fastapi/test_v1_todos.py::TestTodoController::test_create_todo
 ```
 
 ## Test Patterns
@@ -572,7 +573,7 @@ class TestMyFeature:
 You've learned:
 
 - Integration testing HTTP endpoints with `TestClientFactory`
-- Unit testing services directly
+- Unit testing services or use cases directly
 - Testing Celery tasks with `TestCeleryWorkerFactory`
 - Test isolation patterns and fixtures
 

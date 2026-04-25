@@ -15,6 +15,7 @@ Create the Todo domain model and service layer.
 | Create | `src/fastdjango/core/todo/__init__.py` |
 | Create | `src/fastdjango/core/todo/apps.py` |
 | Create | `src/fastdjango/core/todo/models.py` |
+| Create | `src/fastdjango/core/todo/exceptions.py` |
 | Create | `src/fastdjango/core/todo/services.py` |
 | Modify | `src/fastdjango/infrastructure/django/settings.py` |
 
@@ -137,7 +138,20 @@ make migrate
 
 ## Step 5: Create Domain Exceptions
 
-Domain exceptions communicate specific errors. Add them to the service file.
+Domain exceptions communicate specific errors. Create `src/fastdjango/core/todo/exceptions.py`:
+
+```python
+# src/fastdjango/core/todo/exceptions.py
+from fastdjango.core.exceptions import ApplicationError
+
+
+class TodoNotFoundError(ApplicationError):
+    """Raised when a todo item cannot be found."""
+
+
+class TodoAccessDeniedError(ApplicationError):
+    """Raised when a user tries to access another user's todo."""
+```
 
 ## Step 6: Create the Todo Service
 
@@ -149,18 +163,10 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
-from fastdjango.core.exceptions import ApplicationError
+from fastdjango.core.todo.exceptions import TodoAccessDeniedError, TodoNotFoundError
 from fastdjango.foundation.services import BaseService
 from fastdjango.core.todo.models import Todo
 from fastdjango.core.user.models import User
-
-
-class TodoNotFoundError(ApplicationError):
-    """Raised when a todo item cannot be found."""
-
-
-class TodoAccessDeniedError(ApplicationError):
-    """Raised when a user tries to access another user's todo."""
 
 
 @dataclass(kw_only=True)
@@ -359,7 +365,7 @@ class TodoService(BaseService):
 Test the service in a Django shell:
 
 ```bash
-uv run python src/fastdjango/manage.py shell
+uv run src/fastdjango/manage.py shell
 ```
 
 ```python
@@ -393,7 +399,7 @@ You've created:
 
 - A `Todo` Django model with user ownership
 - A `TodoService` with CRUD operations
-- Domain exceptions for error handling
+- Domain exceptions in `exceptions.py` for error handling
 - Database indexes for performance
 
 ## Next Step

@@ -16,6 +16,7 @@ Add a new domain (e.g., `product`, `order`, `comment`) with all required compone
 - [ ] Create Django app in `core/<domain>/`
 - [ ] Add to `installed_apps` in settings
 - [ ] Create model in `models.py`
+- [ ] Create domain exceptions in `exceptions.py`
 - [ ] Create service in `services.py`
 - [ ] Create delivery directories in `core/<domain>/delivery/`
 - [ ] Create schemas in `schemas.py`
@@ -82,7 +83,20 @@ class Product(models.Model):
         return self.name
 ```
 
-### 4. Create the Service
+### 4. Create Domain Exceptions
+
+Create `src/fastdjango/core/product/exceptions.py`:
+
+```python
+# src/fastdjango/core/product/exceptions.py
+from fastdjango.core.exceptions import ApplicationError
+
+
+class ProductNotFoundError(ApplicationError):
+    """Raised when a product cannot be found."""
+```
+
+### 5. Create the Service
 
 Create `src/fastdjango/core/product/services.py`:
 
@@ -93,13 +107,9 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from fastdjango.core.exceptions import ApplicationError
+from fastdjango.core.product.exceptions import ProductNotFoundError
 from fastdjango.foundation.services import BaseService
 from fastdjango.core.product.models import Product
-
-
-class ProductNotFoundError(ApplicationError):
-    """Raised when a product cannot be found."""
 
 
 @dataclass(kw_only=True)
@@ -131,7 +141,7 @@ class ProductService(BaseService):
         )
 ```
 
-### 5. Create Delivery Directories
+### 6. Create Delivery Directories
 
 ```bash
 mkdir -p src/fastdjango/core/product/delivery/fastapi
@@ -140,7 +150,7 @@ mkdir -p src/fastdjango/core/product/delivery/django
 touch src/fastdjango/core/product/delivery/django/__init__.py
 ```
 
-### 6. Create Schemas
+### 7. Create Schemas
 
 Create `src/fastdjango/core/product/delivery/fastapi/schemas.py`:
 
@@ -170,7 +180,7 @@ class ProductSchema(BaseFastAPISchema):
     updated_at: datetime
 ```
 
-### 7. Create the Controller
+### 8. Create the Controller
 
 Create `src/fastdjango/core/product/delivery/fastapi/controllers.py`:
 
@@ -181,7 +191,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from fastdjango.core.product.services import ProductNotFoundError, ProductService
+from fastdjango.core.product.exceptions import ProductNotFoundError
+from fastdjango.core.product.services import ProductService
 from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuthFactory
 from fastdjango.core.product.delivery.fastapi.schemas import (
     CreateProductRequestSchema,
@@ -249,7 +260,7 @@ class ProductController(BaseTransactionController):
         return super().handle_exception(exception)
 ```
 
-### 8. Register the Controller
+### 9. Register the Controller
 
 Edit `src/fastdjango/entrypoints/fastapi/factories.py`:
 
@@ -274,7 +285,7 @@ class FastAPIFactory(BaseFactory):
 
 The controller is declared as a dataclass field and auto-resolved by the IoC container.
 
-### 9. Create Admin
+### 10. Create Admin
 
 Create `src/fastdjango/core/product/delivery/django/admin.py`:
 
@@ -300,14 +311,14 @@ def ready(self) -> None:
     from fastdjango.core.product.delivery.django import admin as _product_admin  # noqa: F401, I001, PLC0415
 ```
 
-### 10. Run Migrations
+### 11. Run Migrations
 
 ```bash
 make makemigrations
 make migrate
 ```
 
-### 11. Write Tests
+### 12. Write Tests
 
 Create `tests/integration/fastapi/test_v1_products.py`:
 
@@ -370,6 +381,7 @@ class TestProductController:
 | Create | `src/fastdjango/core/product/__init__.py` |
 | Create | `src/fastdjango/core/product/apps.py` |
 | Create | `src/fastdjango/core/product/models.py` |
+| Create | `src/fastdjango/core/product/exceptions.py` |
 | Create | `src/fastdjango/core/product/services.py` |
 | Create | `src/fastdjango/core/product/delivery/django/__init__.py` |
 | Create | `src/fastdjango/core/product/delivery/django/admin.py` |

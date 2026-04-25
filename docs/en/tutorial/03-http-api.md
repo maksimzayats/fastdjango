@@ -97,9 +97,11 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from fastdjango.core.todo.services import (
+from fastdjango.core.todo.exceptions import (
     TodoAccessDeniedError,
     TodoNotFoundError,
+)
+from fastdjango.core.todo.services import (
     TodoService,
 )
 from fastdjango.core.authentication.delivery.fastapi.auth import (
@@ -402,7 +404,7 @@ curl http://localhost:8000/v1/todos \
 1. Create a superuser:
 
 ```bash
-uv run python src/fastdjango/manage.py createsuperuser
+uv run src/fastdjango/manage.py createsuperuser
 ```
 
 2. Visit http://localhost:8000/django/admin/

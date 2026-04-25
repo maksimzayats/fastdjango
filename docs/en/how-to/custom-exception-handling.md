@@ -9,7 +9,7 @@ Convert service-level exceptions into meaningful HTTP error responses.
 ## Prerequisites
 
 - A controller extending `BaseController` or `BaseTransactionController`
-- Domain exceptions defined in your service
+- Domain exceptions defined in `exceptions.py`
 
 ## The Pattern
 
@@ -34,10 +34,10 @@ def handle_exception(self, exception: Exception) -> Any:
 
 ### 1. Define Domain Exceptions
 
-Create exceptions in your service file:
+Create exceptions in the domain exception module:
 
 ```python
-# src/fastdjango/core/order/services.py
+# src/fastdjango/core/order/exceptions.py
 from fastdjango.core.exceptions import ApplicationError
 
 
@@ -61,6 +61,12 @@ class InvalidOrderStateError(ApplicationError):
 
 ```python
 from fastdjango.foundation.services import BaseService
+from fastdjango.core.order.exceptions import (
+    InsufficientStockError,
+    InvalidOrderStateError,
+    OrderAlreadyPaidError,
+    OrderNotFoundError,
+)
 
 @dataclass(kw_only=True)
 class OrderService(BaseService):
@@ -95,11 +101,13 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from fastdjango.core.order.services import (
+from fastdjango.core.order.exceptions import (
     InsufficientStockError,
     InvalidOrderStateError,
     OrderAlreadyPaidError,
     OrderNotFoundError,
+)
+from fastdjango.core.order.services import (
     OrderService,
 )
 from fastdjango.infrastructure.django.controllers import BaseTransactionController

@@ -16,8 +16,8 @@ Understanding the codebase organization is essential for working effectively wit
 │   ├── integration/        # Integration tests
 │   └── unit/               # Unit tests
 ├── docs/                   # Documentation (MkDocs)
-├── docker/                 # Docker configuration
-└── scripts/                # Utility scripts
+├── docker-compose*.yaml    # Local/test/production service definitions
+└── Makefile                # Common development commands
 ```
 
 ## Source Code Structure
@@ -134,7 +134,7 @@ infrastructure/
 ├── anyio/                  # Thread pool configuration
 ├── celery/                 # Celery registry primitives
 ├── django/                 # Django setup, settings, transaction controllers
-│   └── controllers.py      # BaseTransactionController classes
+│   └── controllers.py      # BaseTransactionController
 ├── logfire/                # OpenTelemetry/Logfire
 ├── logging/                # Logging configuration
 ├── throttled/              # Rate limiting
@@ -143,7 +143,7 @@ infrastructure/
 
 Key files:
 
-- **`django/controllers.py`**: Defines sync and async transaction controller base classes
+- **`django/controllers.py`**: Defines the sync transaction controller base class
 - **`django/settings.py`**: Adapts Pydantic settings to Django's settings format
 - **`logging/configurator.py`**: Configures application logging
 
@@ -171,13 +171,14 @@ tests/
 │   │   └── test_v1_users.py
 │   └── celery/             # Celery task tests
 │       └── test_tasks.py
-└── unit/                   # Unit tests
-    └── services/           # Service unit tests
+└── unit/                   # Focused tests for reusable behavior
+    ├── core/
+    └── infrastructure/
 ```
 
 Key components:
 
-- **`integration/factories.py`**: `TestClientFactory`, `TestUserFactory`, `TestCeleryWorkerFactory`
+- **`integration/factories.py`**: `TestClientFactory`, `TestUserFactory`, `TestCeleryWorkerFactory`, `TestTasksRegistryFactory`
 - **`integration/conftest.py`**: Function-scoped container fixtures for test isolation
 
 ## Entry Points
@@ -221,10 +222,9 @@ The application has multiple entry points:
 |------|---------|
 | `pyproject.toml` | Project dependencies and tool configuration |
 | `Makefile` | Development commands |
-| `docker-compose.yml` | Local development services |
+| `docker-compose.yaml` | Base Docker Compose services |
 | `.env.example` | Environment variable template |
 | `ruff.toml` | Ruff linter/formatter configuration |
-| `mypy.ini` | Type checking configuration |
 
 ## Next Steps
 
