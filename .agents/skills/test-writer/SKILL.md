@@ -12,11 +12,14 @@ Use this skill to write focused tests for the current project structure.
 
 | Test Type | Location |
 |-----------|----------|
-| FastAPI integration | `tests/integration/fastapi/` |
-| Celery integration | `tests/integration/celery/` |
-| Unit tests | `tests/unit/core/` or `tests/unit/infrastructure/` |
+| FastAPI integration | `tests/integration/core/<domain>/delivery/fastapi/` |
+| Celery integration | `tests/integration/core/<domain>/delivery/celery/` |
+| Core unit tests | `tests/unit/core/<domain>/...` |
+| Infrastructure unit tests | `tests/unit/infrastructure/<adapter>/...` |
 
 ## Available Factories
+
+Base test factory classes live in `tests/foundation/factories.py`.
 
 - `TestClientFactory`
 - `TestUserFactory`
@@ -63,8 +66,8 @@ assert result == {"result": "pong"}
 
 ```bash
 make test
-uv run pytest tests/integration/fastapi/test_v1_users.py
-uv run pytest tests/integration/celery/test_tasks.py
+uv run pytest tests/integration/core/user/delivery/fastapi/test_controllers.py
+uv run pytest tests/integration/core/health/delivery/celery/test_tasks.py
 ```
 
 Detailed references:

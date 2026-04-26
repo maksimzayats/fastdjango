@@ -164,16 +164,23 @@ ioc/
 ```
 tests/
 ├── conftest.py             # Shared fixtures
+├── foundation/             # Shared test base classes
+│   └── factories.py        # BaseTestFactory, ContainerBasedFactory
 ├── integration/            # Integration tests
 │   ├── conftest.py         # Integration fixtures (container, factories)
 │   ├── factories.py        # Test factories
-│   ├── fastapi/            # FastAPI endpoint tests
-│   │   └── test_v1_users.py
-│   └── celery/             # Celery task tests
-│       └── test_tasks.py
+│   └── core/               # Mirrors src/fastdjango/core
+│       ├── authentication/
+│       │   └── delivery/fastapi/test_controllers.py
+│       ├── health/
+│       │   └── delivery/
+│       │       ├── celery/test_tasks.py
+│       │       └── fastapi/test_controllers.py
+│       └── user/
+│           └── delivery/fastapi/test_controllers.py
 └── unit/                   # Focused tests for reusable behavior
-    ├── core/
-    └── infrastructure/
+    ├── core/               # Mirrors src/fastdjango/core
+    └── infrastructure/     # Mirrors src/fastdjango/infrastructure
 ```
 
 Key components:

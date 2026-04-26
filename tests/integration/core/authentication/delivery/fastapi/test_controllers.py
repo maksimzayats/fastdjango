@@ -16,25 +16,8 @@ def user(user_factory: TestUserFactory) -> User:
 
 
 @pytest.mark.django_db(transaction=True)
-class TestUserController:
-    """Tests for UserController endpoints."""
-
-    def test_create_user(self, test_client_factory: TestClientFactory) -> None:
-        with test_client_factory() as test_client:
-            response = test_client.post(
-                "/v1/users/",
-                json={
-                    "username": "test_new_user",
-                    "email": "new_user@test.com",
-                    "password": _TEST_PASSWORD,
-                    "first_name": "Test",
-                    "last_name": "User",
-                },
-            )
-
-        response_data = UserSchema.model_validate(response.json())
-        assert response.status_code == HTTPStatus.OK
-        assert response_data.username == "test_new_user"
+class TestAuthenticationTokenController:
+    """Tests for AuthenticationTokenController endpoints."""
 
     def test_jwt_token_generation(
         self,
@@ -104,37 +87,3 @@ class TestUserController:
 
         assert revoke_status == HTTPStatus.OK
         assert response.status_code == HTTPStatus.UNAUTHORIZED
-
-    def test_auth_for_user(
-        self,
-        test_client_factory: TestClientFactory,
-        user: User,
-    ) -> None:
-        with test_client_factory(auth_for_user=user) as test_client:
-            response = test_client.get("/v1/users/me")
-
-        assert response.status_code == HTTPStatus.OK
-
-    def test_staff_auth_for_user(
-        self,
-        test_client_factory: TestClientFactory,
-        user_factory: TestUserFactory,
-    ) -> None:
-        staff_user = user_factory(username="staff_user", is_staff=True)
-        other_user = user_factory(username="other_user")
-        with test_client_factory(auth_for_user=staff_user) as test_client:
-            response = test_client.get(f"/v1/users/{other_user.pk}")
-
-        assert response.status_code == HTTPStatus.OK
-
-    def test_non_staff_auth_for_user(
-        self,
-        test_client_factory: TestClientFactory,
-        user_factory: TestUserFactory,
-    ) -> None:
-        non_staff_user = user_factory(username="non_staff_user", is_staff=False)
-        other_user = user_factory(username="other_user")
-        with test_client_factory(auth_for_user=non_staff_user) as test_client:
-            response = test_client.get(f"/v1/users/{other_user.pk}")
-
-        assert response.status_code == HTTPStatus.FORBIDDEN

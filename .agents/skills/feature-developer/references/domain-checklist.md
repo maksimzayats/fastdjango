@@ -28,8 +28,8 @@ Use this checklist for a new domain such as `product`.
 
 ## Tests
 
-- [ ] Add FastAPI integration tests under `tests/integration/fastapi/`.
-- [ ] Add Celery integration tests under `tests/integration/celery/` when needed.
+- [ ] Add FastAPI integration tests under `tests/integration/core/<domain>/delivery/fastapi/`.
+- [ ] Add Celery integration tests under `tests/integration/core/<domain>/delivery/celery/` when needed.
 - [ ] Add focused unit tests under `tests/unit/core/<domain>/` for reusable logic.
 
 ## Commands

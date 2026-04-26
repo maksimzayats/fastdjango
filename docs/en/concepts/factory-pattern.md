@@ -152,7 +152,7 @@ class FastAPIFactory(BaseFactory):
 Test factories extend `ContainerBasedFactory` to access the IoC container:
 
 ```python
-# tests/integration/factories.py
+# tests/foundation/factories.py
 class ContainerBasedFactory(BaseTestFactory, ABC):
     def __init__(self, container: Container) -> None:
         self._container = container

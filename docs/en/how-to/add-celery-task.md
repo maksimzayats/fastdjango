@@ -214,7 +214,7 @@ make celery-beat-dev
 ### 7. Write Tests
 
 ```python
-# tests/integration/celery/test_send_email.py
+# tests/integration/core/email/delivery/celery/test_send_email.py
 from unittest.mock import MagicMock
 
 import pytest
@@ -324,7 +324,7 @@ class ProcessResultSchema(BaseCelerySchema):
 | Modify | `src/fastdjango/entrypoints/celery/registry.py` |
 | Create | `src/fastdjango/core/email/delivery/celery/send_email.py` |
 | Modify | `src/fastdjango/entrypoints/celery/factories.py` |
-| Create | `tests/integration/celery/test_send_email.py` |
+| Create | `tests/integration/core/email/delivery/celery/test_send_email.py` |
 
 ## Verification
 
