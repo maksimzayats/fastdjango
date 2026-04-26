@@ -1,7 +1,7 @@
 services:
   api:
     volumes:
-      - ./src:/app/src:ro
+      - ../src:/app/src:ro
     command:
       - uvicorn
       - fastdjango.entrypoints.fastapi.app:app
@@ -13,7 +13,7 @@ services:
 
   celery-worker:
     volumes:
-      - ./src:/app/src:ro
+      - ../src:/app/src:ro
     command:
       - watchmedo
       - auto-restart
@@ -29,7 +29,7 @@ services:
 
   celery-beat:
     volumes:
-      - ./src:/app/src:ro
+      - ../src:/app/src:ro
     command:
       - watchmedo
       - auto-restart

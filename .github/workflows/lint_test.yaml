@@ -57,7 +57,7 @@ jobs:
           version: latest
 
       - name: Set docker-compose file
-        run: echo "COMPOSE_FILE=docker-compose.yaml:docker-compose.test.yaml" >> $GITHUB_ENV
+        run: echo "COMPOSE_FILE=docker/docker-compose.yaml:docker/docker-compose.test.yaml" >> $GITHUB_ENV
 
       - name: Build Docker image
         run: docker compose build base

@@ -2,6 +2,11 @@
 
 Reference for container configuration and management.
 
+Docker assets live in `docker/`. The default `.env.example` sets
+`COMPOSE_FILE=docker/docker-compose.yaml:docker/docker-compose.local.yaml`,
+so local `docker compose` commands can still be run from the repository root
+after copying `.env.example` to `.env`.
+
 ## Services Overview
 
 | Service | Image | Port | Purpose |
@@ -270,7 +275,7 @@ Internal hostnames:
 # Find process
 lsof -i :5432
 
-# Or change the published port in docker-compose.local.yaml
+# Or change the published port in docker/docker-compose.local.yaml
 ```
 
 ### Container Won't Start
