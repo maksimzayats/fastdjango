@@ -1,11 +1,9 @@
-from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
 from typing import Any
 
 from celery import Celery
 from celery.contrib.testing import worker
 from celery.worker import WorkController
-from diwire import Container
 from fastapi.testclient import TestClient
 
 from fastdjango.core.authentication.services.jwt import JWTService
@@ -13,23 +11,7 @@ from fastdjango.core.user.models import User
 from fastdjango.entrypoints.celery.factories import CeleryAppFactory, TasksRegistryFactory
 from fastdjango.entrypoints.celery.registry import TasksRegistry
 from fastdjango.entrypoints.fastapi.factories import FastAPIFactory
-from fastdjango.foundation.factories import BaseFactory
-
-
-class BaseTestFactory(BaseFactory, ABC):
-    __test__ = False
-
-    @abstractmethod
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        pass
-
-
-class ContainerBasedFactory(BaseTestFactory, ABC):
-    def __init__(
-        self,
-        container: Container,
-    ) -> None:
-        self._container = container
+from tests.foundation.factories import ContainerBasedFactory
 
 
 class TestClientFactory(ContainerBasedFactory):

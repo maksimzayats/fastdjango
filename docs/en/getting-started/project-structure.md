@@ -164,22 +164,32 @@ ioc/
 ```
 tests/
 ├── conftest.py             # Shared fixtures
+├── architecture/           # Project convention and structure checks
+│   └── test_test_structure.py
+├── foundation/             # Shared test base classes
+│   └── factories.py        # BaseTestFactory, ContainerBasedFactory
 ├── integration/            # Integration tests
 │   ├── conftest.py         # Integration fixtures (container, factories)
 │   ├── factories.py        # Test factories
-│   ├── fastapi/            # FastAPI endpoint tests
-│   │   └── test_v1_users.py
-│   └── celery/             # Celery task tests
-│       └── test_tasks.py
+│   └── core/               # Mirrors src/fastdjango/core
+│       ├── authentication/
+│       │   └── delivery/fastapi/test_controllers.py
+│       ├── health/
+│       │   └── delivery/
+│       │       ├── celery/test_tasks.py
+│       │       └── fastapi/test_controllers.py
+│       └── user/
+│           └── delivery/fastapi/test_controllers.py
 └── unit/                   # Focused tests for reusable behavior
-    ├── core/
-    └── infrastructure/
+    ├── core/               # Mirrors src/fastdjango/core
+    └── infrastructure/     # Mirrors src/fastdjango/infrastructure
 ```
 
 Key components:
 
 - **`integration/factories.py`**: `TestClientFactory`, `TestUserFactory`, `TestCeleryWorkerFactory`, `TestTasksRegistryFactory`
 - **`integration/conftest.py`**: Function-scoped container fixtures for test isolation
+- **`architecture/`**: Tests that enforce project structure and naming conventions
 
 ## Entry Points
 

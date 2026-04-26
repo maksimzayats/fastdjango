@@ -176,7 +176,7 @@ uv run src/fastdjango/manage.py migrate
 make test
 
 # Run specific test file
-pytest tests/integration/fastapi/test_v1_users.py
+pytest tests/integration/core/user/delivery/fastapi/test_controllers.py
 
 # Run with verbose output
 pytest -v tests/

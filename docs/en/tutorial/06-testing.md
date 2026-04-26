@@ -13,7 +13,7 @@ Write comprehensive tests for the Todo feature.
 
 | Action | File Path |
 |--------|-----------|
-| Create | `tests/integration/fastapi/test_v1_todos.py` |
+| Create | `tests/integration/core/todo/delivery/fastapi/test_controllers.py` |
 | Create | `tests/unit/core/todo/test_services.py` |
 
 ## Concept Reference
@@ -31,10 +31,10 @@ The project uses:
 
 ## Step 1: Create HTTP Integration Tests
 
-Create `tests/integration/fastapi/test_v1_todos.py`:
+Create `tests/integration/core/todo/delivery/fastapi/test_controllers.py`:
 
 ```python
-# tests/integration/fastapi/test_v1_todos.py
+# tests/integration/core/todo/delivery/fastapi/test_controllers.py
 from http import HTTPStatus
 
 import pytest
@@ -462,10 +462,10 @@ class TestTodoService:
 
 ## Step 3: Create Celery Task Tests
 
-Add task tests to `tests/integration/celery/test_todo_cleanup.py`:
+Add task tests to `tests/integration/core/todo/delivery/celery/test_todo_cleanup.py`:
 
 ```python
-# tests/integration/celery/test_todo_cleanup.py
+# tests/integration/core/todo/delivery/celery/test_todo_cleanup.py
 import pytest
 
 from fastdjango.core.todo.models import Todo
@@ -517,16 +517,16 @@ make test
 uv run pytest tests/
 
 # Run specific test file
-uv run pytest tests/integration/fastapi/test_v1_todos.py
+uv run pytest tests/integration/core/todo/delivery/fastapi/test_controllers.py
 
 # Run with verbose output
 uv run pytest -v tests/
 
 # Run specific test class
-uv run pytest tests/integration/fastapi/test_v1_todos.py::TestTodoController
+uv run pytest tests/integration/core/todo/delivery/fastapi/test_controllers.py::TestTodoController
 
 # Run specific test method
-uv run pytest tests/integration/fastapi/test_v1_todos.py::TestTodoController::test_create_todo
+uv run pytest tests/integration/core/todo/delivery/fastapi/test_controllers.py::TestTodoController::test_create_todo
 ```
 
 ## Test Patterns

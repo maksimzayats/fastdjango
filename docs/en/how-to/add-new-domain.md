@@ -320,10 +320,10 @@ make migrate
 
 ### 12. Write Tests
 
-Create `tests/integration/fastapi/test_v1_products.py`:
+Create `tests/integration/core/product/delivery/fastapi/test_controllers.py`:
 
 ```python
-# tests/integration/fastapi/test_v1_products.py
+# tests/integration/core/product/delivery/fastapi/test_controllers.py
 from decimal import Decimal
 from http import HTTPStatus
 
@@ -391,7 +391,7 @@ class TestProductController:
 | Modify | `src/fastdjango/infrastructure/django/settings.py` |
 | Modify | `src/fastdjango/core/product/apps.py` |
 | Modify | `src/fastdjango/entrypoints/fastapi/factories.py` |
-| Create | `tests/integration/fastapi/test_v1_products.py` |
+| Create | `tests/integration/core/product/delivery/fastapi/test_controllers.py` |
 
 ## Verification
 
