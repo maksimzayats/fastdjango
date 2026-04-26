@@ -16,6 +16,7 @@ Use this skill to write focused tests for the current project structure.
 | Celery integration | `tests/integration/core/<domain>/delivery/celery/` |
 | Core unit tests | `tests/unit/core/<domain>/...` |
 | Infrastructure unit tests | `tests/unit/infrastructure/<adapter>/...` |
+| Architecture tests | `tests/architecture/` |
 
 ## Available Factories
 
@@ -68,6 +69,7 @@ assert result == {"result": "pong"}
 make test
 uv run pytest tests/integration/core/user/delivery/fastapi/test_controllers.py
 uv run pytest tests/integration/core/health/delivery/celery/test_tasks.py
+uv run pytest tests/architecture/
 ```
 
 Detailed references:

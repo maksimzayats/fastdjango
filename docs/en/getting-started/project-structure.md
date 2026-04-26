@@ -164,6 +164,8 @@ ioc/
 ```
 tests/
 ├── conftest.py             # Shared fixtures
+├── architecture/           # Project convention and structure checks
+│   └── test_test_structure.py
 ├── foundation/             # Shared test base classes
 │   └── factories.py        # BaseTestFactory, ContainerBasedFactory
 ├── integration/            # Integration tests
@@ -187,6 +189,7 @@ Key components:
 
 - **`integration/factories.py`**: `TestClientFactory`, `TestUserFactory`, `TestCeleryWorkerFactory`, `TestTasksRegistryFactory`
 - **`integration/conftest.py`**: Function-scoped container fixtures for test isolation
+- **`architecture/`**: Tests that enforce project structure and naming conventions
 
 ## Entry Points
 
