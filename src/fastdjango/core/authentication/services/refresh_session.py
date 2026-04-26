@@ -2,8 +2,9 @@ import hashlib
 import secrets
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import NamedTuple
+from typing import ClassVar, NamedTuple
 
+from diwire import Injected
 from django.db import models, transaction
 from django.utils import timezone
 from pydantic_settings import BaseSettings
@@ -28,7 +29,11 @@ class RefreshSessionServiceSettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class RefreshSessionService(BaseService):
-    _settings: RefreshSessionServiceSettings
+    INVALID_REFRESH_TOKEN_ERROR: ClassVar = InvalidRefreshTokenError
+    EXPIRED_REFRESH_TOKEN_ERROR: ClassVar = ExpiredRefreshTokenError
+    REFRESH_SESSION_NOT_FOUND_ERROR: ClassVar = RefreshSession.DoesNotExist
+
+    _settings: Injected[RefreshSessionServiceSettings]
 
     def create_refresh_session(
         self,
@@ -75,7 +80,7 @@ class RefreshSessionService(BaseService):
     ) -> None:
         session = self._get_refresh_session_for_update(refresh_token)
         if session.user.pk != user.pk:
-            raise InvalidRefreshTokenError
+            raise self.INVALID_REFRESH_TOKEN_ERROR
 
         session.revoked_at = timezone.now()
         session.save(update_fields=["revoked_at"])
@@ -116,11 +121,11 @@ class RefreshSessionService(BaseService):
             session = self._get_refresh_session_query(for_update=for_update).get(
                 refresh_token_hash=self._hash_refresh_token(refresh_token),
             )
-        except RefreshSession.DoesNotExist as e:
-            raise InvalidRefreshTokenError from e
+        except self.REFRESH_SESSION_NOT_FOUND_ERROR as e:
+            raise self.INVALID_REFRESH_TOKEN_ERROR from e
 
         if not session.is_active:
-            raise ExpiredRefreshTokenError
+            raise self.EXPIRED_REFRESH_TOKEN_ERROR
 
         return session
 

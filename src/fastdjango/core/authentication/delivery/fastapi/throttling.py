@@ -2,6 +2,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, cast
 
+from diwire import Injected
 from starlette.requests import Request
 from throttled.asyncio import Quota, RateLimiterType
 
@@ -13,7 +14,7 @@ from fastdjango.infrastructure.throttled.throttler import AsyncThrottlerFactory
 
 @dataclass(kw_only=True)
 class UserThrottlerFactory(BaseFactory):
-    _throttler_factory: AsyncThrottlerFactory
+    _throttler_factory: Injected[AsyncThrottlerFactory]
 
     def __call__(
         self,

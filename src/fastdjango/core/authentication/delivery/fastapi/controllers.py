@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any
 
+from diwire import Injected
 from fastapi import APIRouter, Depends, HTTPException, Request
 from throttled import rate_limiter
 
@@ -16,12 +17,6 @@ from fastdjango.core.authentication.delivery.fastapi.schemas import (
 )
 from fastdjango.core.authentication.delivery.fastapi.throttling import UserThrottlerFactory
 from fastdjango.core.authentication.dtos import TokenRequestContextDTO
-from fastdjango.core.authentication.exceptions import (
-    ExpiredRefreshTokenError,
-    InvalidCredentialsError,
-    InvalidRefreshTokenError,
-    RefreshTokenError,
-)
 from fastdjango.core.authentication.use_cases import TokenUseCase
 from fastdjango.core.shared.delivery.fastapi.request import RequestInfoService
 from fastdjango.core.shared.delivery.fastapi.throttling import IPThrottlerFactory
@@ -30,11 +25,11 @@ from fastdjango.infrastructure.django.controllers import BaseTransactionControll
 
 @dataclass(kw_only=True)
 class AuthenticationTokenController(BaseTransactionController):
-    _jwt_auth_factory: JWTAuthFactory
-    _request_info_service: RequestInfoService
-    _ip_throttler_factory: IPThrottlerFactory
-    _user_throttler_factory: UserThrottlerFactory
-    _token_use_case: TokenUseCase
+    _jwt_auth_factory: Injected[JWTAuthFactory]
+    _request_info_service: Injected[RequestInfoService]
+    _ip_throttler_factory: Injected[IPThrottlerFactory]
+    _user_throttler_factory: Injected[UserThrottlerFactory]
+    _token_use_case: Injected[TokenUseCase]
 
     def __post_init__(self) -> None:
         self._jwt_auth = self._jwt_auth_factory()
@@ -110,25 +105,25 @@ class AuthenticationTokenController(BaseTransactionController):
         )
 
     def handle_exception(self, exception: Exception) -> Any:
-        if isinstance(exception, InvalidCredentialsError):
+        if isinstance(exception, TokenUseCase.INVALID_CREDENTIALS_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
                 detail="Invalid username or password",
             ) from exception
 
-        if isinstance(exception, InvalidRefreshTokenError):
+        if isinstance(exception, TokenUseCase.INVALID_REFRESH_TOKEN_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
                 detail="Invalid refresh token",
             ) from exception
 
-        if isinstance(exception, ExpiredRefreshTokenError):
+        if isinstance(exception, TokenUseCase.EXPIRED_REFRESH_TOKEN_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
                 detail="Refresh token expired or revoked",
             ) from exception
 
-        if isinstance(exception, RefreshTokenError):
+        if isinstance(exception, TokenUseCase.REFRESH_TOKEN_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
                 detail="Refresh token error",

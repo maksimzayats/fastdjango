@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import ClassVar
 
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -11,6 +12,11 @@ from fastdjango.foundation.use_cases import BaseUseCase
 
 @dataclass(kw_only=True)
 class UserUseCase(BaseUseCase):
+    USER_NOT_FOUND_ERROR: ClassVar = User.DoesNotExist
+    PASSWORD_VALIDATION_ERROR: ClassVar = ValidationError
+    WEAK_PASSWORD_ERROR: ClassVar = WeakPasswordError
+    USER_ALREADY_EXISTS_ERROR: ClassVar = UserAlreadyExistsError
+
     def get_user_by_id(self, user_id: int) -> User | None:
         return User.objects.filter(id=user_id).first()
 
@@ -24,7 +30,7 @@ class UserUseCase(BaseUseCase):
     ) -> User | None:
         try:
             user = User.objects.get(username=username)
-        except User.DoesNotExist:
+        except self.USER_NOT_FOUND_ERROR:
             return None
 
         if not user.check_password(password):
@@ -57,7 +63,7 @@ class UserUseCase(BaseUseCase):
                     last_name=data.last_name,
                 ),
             )
-        except ValidationError:
+        except self.PASSWORD_VALIDATION_ERROR:
             return False
 
         return True
@@ -68,14 +74,14 @@ class UserUseCase(BaseUseCase):
     ) -> User:
         is_valid_password = self.is_valid_password(data=data)
         if not is_valid_password:
-            raise WeakPasswordError
+            raise self.WEAK_PASSWORD_ERROR
 
         existing_user = self.get_user_by_username_or_email(
             username=data.username,
             email=str(data.email),
         )
         if existing_user is not None:
-            raise UserAlreadyExistsError
+            raise self.USER_ALREADY_EXISTS_ERROR
 
         return User.objects.create_user(
             username=data.username,

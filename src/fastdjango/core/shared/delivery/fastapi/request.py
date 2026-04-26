@@ -1,7 +1,9 @@
 import ipaddress
 import logging
 from dataclasses import dataclass
+from typing import ClassVar
 
+from diwire import Injected
 from pydantic_settings import BaseSettings
 from starlette.requests import Request
 
@@ -22,7 +24,9 @@ class RequestInfoServiceSettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class RequestInfoService(BaseService):
-    _settings: RequestInfoServiceSettings
+    INVALID_IP_ADDRESS_ERROR: ClassVar = ValueError
+
+    _settings: Injected[RequestInfoServiceSettings]
 
     def get_user_agent(self, request: Request) -> str:
         return request.headers.get(self._settings.user_agent_header, "")
@@ -74,7 +78,7 @@ class RequestInfoService(BaseService):
     def _normalize_ip(self, address: str) -> str | None:
         try:
             ip = ipaddress.ip_address(address)
-        except ValueError:
+        except self.INVALID_IP_ADDRESS_ERROR:
             return None
         else:
             return str(ip)

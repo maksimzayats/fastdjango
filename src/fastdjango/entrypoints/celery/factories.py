@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 from celery import Celery
+from diwire import Injected
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -51,9 +52,10 @@ class CelerySettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class CeleryAppFactory(BaseFactory):
-    _application_settings: ApplicationSettings
-    _celery_settings: CelerySettings
-    _broker_settings: CeleryBrokerSettings
+    _application_settings: Injected[ApplicationSettings]
+    _celery_settings: Injected[CelerySettings]
+    _broker_settings: Injected[CeleryBrokerSettings]
+
     _instance: Celery | None = field(default=None, init=False)
 
     def __call__(self) -> Celery:
@@ -90,8 +92,9 @@ class CeleryAppFactory(BaseFactory):
 
 @dataclass(kw_only=True)
 class TasksRegistryFactory(BaseFactory):
-    _celery_app_factory: CeleryAppFactory
-    _ping_controller: PingTaskController
+    _celery_app_factory: Injected[CeleryAppFactory]
+    _ping_controller: Injected[PingTaskController]
+
     _instance: TasksRegistry | None = field(default=None, init=False)
 
     def __call__(self) -> TasksRegistry:

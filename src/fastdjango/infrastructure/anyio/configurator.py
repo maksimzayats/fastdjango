@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 
 from anyio.to_thread import current_default_thread_limiter
+from diwire import Injected
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from fastdjango.foundation.configurators import BaseConfigurator
@@ -17,7 +18,7 @@ class AnyIOSettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class AnyIOConfigurator(BaseConfigurator):
-    _settings: AnyIOSettings
+    _settings: Injected[AnyIOSettings]
 
     def configure(self) -> None:
         limiter = current_default_thread_limiter()

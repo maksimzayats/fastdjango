@@ -5,7 +5,6 @@ import pytest
 from diwire import Container
 
 from fastdjango.core.health.delivery.fastapi.schemas import HealthCheckResponseSchema
-from fastdjango.core.health.exceptions import HealthCheckError
 from fastdjango.core.health.use_cases import SystemHealthUseCase
 from tests.integration.factories import TestClientFactory
 
@@ -30,7 +29,7 @@ class TestHealthController:
         container: Container,
     ) -> None:
         mock_use_case = MagicMock(spec=SystemHealthUseCase)
-        mock_use_case.check.side_effect = HealthCheckError()
+        mock_use_case.check.side_effect = SystemHealthUseCase.HEALTH_CHECK_ERROR()
         container.add_instance(mock_use_case, provides=SystemHealthUseCase)
 
         test_client_factory = TestClientFactory(container=container)

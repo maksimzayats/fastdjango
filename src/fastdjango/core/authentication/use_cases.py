@@ -1,4 +1,7 @@
 from dataclasses import dataclass
+from typing import ClassVar
+
+from diwire import Injected
 
 from fastdjango.core.authentication.dtos import (
     IssueTokenDTO,
@@ -6,7 +9,10 @@ from fastdjango.core.authentication.dtos import (
     TokenDTO,
     TokenRequestContextDTO,
 )
-from fastdjango.core.authentication.exceptions import InvalidCredentialsError
+from fastdjango.core.authentication.exceptions import (
+    InvalidCredentialsError,
+    RefreshTokenError,
+)
 from fastdjango.core.authentication.services.jwt import JWTService
 from fastdjango.core.authentication.services.refresh_session import RefreshSessionService
 from fastdjango.core.user.models import User
@@ -16,9 +22,14 @@ from fastdjango.foundation.use_cases import BaseUseCase
 
 @dataclass(kw_only=True)
 class TokenUseCase(BaseUseCase):
-    _jwt_service: JWTService
-    _refresh_session_service: RefreshSessionService
-    _user_use_case: UserUseCase
+    INVALID_CREDENTIALS_ERROR: ClassVar = InvalidCredentialsError
+    INVALID_REFRESH_TOKEN_ERROR: ClassVar = RefreshSessionService.INVALID_REFRESH_TOKEN_ERROR
+    EXPIRED_REFRESH_TOKEN_ERROR: ClassVar = RefreshSessionService.EXPIRED_REFRESH_TOKEN_ERROR
+    REFRESH_TOKEN_ERROR: ClassVar = RefreshTokenError
+
+    _jwt_service: Injected[JWTService]
+    _refresh_session_service: Injected[RefreshSessionService]
+    _user_use_case: Injected[UserUseCase]
 
     def issue_token(
         self,
@@ -31,7 +42,7 @@ class TokenUseCase(BaseUseCase):
             password=data.password,
         )
         if user is None:
-            raise InvalidCredentialsError
+            raise self.INVALID_CREDENTIALS_ERROR
 
         refresh_session = self._refresh_session_service.create_refresh_session(
             user=user,

@@ -3,6 +3,7 @@ from http import HTTPStatus
 from typing import Any, cast
 
 from asgiref.sync import sync_to_async
+from diwire import Injected
 from fastapi import HTTPException
 from fastapi.requests import Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -34,8 +35,8 @@ class JWTAuthFactory(BaseFactory):
         admin_auth = factory(require_superuser=True)  # Requires is_superuser=True
     """
 
-    _jwt_service: JWTService
-    _user_use_case: UserUseCase
+    _jwt_service: Injected[JWTService]
+    _user_use_case: Injected[UserUseCase]
 
     def __call__(
         self,
