@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import ClassVar, NamedTuple
 
+from diwire import Injected
 from django.db import models, transaction
 from django.utils import timezone
 from pydantic_settings import BaseSettings
@@ -32,7 +33,7 @@ class RefreshSessionService(BaseService):
     EXPIRED_REFRESH_TOKEN_ERROR: ClassVar = ExpiredRefreshTokenError
     REFRESH_SESSION_NOT_FOUND_ERROR: ClassVar = RefreshSession.DoesNotExist
 
-    _settings: RefreshSessionServiceSettings
+    _settings: Injected[RefreshSessionServiceSettings]
 
     def create_refresh_session(
         self,

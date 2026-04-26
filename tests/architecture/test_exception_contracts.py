@@ -1,6 +1,7 @@
 import ast
 from collections.abc import Iterable
 from pathlib import Path
+from typing import NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = REPO_ROOT / "src" / "fastdjango"
@@ -8,6 +9,7 @@ SOURCE_ROOT = REPO_ROOT / "src" / "fastdjango"
 SERVICE_AND_USE_CASE_BASES = {"BaseService", "BaseUseCase"}
 EXCEPTION_NAME_SUFFIXES = ("Error", "Exception", "_ERROR", "_EXCEPTION")
 EXCEPTION_ALIAS_NAMES = {"DoesNotExist"}
+DOMAIN_EXCEPTION_BASE = "ApplicationError"
 
 
 def test_service_and_use_case_exceptions_are_classvar_contracts() -> None:
@@ -40,6 +42,76 @@ def test_delivery_modules_handle_domain_exceptions_through_contracts() -> None:
     assert violations == [], (
         "Delivery modules must handle domain exceptions through injected service "
         "or use-case exception contracts instead of importing domain exception modules."
+    )
+
+
+def test_exception_contracts_use_bare_classvar_annotations() -> None:
+    violations = [
+        (
+            f"{_relative_path(source_file)}:{statement.lineno} "
+            f"{class_node.name}.{statement.target.id} must use bare ClassVar"
+        )
+        for source_file, tree in _iter_source_trees()
+        for class_node in _iter_service_and_use_case_classes(tree)
+        for statement in class_node.body
+        if isinstance(statement, ast.AnnAssign)
+        if isinstance(statement.target, ast.Name)
+        if statement.target.id in _exception_aliases(class_node)
+        if _is_generic_classvar_annotation(statement.annotation)
+    ]
+
+    assert violations == [], "Exception contracts must use bare ClassVar annotations."
+
+
+def test_domain_exceptions_inherit_application_error_and_end_with_error() -> None:
+    exception_classes = _exception_class_map()
+    violations: list[str] = []
+
+    for class_name, exception_class in exception_classes.items():
+        if class_name == DOMAIN_EXCEPTION_BASE:
+            continue
+
+        if not class_name.endswith("Error"):
+            violations.append(
+                f"{_relative_path(exception_class.source_file)}:"
+                f"{exception_class.line_number} {class_name} must end with Error",
+            )
+
+        if not _inherits_from_application_error(
+            class_name=class_name,
+            exception_classes=exception_classes,
+        ):
+            violations.append(
+                f"{_relative_path(exception_class.source_file)}:"
+                f"{exception_class.line_number} {class_name} must inherit ApplicationError",
+            )
+
+    assert violations == [], "Domain exceptions must inherit ApplicationError and end with Error."
+
+
+def test_services_and_use_cases_do_not_raise_http_exception() -> None:
+    violations = [
+        f"{_relative_path(source_file)}:{node.lineno} raises HTTPException"
+        for source_file, tree in _iter_source_trees()
+        if _is_service_or_use_case_module(source_file)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Raise)
+        if node.exc is not None
+        if _name_for_expression(_call_target(node.exc)) == "HTTPException"
+    ]
+    violations.extend(
+        f"{_relative_path(source_file)}:{node.lineno} imports HTTPException"
+        for source_file, tree in _iter_source_trees()
+        if _is_service_or_use_case_module(source_file)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        if node.module == "fastapi"
+        for alias in node.names
+        if alias.name == "HTTPException"
+    )
+
+    assert violations == [], (
+        "Services and use cases must raise domain exceptions, not HTTPException."
     )
 
 
@@ -241,6 +313,13 @@ def _is_classvar_annotation(annotation: ast.expr) -> bool:
     return _name_for_expression(annotation_target) == "ClassVar"
 
 
+def _is_generic_classvar_annotation(annotation: ast.expr) -> bool:
+    return (
+        isinstance(annotation, ast.Subscript)
+        and _name_for_expression(annotation.value) == "ClassVar"
+    )
+
+
 def _is_exception_contract_reference(
     expression: ast.expr,
     *,
@@ -328,6 +407,70 @@ def _is_exception_name(name: str) -> bool:
 
 def _is_domain_exception_module(module_name: str) -> bool:
     return module_name.startswith("fastdjango.core.") and module_name.endswith(".exceptions")
+
+
+class _ExceptionClass(NamedTuple):
+    source_file: Path
+    line_number: int
+    base_names: set[str]
+
+
+def _exception_class_map() -> dict[str, _ExceptionClass]:
+    exception_classes: dict[str, _ExceptionClass] = {}
+    for source_file, tree in _iter_source_trees():
+        if not _is_core_exception_module(source_file):
+            continue
+
+        for class_node in (node for node in tree.body if isinstance(node, ast.ClassDef)):
+            exception_classes[class_node.name] = _ExceptionClass(
+                source_file=source_file,
+                line_number=class_node.lineno,
+                base_names={
+                    base_name
+                    for base in class_node.bases
+                    if (base_name := _name_for_expression(base)) is not None
+                },
+            )
+
+    return exception_classes
+
+
+def _inherits_from_application_error(
+    *,
+    class_name: str,
+    exception_classes: dict[str, _ExceptionClass],
+    seen: frozenset[str] = frozenset(),
+) -> bool:
+    if class_name in seen:
+        return False
+
+    exception_class = exception_classes.get(class_name)
+    if exception_class is None:
+        return False
+
+    if DOMAIN_EXCEPTION_BASE in exception_class.base_names:
+        return True
+
+    return any(
+        _inherits_from_application_error(
+            class_name=base_name,
+            exception_classes=exception_classes,
+            seen=seen | {class_name},
+        )
+        for base_name in exception_class.base_names
+    )
+
+
+def _is_core_exception_module(source_file: Path) -> bool:
+    relative_parts = source_file.relative_to(SOURCE_ROOT).parts
+    return relative_parts[0] == "core" and source_file.name == "exceptions.py"
+
+
+def _is_service_or_use_case_module(source_file: Path) -> bool:
+    relative_parts = source_file.relative_to(SOURCE_ROOT).parts
+    return relative_parts[0] == "core" and (
+        "services" in relative_parts or source_file.name == "use_cases.py"
+    )
 
 
 def _relative_path(path: Path) -> Path:

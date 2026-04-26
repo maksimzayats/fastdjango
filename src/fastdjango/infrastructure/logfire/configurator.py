@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 
 import logfire
+from diwire import Injected
 from logfire import ScrubbingOptions
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -28,7 +29,7 @@ class LogfireSettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class LogfireConfigurator(BaseConfigurator):
-    _logfire_settings: LogfireSettings
+    _logfire_settings: Injected[LogfireSettings]
 
     def configure(self) -> None:
         token = self._logfire_settings.token

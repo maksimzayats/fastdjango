@@ -4,6 +4,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from diwire import Injected
 from fastapi import HTTPException
 from starlette import status
 from starlette.requests import Request
@@ -18,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass(kw_only=True)
 class IPThrottlerFactory(BaseFactory):
-    _throttler_factory: AsyncThrottlerFactory
-    _request_info_service: RequestInfoService
+    _throttler_factory: Injected[AsyncThrottlerFactory]
+    _request_info_service: Injected[RequestInfoService]
 
     def __call__(
         self,
@@ -62,7 +63,7 @@ class BaseThrottler(ABC):
 
 @dataclass(kw_only=True)
 class IPThrottler(BaseThrottler):
-    _request_info_service: RequestInfoService
+    _request_info_service: Injected[RequestInfoService]
 
     def _build_key(self, request: Request) -> str:
         user_ip = self._request_info_service.get_user_ip_trace(request=request)

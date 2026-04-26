@@ -3,6 +3,7 @@ import sys
 from dataclasses import dataclass
 
 import logfire
+from diwire import Injected
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -19,7 +20,7 @@ class LoggingSettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class LoggingConfigurator(BaseConfigurator):
-    _settings: LoggingSettings
+    _settings: Injected[LoggingSettings]
 
     def configure(self) -> None:
         logging.basicConfig(

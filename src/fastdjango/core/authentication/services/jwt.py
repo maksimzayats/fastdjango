@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar
 
 import jwt
+from diwire import Injected
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -27,7 +28,7 @@ class JWTService(BaseService):
     EXPIRED_SIGNATURE_ERROR: ClassVar = jwt.ExpiredSignatureError
     INVALID_TOKEN_ERROR: ClassVar = jwt.InvalidTokenError
 
-    _settings: JWTServiceSettings
+    _settings: Injected[JWTServiceSettings]
 
     def issue_access_token(
         self,

@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from typing import ClassVar
 
 from django.contrib.sessions.models import Session
@@ -9,6 +10,7 @@ from fastdjango.foundation.use_cases import BaseUseCase
 logger = logging.getLogger(__name__)
 
 
+@dataclass(kw_only=True)
 class SystemHealthUseCase(BaseUseCase):
     HEALTH_CHECK_ERROR: ClassVar = HealthCheckError
     UNEXPECTED_ERROR: ClassVar = Exception

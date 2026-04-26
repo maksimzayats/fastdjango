@@ -23,6 +23,21 @@ def test_mirrored_test_files_map_to_source_modules() -> None:
     )
 
 
+def test_important_source_modules_have_matching_tests() -> None:
+    missing_tests = [
+        f"{source_path.relative_to(REPO_ROOT)} -> {test_path.relative_to(REPO_ROOT)}"
+        for source_path in _iter_important_source_modules()
+        for test_path in [_expected_test_path_for(source_path)]
+        if not test_path.is_file()
+    ]
+
+    assert missing_tests == [], (
+        "Important behavior modules must have matching tests. "
+        "Cover delivery controllers/tasks with integration tests and "
+        "services/use cases with unit tests."
+    )
+
+
 def _iter_mirrored_test_files() -> list[Path]:
     test_files: list[Path] = []
 
@@ -39,3 +54,31 @@ def _source_module_path_for(test_file: Path) -> Path:
     source_module_name = source_parts[-1].removeprefix("test_")
 
     return Path(*source_parts[:-1], source_module_name)
+
+
+def _iter_important_source_modules() -> list[Path]:
+    source_modules: list[Path] = []
+
+    source_modules.extend(sorted(SOURCE_ROOT.glob("core/*/delivery/fastapi/controllers.py")))
+    source_modules.extend(sorted(SOURCE_ROOT.glob("core/*/delivery/celery/tasks.py")))
+    source_modules.extend(
+        source_path
+        for source_path in sorted(SOURCE_ROOT.glob("core/*/services/*.py"))
+        if source_path.name != "__init__.py"
+    )
+    source_modules.extend(sorted(SOURCE_ROOT.glob("core/*/use_cases.py")))
+
+    return source_modules
+
+
+def _expected_test_path_for(source_path: Path) -> Path:
+    source_relative_path = source_path.relative_to(SOURCE_ROOT)
+
+    if "delivery" in source_relative_path.parts:
+        return TESTS_ROOT / "integration" / _test_module_path_for(source_relative_path)
+
+    return TESTS_ROOT / "unit" / _test_module_path_for(source_relative_path)
+
+
+def _test_module_path_for(source_relative_path: Path) -> Path:
+    return source_relative_path.with_name(f"test_{source_relative_path.name}")

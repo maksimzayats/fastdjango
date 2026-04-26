@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from http import HTTPStatus
 
+from diwire import Injected
 from fastapi import APIRouter, HTTPException
 
 from fastdjango.core.health.delivery.fastapi.schemas import HealthCheckResponseSchema
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(kw_only=True)
 class HealthController(BaseController):
-    _system_health_use_case: SystemHealthUseCase
+    _system_health_use_case: Injected[SystemHealthUseCase]
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(

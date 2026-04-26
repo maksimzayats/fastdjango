@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any
 
+from diwire import Injected
 from fastapi import APIRouter, Depends, HTTPException
 
 from fastdjango.core.authentication.delivery.fastapi.auth import (
@@ -18,8 +19,8 @@ from fastdjango.infrastructure.django.controllers import BaseTransactionControll
 
 @dataclass(kw_only=True)
 class UserController(BaseTransactionController):
-    _jwt_auth_factory: JWTAuthFactory
-    _user_use_case: UserUseCase
+    _jwt_auth_factory: Injected[JWTAuthFactory]
+    _user_use_case: Injected[UserUseCase]
 
     def __post_init__(self) -> None:
         self._jwt_auth = self._jwt_auth_factory()

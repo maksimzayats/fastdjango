@@ -3,6 +3,7 @@ import logging
 from dataclasses import dataclass
 from typing import ClassVar
 
+from diwire import Injected
 from pydantic_settings import BaseSettings
 from starlette.requests import Request
 
@@ -25,7 +26,7 @@ class RequestInfoServiceSettings(BaseSettings):
 class RequestInfoService(BaseService):
     INVALID_IP_ADDRESS_ERROR: ClassVar = ValueError
 
-    _settings: RequestInfoServiceSettings
+    _settings: Injected[RequestInfoServiceSettings]
 
     def get_user_agent(self, request: Request) -> str:
         return request.headers.get(self._settings.user_agent_header, "")

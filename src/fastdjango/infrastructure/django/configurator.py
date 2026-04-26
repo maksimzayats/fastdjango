@@ -3,6 +3,7 @@ import os
 from dataclasses import dataclass
 
 import django
+from diwire import Injected
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
@@ -17,7 +18,7 @@ class DjangoConfiguratorSettings(BaseSettings):
 
 @dataclass(frozen=True, kw_only=True)
 class DjangoConfigurator(BaseConfigurator):
-    _settings: DjangoConfiguratorSettings
+    _settings: Injected[DjangoConfiguratorSettings]
 
     def configure(self) -> None:
         self._load_dotenv()

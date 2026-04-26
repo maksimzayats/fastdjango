@@ -44,6 +44,8 @@
 - Use `BaseTasksRegistry` for task registries.
 - Use `BaseThrottler` for FastAPI throttlers.
 - Use `ApplicationSettings` only for app-wide environment/version/time-zone settings.
+- Annotate injected constructor dependencies with `diwire.Injected[...]` so DI-provided fields are explicit to readers.
+- Separate injected dependency fields from other dataclass fields with an empty line.
 
 ## Exception Contracts
 

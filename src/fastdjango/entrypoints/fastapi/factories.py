@@ -5,6 +5,7 @@ from typing import cast
 
 from a2wsgi import WSGIMiddleware
 from a2wsgi.wsgi_typing import WSGIApp
+from diwire import Injected
 from fastapi import APIRouter, FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,7 +40,7 @@ class CORSSettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class Lifespan:
-    _anyio_configurator: AnyIOConfigurator
+    _anyio_configurator: Injected[AnyIOConfigurator]
 
     @asynccontextmanager
     async def __call__(self, _app: FastAPI) -> AsyncIterator[None]:
@@ -50,17 +51,17 @@ class Lifespan:
 
 @dataclass(kw_only=True)
 class FastAPIFactory(BaseFactory):
-    _application_settings: ApplicationSettings
-    _fastapi_settings: FastAPISettings
-    _cors_settings: CORSSettings
+    _application_settings: Injected[ApplicationSettings]
+    _fastapi_settings: Injected[FastAPISettings]
+    _cors_settings: Injected[CORSSettings]
 
-    _lifespan: Lifespan
-    _telemetry_instrumentor: OpenTelemetryInstrumentor
-    _django_wsgi_factory: DjangoWSGIFactory
+    _lifespan: Injected[Lifespan]
+    _telemetry_instrumentor: Injected[OpenTelemetryInstrumentor]
+    _django_wsgi_factory: Injected[DjangoWSGIFactory]
 
-    _health_controller: HealthController
-    _authentication_token_controller: AuthenticationTokenController
-    _user_controller: UserController
+    _health_controller: Injected[HealthController]
+    _authentication_token_controller: Injected[AuthenticationTokenController]
+    _user_controller: Injected[UserController]
 
     def __call__(
         self,

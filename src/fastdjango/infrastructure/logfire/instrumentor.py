@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import logfire
+from diwire import Injected
 from fastapi import FastAPI
 from logfire.integrations.psycopg import CommenterOptions
 from pydantic import Field
@@ -19,8 +20,8 @@ class InstrumentorSettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class OpenTelemetryInstrumentor:
-    _instrumentor_settings: InstrumentorSettings
-    _logfire_settings: LogfireSettings
+    _instrumentor_settings: Injected[InstrumentorSettings]
+    _logfire_settings: Injected[LogfireSettings]
 
     def instrument_libraries(self) -> None:
         if not self._logfire_settings.is_enabled:

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any
 
+from diwire import Injected
 from fastapi import APIRouter, Depends, HTTPException, Request
 from throttled import rate_limiter
 
@@ -24,11 +25,11 @@ from fastdjango.infrastructure.django.controllers import BaseTransactionControll
 
 @dataclass(kw_only=True)
 class AuthenticationTokenController(BaseTransactionController):
-    _jwt_auth_factory: JWTAuthFactory
-    _request_info_service: RequestInfoService
-    _ip_throttler_factory: IPThrottlerFactory
-    _user_throttler_factory: UserThrottlerFactory
-    _token_use_case: TokenUseCase
+    _jwt_auth_factory: Injected[JWTAuthFactory]
+    _request_info_service: Injected[RequestInfoService]
+    _ip_throttler_factory: Injected[IPThrottlerFactory]
+    _user_throttler_factory: Injected[UserThrottlerFactory]
+    _token_use_case: Injected[TokenUseCase]
 
     def __post_init__(self) -> None:
         self._jwt_auth = self._jwt_auth_factory()
