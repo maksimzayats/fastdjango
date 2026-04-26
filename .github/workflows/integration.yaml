@@ -13,9 +13,9 @@ jobs:
       matrix:
         include:
           - name: production
-            compose-file: docker-compose.yaml
+            compose-file: docker/docker-compose.yaml
           - name: local
-            compose-file: docker-compose.yaml:docker-compose.local.yaml
+            compose-file: docker/docker-compose.yaml:docker/docker-compose.local.yaml
     name: integration-health-check (${{ matrix.name }})
     env:
       COMPOSE_FILE: ${{ matrix.compose-file }}

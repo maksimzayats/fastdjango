@@ -16,7 +16,7 @@ Understanding the codebase organization is essential for working effectively wit
 │   ├── integration/        # Integration tests
 │   └── unit/               # Unit tests
 ├── docs/                   # Documentation (MkDocs)
-├── docker-compose*.yaml    # Local/test/production service definitions
+├── docker/                 # Dockerfile and Compose service definitions
 └── Makefile                # Common development commands
 ```
 
@@ -232,7 +232,7 @@ The application has multiple entry points:
 |------|---------|
 | `pyproject.toml` | Project dependencies and tool configuration |
 | `Makefile` | Development commands |
-| `docker-compose.yaml` | Base Docker Compose services |
+| `docker/docker-compose.yaml` | Base Docker Compose services |
 | `.env.example` | Environment variable template |
 | `ruff.toml` | Ruff linter/formatter configuration |
 
