@@ -11,14 +11,10 @@ collectstatic:
 	uv run src/fastdjango/manage.py collectstatic --no-input
 
 format:
-	uv run ruff format .
-	uv run ruff check --fix-only .
+	uv run prek run trailing-whitespace end-of-file-fixer ruff-check-fix ruff-format-fix --all-files --hook-stage manual
 
 lint:
-	uv run ruff check .
-	uv run ty check .
-	uv run pyrefly check src/
-	uv run --env-file .env.test.example mypy src/ tests/
+	uv run prek run --all-files
 
 test:
 	uv run pytest tests/

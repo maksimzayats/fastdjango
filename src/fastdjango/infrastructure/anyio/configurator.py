@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 
-import anyio
+from anyio.to_thread import current_default_thread_limiter
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from fastdjango.foundation.configurators import BaseConfigurator
@@ -20,7 +20,7 @@ class AnyIOConfigurator(BaseConfigurator):
     _settings: AnyIOSettings
 
     def configure(self) -> None:
-        limiter = anyio.to_thread.current_default_thread_limiter()  # type: ignore[unresolved-attribute]
+        limiter = current_default_thread_limiter()
         limiter.total_tokens = self._settings.thread_limiter_tokens
 
         logger.info(

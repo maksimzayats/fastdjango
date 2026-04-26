@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any, cast
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -43,7 +44,7 @@ class ThrottlerFactory(BaseFactory):
         return Throttled(
             using=using.value,
             quota=quota,
-            store=self._store,  # type: ignore[invalid-argument-type]
+            store=cast(Any, self._store),
         )
 
 
@@ -70,5 +71,5 @@ class AsyncThrottlerFactory(BaseFactory):
         return AsyncThrottled(
             using=using.value,
             quota=quota,
-            store=self._store,  # type: ignore[invalid-argument-type]
+            store=cast(Any, self._store),
         )

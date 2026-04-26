@@ -32,17 +32,13 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "icecream>=2.1.9",
     "mypy>=1.20.2",
-    "pre-commit>=4.6.0",
     "prek>=0.3.10",
-    "pyrefly>=0.62.0",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "pytest-django>=4.11.1",
     "pytest-mock>=3.15.1",
     "ruff>=0.15.11",
-    "ty>=0.0.9",
 ]
 docs = [
     "mkdocs>=1.6.1",
@@ -56,7 +52,7 @@ build-backend = "uv_build"
 [tool.mypy]
 python_version = "3.14"
 strict = true
-plugins = ["mypy_django_plugin.main"]
+plugins = ["mypy_django_plugin.main", "diwire.integrations.mypy_plugin"]
 ignore_missing_imports = true
 local_partial_types = true
 warn_unreachable = true
@@ -73,7 +69,6 @@ enable_error_code = [
     "exhaustive-match",
 ]
 disable_error_code = [
-    "unused-ignore",
     "no-any-return",
 ]
 
@@ -83,9 +78,6 @@ disable_error_code = ["no-untyped-def"]
 
 [tool.django-stubs]
 django_settings_module = "fastdjango.infrastructure.django.settings"
-
-[tool.ty.rules]
-unused-ignore-comment = "ignore"
 
 [tool.logfire]
 ignore_no_config = true
