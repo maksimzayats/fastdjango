@@ -191,10 +191,10 @@ adapter = PydanticSettingsAdapter()
 adapter.adapt(
     DjangoSettings(),
     DjangoHttpSettings(),
-    DjangoDatabaseSettings(),  # type: ignore[call-arg, missing-argument]
+    DjangoDatabaseSettings(),  # type: ignore[call-arg]
     DjangoAuthSettings(),
-    DjangoSecuritySettings(),  # type: ignore[call-arg, missing-argument]
-    DjangoStorageSettings(),  # type: ignore[call-arg, missing-argument]
+    DjangoSecuritySettings(),  # type: ignore[call-arg]
+    DjangoStorageSettings(),  # type: ignore[call-arg]
     DjangoTemplatesSettings(),
     settings_locals=locals(),
 )

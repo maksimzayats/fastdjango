@@ -4,55 +4,60 @@ This guide covers the tools and configuration for an optimal development experie
 
 ## Code Quality Tools
 
-The project uses multiple tools for code quality. All are configured in `pyproject.toml` and `ruff.toml`.
+The project uses Ruff for formatting and linting, and mypy for strict type checking.
+Ruff and mypy are configured in `pyproject.toml` and `ruff.toml`; Git hooks are
+configured in `prek.toml`.
 
 ### Formatting: Ruff
 
-[Ruff](https://docs.astral.sh/ruff/) handles code formatting and linting.
+Ruff handles code formatting and linting. It is installed in the project dev
+environment for editor integration, and `prek` runs it through local hooks.
 
 ```bash
 # Format code
 make format
-
-# Or directly
-uv run ruff format .
-uv run ruff check --fix-only .
 ```
 
 ### Type Checking
 
-The project is configured for strict type checking. You can use any of the following type checkers:
+The project is configured for strict type checking with mypy. It runs through
+`prek` as part of the lint workflow:
 
 | Tool | Command | Configuration |
 |------|---------|---------------|
-| **mypy** | `uv run --env-file .env.test.example mypy src tests` | `pyproject.toml` |
-| **ty** | `uv run ty check src tests` | Built-in |
-| **pyrefly** | `uv run pyrefly check src` | Built-in |
+| **mypy** | `uv run prek run mypy --all-files` | `pyproject.toml`, `prek.toml` |
 
-Why three type checkers? Different tools catch different issues. Use the one you prefer, but the CI pipeline uses `mypy --strict`.
+The mypy configuration enables the Django stubs plugin and the diwire plugin, so
+framework settings and injected callables are checked with the same rules CI uses.
 
 ```bash
-# Run all linting tools
+# Run all checks except tests
 make lint
 ```
 
-### Pre-commit Hooks
+### Git Hooks
 
-The project includes pre-commit hooks that run automatically before each commit:
+The project uses `prek` for local hooks. By default, `prek run` checks staged
+files; `make lint` runs the same hooks across the whole repository.
 
 ```bash
 # Install hooks
-pre-commit install
+uv run prek install
 
-# Run manually on all files
-pre-commit run --all-files
+# Check staged files
+uv run prek run
+
+# Check the whole repository
+uv run prek run --all-files
 ```
 
 Hooks include:
 
 - Ruff formatting and linting
+- mypy strict type checking
 - Trailing whitespace removal
 - YAML/TOML validation
+- uv lockfile validation
 - Large file detection
 
 ## IDE Configuration

@@ -31,7 +31,8 @@ class LogfireConfigurator(BaseConfigurator):
     _logfire_settings: LogfireSettings
 
     def configure(self) -> None:
-        if not self._logfire_settings.is_enabled:
+        token = self._logfire_settings.token
+        if not self._logfire_settings.is_enabled or token is None:
             logger.debug("Logfire is disabled; skipping configuration")
             return
 
@@ -39,7 +40,7 @@ class LogfireConfigurator(BaseConfigurator):
             service_name=self._logfire_settings.service_name,
             service_version=self._logfire_settings.service_version,
             environment=self._logfire_settings.environment,
-            token=self._logfire_settings.token.get_secret_value(),  # type: ignore[union-attr, possibly-missing-attribute]
+            token=token.get_secret_value(),
             scrubbing=ScrubbingOptions(
                 extra_patterns=[
                     "access_token",

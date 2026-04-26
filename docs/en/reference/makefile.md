@@ -44,8 +44,8 @@ make migrate
 
 | Command | Description |
 |---------|-------------|
-| `make format` | Format code with ruff |
-| `make lint` | Run all linters (ruff, ty, pyrefly, mypy) |
+| `make format` | Format code through prek hooks |
+| `make lint` | Run all prek checks except tests |
 | `make test` | Run tests with coverage |
 
 ### Examples
@@ -123,25 +123,23 @@ uv run watchmedo auto-restart \
 
 Runs:
 ```bash
-uv run ruff format .
-uv run ruff check --fix-only .
+uv run prek run trailing-whitespace end-of-file-fixer ruff-check-fix ruff-format-fix --all-files --hook-stage manual
 ```
 
-- Formats Python files
-- Auto-fixes lint issues where possible
+- Formats Python files through local Ruff hooks
+- Fixes Ruff lint issues where possible
+- Normalizes trailing whitespace and final newlines
 
 ### `make lint`
 
-Runs multiple type checkers:
+Runs code quality checks:
 ```bash
-uv run ruff check .
-uv run ty check .
-uv run pyrefly check src/
-uv run --env-file .env.test.example mypy src/ tests/
+uv run prek run --all-files
 ```
 
-- All must pass for CI
-- `mypy --strict` is the primary checker
+- Runs the full repository, matching CI
+- Use `uv run prek run` to check only staged files
+- `mypy --strict` is the only type checker
 
 ### `make test`
 

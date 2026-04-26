@@ -1,13 +1,16 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from typing import cast
 
 from a2wsgi import WSGIMiddleware
+from a2wsgi.wsgi_typing import WSGIApp
 from fastapi import APIRouter, FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.types import ASGIApp
 
 from fastdjango.core.authentication.delivery.fastapi.controllers import (
     AuthenticationTokenController,
@@ -86,8 +89,9 @@ class FastAPIFactory(BaseFactory):
         self._register_controllers(app=app)
 
         if include_django:
-            django_wsgi = self._django_wsgi_factory()
-            app.mount("/django", WSGIMiddleware(django_wsgi))  # type: ignore[arg-type, invalid-argument-type]
+            django_wsgi = cast(WSGIApp, self._django_wsgi_factory())
+            django_asgi = cast(ASGIApp, WSGIMiddleware(django_wsgi))
+            app.mount("/django", django_asgi)
 
         return app
 
@@ -100,13 +104,13 @@ class FastAPIFactory(BaseFactory):
     ) -> None:
         if add_trusted_hosts_middleware:
             app.add_middleware(
-                TrustedHostMiddleware,  # type: ignore[invalid-argument-type]
+                TrustedHostMiddleware,
                 allowed_hosts=self._fastapi_settings.allowed_hosts,
             )
 
         if add_cors_middleware:
             app.add_middleware(
-                CORSMiddleware,  # type: ignore[invalid-argument-type]
+                CORSMiddleware,
                 allow_origins=self._cors_settings.allow_origins,
                 allow_credentials=self._cors_settings.allow_credentials,
                 allow_methods=self._cors_settings.allow_methods,
