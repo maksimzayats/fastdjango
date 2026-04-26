@@ -45,6 +45,13 @@
 - Use `BaseThrottler` for FastAPI throttlers.
 - Use `ApplicationSettings` only for app-wide environment/version/time-zone settings.
 
+## Exception Contracts
+
+- Services and use cases must expose every raised or caught exception that may be handled by callers as a class-level contract.
+- Annotate exception contracts with bare `ClassVar`, not generic `ClassVar[type[...]]`.
+- Raise and catch service/use-case exceptions through those contracts, for example `raise self.WEAK_PASSWORD_ERROR` or `except self.USER_NOT_FOUND_ERROR`.
+- Delivery code must handle domain exceptions through the responsible service or use-case contract, not by importing domain exception modules directly.
+
 ## Coding
 
 - Follow existing file names, imports, and local patterns.

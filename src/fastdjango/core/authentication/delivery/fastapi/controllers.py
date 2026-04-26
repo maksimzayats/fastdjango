@@ -16,12 +16,6 @@ from fastdjango.core.authentication.delivery.fastapi.schemas import (
 )
 from fastdjango.core.authentication.delivery.fastapi.throttling import UserThrottlerFactory
 from fastdjango.core.authentication.dtos import TokenRequestContextDTO
-from fastdjango.core.authentication.exceptions import (
-    ExpiredRefreshTokenError,
-    InvalidCredentialsError,
-    InvalidRefreshTokenError,
-    RefreshTokenError,
-)
 from fastdjango.core.authentication.use_cases import TokenUseCase
 from fastdjango.core.shared.delivery.fastapi.request import RequestInfoService
 from fastdjango.core.shared.delivery.fastapi.throttling import IPThrottlerFactory
@@ -110,25 +104,25 @@ class AuthenticationTokenController(BaseTransactionController):
         )
 
     def handle_exception(self, exception: Exception) -> Any:
-        if isinstance(exception, InvalidCredentialsError):
+        if isinstance(exception, TokenUseCase.INVALID_CREDENTIALS_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
                 detail="Invalid username or password",
             ) from exception
 
-        if isinstance(exception, InvalidRefreshTokenError):
+        if isinstance(exception, TokenUseCase.INVALID_REFRESH_TOKEN_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
                 detail="Invalid refresh token",
             ) from exception
 
-        if isinstance(exception, ExpiredRefreshTokenError):
+        if isinstance(exception, TokenUseCase.EXPIRED_REFRESH_TOKEN_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
                 detail="Refresh token expired or revoked",
             ) from exception
 
-        if isinstance(exception, RefreshTokenError):
+        if isinstance(exception, TokenUseCase.REFRESH_TOKEN_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
                 detail="Refresh token error",

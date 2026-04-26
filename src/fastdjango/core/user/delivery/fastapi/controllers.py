@@ -12,7 +12,6 @@ from fastdjango.core.user.delivery.fastapi.schemas import (
     CreateUserRequestSchema,
     UserSchema,
 )
-from fastdjango.core.user.exceptions import UserAlreadyExistsError, WeakPasswordError
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.infrastructure.django.controllers import BaseTransactionController
 
@@ -73,13 +72,13 @@ class UserController(BaseTransactionController):
         return UserSchema.model_validate(user, from_attributes=True)
 
     def handle_exception(self, exception: Exception) -> Any:
-        if isinstance(exception, WeakPasswordError):
+        if isinstance(exception, UserUseCase.WEAK_PASSWORD_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Password does not meet the strength requirements",
             ) from exception
 
-        if isinstance(exception, UserAlreadyExistsError):
+        if isinstance(exception, UserUseCase.USER_ALREADY_EXISTS_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.CONFLICT,
                 detail="A user with the given username or email already exists",

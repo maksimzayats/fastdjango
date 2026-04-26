@@ -1,4 +1,5 @@
 import logging
+from typing import ClassVar
 
 from django.contrib.sessions.models import Session
 
@@ -9,6 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 class SystemHealthUseCase(BaseUseCase):
+    HEALTH_CHECK_ERROR: ClassVar = HealthCheckError
+    UNEXPECTED_ERROR: ClassVar = Exception
+
     def check(self) -> None:
         """Check the health of the system components.
 
@@ -18,6 +22,6 @@ class SystemHealthUseCase(BaseUseCase):
         try:
             # Perform a simple database query to check connectivity
             Session.objects.first()
-        except Exception as e:
+        except self.UNEXPECTED_ERROR as e:
             logger.exception("Health check failed: database is not reachable")
-            raise HealthCheckError from e
+            raise self.HEALTH_CHECK_ERROR from e

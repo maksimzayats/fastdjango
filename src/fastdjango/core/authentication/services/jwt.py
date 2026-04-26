@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, ClassVar
 
 import jwt
 from pydantic import SecretStr
@@ -24,8 +24,8 @@ class JWTServiceSettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class JWTService(BaseService):
-    EXPIRED_SIGNATURE_ERROR = jwt.ExpiredSignatureError
-    INVALID_TOKEN_ERROR = jwt.InvalidTokenError
+    EXPIRED_SIGNATURE_ERROR: ClassVar = jwt.ExpiredSignatureError
+    INVALID_TOKEN_ERROR: ClassVar = jwt.InvalidTokenError
 
     _settings: JWTServiceSettings
 
