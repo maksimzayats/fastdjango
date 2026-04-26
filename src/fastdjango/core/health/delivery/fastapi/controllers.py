@@ -21,6 +21,7 @@ class HealthController(BaseController):
             path="/v1/health",
             endpoint=self.health_check,
             methods=["GET"],
+            response_model=HealthCheckResponseSchema,
         )
 
     def health_check(self) -> HealthCheckResponseSchema:
