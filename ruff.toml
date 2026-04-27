@@ -1,4 +1,5 @@
 line-length = 100
+src = ["src", "tests"]
 target-version = "py314"
 
 [lint]
@@ -7,6 +8,7 @@ extend-select = [
     "DOC201",
     "DOC402",
     "DOC502",
+    "RUF100",
 ]
 preview = true
 explicit-preview-rules = true
@@ -57,12 +59,19 @@ ignore = [
 
 [lint.isort]
 combine-as-imports = true
+known-first-party = ["fastdjango"]
 
 [lint.ruff]
 strictly-empty-init-modules = true
 
 [lint.pylint]
+max-args = 4
+max-bool-expr = 3
+max-branches = 8
+max-locals = 10
 max-nested-blocks = 3
+max-positional-args = 3
+max-statements = 30
 
 [lint.flake8-tidy-imports]
 ban-relative-imports = "all"
