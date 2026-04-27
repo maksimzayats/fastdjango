@@ -226,13 +226,12 @@ Factories are usually auto-wired by type, so no manual registration is required:
 api_factory = container.resolve(FastAPIFactory)
 ```
 
-When an abstraction must map to a concrete implementation, use `add_factory`:
+When the dependency should be the value built by a callable factory class, use
+`add_factory_class` so `diwire` injects the factory constructor and resolves the
+value returned by `__call__`:
 
 ```python
-container.add_factory(
-    lambda: container.resolve(FastAPIFactory),
-    provides=WebAppFactoryProtocol,
-)
+container.add_factory_class(TasksRegistryFactory, provides=TasksRegistry)
 ```
 
 ## CeleryAppFactory Example

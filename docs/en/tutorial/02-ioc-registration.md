@@ -6,7 +6,7 @@ Understand how the dependency injection container wires services automatically w
 
 - How `get_container` builds the container
 - How recursive auto-wiring works
-- When to use `add`, `add_factory`, and `add_instance`
+- When to use `add`, `add_factory_class`, and `add_instance`
 
 ## Concept Reference
 
@@ -85,11 +85,8 @@ Use explicit registration only for special cases:
 # Class registration
 container.add(ConcreteService)
 
-# Factory registration
-container.add_factory(
-    lambda: container.resolve(ConcreteService),
-    provides=ServiceProtocol,
-)
+# Callable factory class registration
+container.add_factory_class(ConcreteServiceFactory, provides=ServiceProtocol)
 
 # Instance override (tests)
 container.add_instance(mock_service, provides=ConcreteService)
