@@ -17,9 +17,9 @@ clone that new repository, and run:
 make setup
 ```
 
-When the wizard asks about Git, keep the existing repository and let it create
-the initial commit. Your `origin` already points at your repository in this
-flow.
+The wizard detects your repository from `origin`, preserves Git history, and
+only asks whether to commit the generated setup changes. Your `origin` already
+points at your repository in this flow.
 
 If you cloned the original template directly instead, run:
 

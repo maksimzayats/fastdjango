@@ -18,9 +18,8 @@ then run the wizard inside that checkout:
 make setup
 ```
 
-In this flow, keep the existing Git repository when prompted; the wizard will
-clean up the template files and can create the initial commit without changing
-your `origin`.
+In this flow, the wizard detects your repository from `origin`, preserves Git
+history, and only asks whether to commit the generated setup changes.
 
 If you clone the original template directly instead, use:
 

@@ -24,8 +24,8 @@ then run the wizard inside that checkout:
 make setup
 ```
 
-Keep the existing Git repository when prompted. The wizard will clean up the
-template files and can create the initial commit without changing your `origin`.
+The wizard detects your repository from `origin`, preserves Git history, and
+only asks whether to commit the generated setup changes.
 
 If you clone the original template directly instead, use:
 

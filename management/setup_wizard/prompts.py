@@ -7,6 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
+from urllib.parse import urlsplit
 
 import questionary
 
@@ -17,13 +18,8 @@ DISTRIBUTION_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*[a-z0-9]$")
 TEMPLATE_PROJECT_NAME = "fastdjango"
 TEMPLATE_PACKAGE_NAME = "fastdjango"
 TEMPLATE_DISTRIBUTION_NAME = "fastdjango"
-TEMPLATE_REPOSITORY_URLS = frozenset(
-    {
-        "git@github.com:maksimzayats/fastdjango",
-        "https://github.com/maksimzayats/fastdjango",
-        "ssh://git@github.com/maksimzayats/fastdjango",
-    },
-)
+TEMPLATE_REPOSITORY_URL = "https://github.com/maksimzayats/fastdjango"
+GITHUB_REPOSITORY_PATH_PARTS = 2
 MAX_PORT = 65535
 
 
@@ -67,8 +63,17 @@ class LogfirePromptAnswers:
 
 @dataclass(frozen=True, kw_only=True)
 class GitPromptAnswers:
+    repo_url: str | None = None
     reinitialize_git_repository: bool = True
     create_initial_commit: bool = True
+
+
+@dataclass(frozen=True, kw_only=True)
+class GitCheckoutDetection:
+    inferred_repo_url: str | None = None
+    prompt_for_repo_url: bool = True
+    prompt_for_reinitialize_git_repository: bool = True
+    default_reinitialize_git_repository: bool = True
 
 
 def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
@@ -90,7 +95,6 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
     )
     keep_docs = _ask_confirm("Keep documentation?", default=True)
     docs_site_url = _ask_docs_site_url(keep_docs=keep_docs)
-    repo_url = _ask_repo_url()
     git_answers = _ask_git_answers(repo_root=repo_root)
     storage_mode = _ask_storage_mode()
     storage_answers = _ask_storage_answers(storage_mode=storage_mode)
@@ -114,7 +118,7 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
         keep_docs=keep_docs,
         delete_wizard=delete_wizard,
         overwrite_env=overwrite_env,
-        repo_url=repo_url,
+        repo_url=git_answers.repo_url,
         reinitialize_git_repository=git_answers.reinitialize_git_repository,
         create_initial_commit=git_answers.create_initial_commit,
         s3_endpoint_url=storage_answers.s3_endpoint_url,
@@ -269,30 +273,100 @@ def _ask_repo_url() -> str | None:
 
 
 def _ask_git_answers(*, repo_root: Path | None = None) -> GitPromptAnswers:
-    reinitialize_git_repository = _ask_confirm(
-        "Reinitialize Git repository to remove cloned-template history and old origin?",
-        default=_default_reinitialize_git_repository(repo_root=repo_root),
-    )
+    git_checkout_detection = _detect_git_checkout(repo_root=repo_root)
+    if git_checkout_detection.prompt_for_repo_url:
+        repo_url = _ask_repo_url()
+    else:
+        repo_url = git_checkout_detection.inferred_repo_url
+
+    if git_checkout_detection.prompt_for_reinitialize_git_repository:
+        reinitialize_git_repository = _ask_confirm(
+            "Reinitialize Git repository to remove cloned-template history and old origin?",
+            default=git_checkout_detection.default_reinitialize_git_repository,
+        )
+    else:
+        reinitialize_git_repository = False
 
     return GitPromptAnswers(
+        repo_url=repo_url,
         reinitialize_git_repository=reinitialize_git_repository,
-        create_initial_commit=_ask_confirm("Create initial commit?", default=True),
+        create_initial_commit=_ask_confirm("Create generated project setup commit?", default=True),
     )
 
 
 def _default_reinitialize_git_repository(*, repo_root: Path | None) -> bool:
+    return _detect_git_checkout(repo_root=repo_root).default_reinitialize_git_repository
+
+
+def _detect_git_checkout(*, repo_root: Path | None) -> GitCheckoutDetection:
     if repo_root is None:
-        return True
+        return GitCheckoutDetection()
 
     if not (repo_root / ".git").exists():
-        return True
+        return GitCheckoutDetection()
 
     origin_url = _current_origin_url(repo_root=repo_root)
     if origin_url is None:
-        return False
+        return GitCheckoutDetection(default_reinitialize_git_repository=False)
 
-    normalized_origin_url = origin_url.casefold().removesuffix(".git").rstrip("/")
-    return normalized_origin_url in TEMPLATE_REPOSITORY_URLS
+    browser_safe_origin_url = _github_browser_url_from_origin(origin_url=origin_url)
+    if browser_safe_origin_url is None:
+        return GitCheckoutDetection(default_reinitialize_git_repository=False)
+
+    if _normalized_repository_url(browser_safe_origin_url) == _normalized_repository_url(
+        TEMPLATE_REPOSITORY_URL,
+    ):
+        return GitCheckoutDetection(default_reinitialize_git_repository=True)
+
+    return GitCheckoutDetection(
+        inferred_repo_url=browser_safe_origin_url,
+        prompt_for_repo_url=False,
+        prompt_for_reinitialize_git_repository=False,
+        default_reinitialize_git_repository=False,
+    )
+
+
+def _github_browser_url_from_origin(*, origin_url: str) -> str | None:
+    origin_url = origin_url.strip()
+    if not origin_url:
+        return None
+
+    scp_match = re.fullmatch(
+        pattern=r"git@github\.com:(?P<path>[^?#\s]+)",
+        string=origin_url,
+        flags=re.IGNORECASE,
+    )
+    if scp_match is not None:
+        return _github_browser_url_from_path(path=scp_match.group("path"))
+
+    parsed_origin_url = urlsplit(origin_url)
+    if parsed_origin_url.scheme not in {"http", "https", "ssh"}:
+        return None
+
+    if (parsed_origin_url.hostname or "").casefold() != "github.com":
+        return None
+
+    return _github_browser_url_from_path(path=parsed_origin_url.path)
+
+
+def _github_browser_url_from_path(*, path: str) -> str | None:
+    normalized_path = path.strip().lstrip("/").rstrip("/")
+    if normalized_path.casefold().endswith(".git"):
+        normalized_path = normalized_path[: -len(".git")]
+
+    owner_and_repo = normalized_path.split("/")
+    if len(owner_and_repo) != GITHUB_REPOSITORY_PATH_PARTS:
+        return None
+
+    owner, repo = owner_and_repo
+    if not owner or not repo:
+        return None
+
+    return f"https://github.com/{owner}/{repo}"
+
+
+def _normalized_repository_url(value: str) -> str:
+    return value.strip().rstrip("/").casefold().removesuffix(".git")
 
 
 def _current_origin_url(*, repo_root: Path) -> str | None:

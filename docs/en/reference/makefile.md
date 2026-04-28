@@ -120,8 +120,8 @@ uv run --group setup python -m management.setup_wizard $(ARGS)
 - Configures local filesystem, local MinIO, or remote S3-compatible storage
 - Rewrites the README for the generated app
 - Sets optional public origins, repository metadata, ports, and Logfire defaults
-- Can preserve an existing Git repository or reinitialize Git for direct template clones
-- Can set `origin` from the repository URL when Git is reinitialized and create the initial commit
+- Infers repository metadata from GitHub template checkouts and preserves their `origin`
+- Can reinitialize Git for direct template clones, set `origin` from the repository URL, and create a generated setup commit
 - Can remove template docs and setup-only files
 
 ### `make update-dependencies`

@@ -176,6 +176,8 @@ def test_git_prompts_default_to_reinitialize_and_initial_commit(
     values = iter((True, True))
     calls: list[tuple[str, bool]] = []
 
+    monkeypatch.setattr(prompts, "_ask_repo_url", lambda: "https://github.com/acme/acme-api")
+
     def fake_ask_confirm(message: str, *, default: bool) -> bool:
         calls.append((message, default))
         return next(values)
@@ -184,11 +186,12 @@ def test_git_prompts_default_to_reinitialize_and_initial_commit(
 
     answers = _ask_git_answers()
 
+    assert answers.repo_url == "https://github.com/acme/acme-api"
     assert answers.reinitialize_git_repository is True
     assert answers.create_initial_commit is True
     assert calls == [
         ("Reinitialize Git repository to remove cloned-template history and old origin?", True),
-        ("Create initial commit?", True),
+        ("Create generated project setup commit?", True),
     ]
 
 
@@ -198,6 +201,8 @@ def test_git_prompts_can_preserve_git_and_create_initial_commit(
     values = iter((False, True))
     calls: list[tuple[str, bool]] = []
 
+    monkeypatch.setattr(prompts, "_ask_repo_url", lambda: None)
+
     def fake_ask_confirm(message: str, *, default: bool) -> bool:
         calls.append((message, default))
         return next(values)
@@ -206,26 +211,72 @@ def test_git_prompts_can_preserve_git_and_create_initial_commit(
 
     answers = _ask_git_answers()
 
+    assert answers.repo_url is None
     assert answers.reinitialize_git_repository is False
     assert answers.create_initial_commit is True
     assert calls == [
         ("Reinitialize Git repository to remove cloned-template history and old origin?", True),
-        ("Create initial commit?", True),
+        ("Create generated project setup commit?", True),
     ]
 
 
-def test_git_reinitialize_default_is_false_for_user_owned_origin(
+def test_user_owned_http_origin_skips_repo_url_and_reinitialize_prompts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (tmp_path / ".git").mkdir()
+    calls: list[tuple[str, bool]] = []
     monkeypatch.setattr(
         prompts,
         "_current_origin_url",
-        _fake_origin_url("https://github.com/acme/acme-api"),
+        _fake_origin_url("https://github.com/acme/acme-api.git"),
     )
 
+    def fail_ask_repo_url() -> str | None:
+        pytest.fail("Repository URL should be inferred from a user-owned GitHub origin.")
+
+    def fake_ask_confirm(message: str, *, default: bool) -> bool:
+        calls.append((message, default))
+        return True
+
+    monkeypatch.setattr(prompts, "_ask_repo_url", fail_ask_repo_url)
+    monkeypatch.setattr(prompts, "_ask_confirm", fake_ask_confirm)
+
+    answers = _ask_git_answers(repo_root=tmp_path)
+
+    assert answers.repo_url == "https://github.com/acme/acme-api"
+    assert answers.reinitialize_git_repository is False
+    assert answers.create_initial_commit is True
+    assert calls == [("Create generated project setup commit?", True)]
     assert _default_reinitialize_git_repository(repo_root=tmp_path) is False
+
+
+@pytest.mark.parametrize(
+    "origin_url",
+    [
+        "git@github.com:acme/acme-api.git",
+        "ssh://git@github.com/acme/acme-api.git",
+    ],
+)
+def test_user_owned_ssh_origin_is_inferred_as_https_repo_url(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    origin_url: str,
+) -> None:
+    (tmp_path / ".git").mkdir()
+    monkeypatch.setattr(prompts, "_current_origin_url", _fake_origin_url(origin_url))
+    monkeypatch.setattr(
+        prompts,
+        "_ask_repo_url",
+        lambda: pytest.fail("Repository URL should be inferred from GitHub SSH origin."),
+    )
+    monkeypatch.setattr(prompts, "_ask_confirm", lambda *_args, **_kwargs: False)
+
+    answers = _ask_git_answers(repo_root=tmp_path)
+
+    assert answers.repo_url == "https://github.com/acme/acme-api"
+    assert answers.reinitialize_git_repository is False
+    assert answers.create_initial_commit is False
 
 
 def test_git_reinitialize_default_is_true_for_template_origin(
@@ -233,23 +284,110 @@ def test_git_reinitialize_default_is_true_for_template_origin(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (tmp_path / ".git").mkdir()
+    calls: list[tuple[str, bool]] = []
     monkeypatch.setattr(
         prompts,
         "_current_origin_url",
         _fake_origin_url("git@github.com:MaksimZayats/fastdjango.git"),
     )
 
+    def fake_ask_confirm(message: str, *, default: bool) -> bool:
+        calls.append((message, default))
+        return True
+
+    monkeypatch.setattr(prompts, "_ask_repo_url", lambda: "https://github.com/acme/acme-api")
+    monkeypatch.setattr(prompts, "_ask_confirm", fake_ask_confirm)
+
+    answers = _ask_git_answers(repo_root=tmp_path)
+
+    assert answers.repo_url == "https://github.com/acme/acme-api"
+    assert answers.reinitialize_git_repository is True
+    assert answers.create_initial_commit is True
+    assert calls == [
+        ("Reinitialize Git repository to remove cloned-template history and old origin?", True),
+        ("Create generated project setup commit?", True),
+    ]
     assert _default_reinitialize_git_repository(repo_root=tmp_path) is True
 
 
-def test_git_reinitialize_default_is_false_when_origin_is_unknown(
+def test_template_origin_detection_normalizes_git_suffix_case(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (tmp_path / ".git").mkdir()
+    monkeypatch.setattr(
+        prompts,
+        "_current_origin_url",
+        _fake_origin_url("https://github.com/MaksimZayats/fastdjango.GIT/"),
+    )
+    monkeypatch.setattr(prompts, "_ask_repo_url", lambda: "https://github.com/acme/acme-api")
+    monkeypatch.setattr(prompts, "_ask_confirm", lambda *_args, **kwargs: kwargs["default"])
+
+    answers = _ask_git_answers(repo_root=tmp_path)
+
+    assert answers.reinitialize_git_repository is True
+    assert _default_reinitialize_git_repository(repo_root=tmp_path) is True
+
+
+def test_existing_repo_with_no_origin_keeps_explicit_prompt_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / ".git").mkdir()
+    calls: list[tuple[str, bool]] = []
     monkeypatch.setattr(prompts, "_current_origin_url", _fake_origin_url(None))
 
+    def fake_ask_confirm(message: str, *, default: bool) -> bool:
+        calls.append((message, default))
+        return default
+
+    monkeypatch.setattr(prompts, "_ask_repo_url", lambda: "https://github.com/acme/acme-api")
+    monkeypatch.setattr(prompts, "_ask_confirm", fake_ask_confirm)
+
+    answers = _ask_git_answers(repo_root=tmp_path)
+
+    assert answers.repo_url == "https://github.com/acme/acme-api"
+    assert answers.reinitialize_git_repository is False
+    assert answers.create_initial_commit is True
+    assert calls == [
+        ("Reinitialize Git repository to remove cloned-template history and old origin?", False),
+        ("Create generated project setup commit?", True),
+    ]
     assert _default_reinitialize_git_repository(repo_root=tmp_path) is False
+
+
+@pytest.mark.parametrize(
+    "origin_url",
+    [
+        "file:///tmp/acme-api.git",
+        "../acme-api.git",
+    ],
+)
+def test_unsupported_local_origins_do_not_get_forced_into_docs_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    origin_url: str,
+) -> None:
+    (tmp_path / ".git").mkdir()
+    calls: list[tuple[str, bool]] = []
+    monkeypatch.setattr(prompts, "_current_origin_url", _fake_origin_url(origin_url))
+
+    def fake_ask_confirm(message: str, *, default: bool) -> bool:
+        calls.append((message, default))
+        return default
+
+    monkeypatch.setattr(prompts, "_ask_repo_url", lambda: None)
+    monkeypatch.setattr(prompts, "_ask_confirm", fake_ask_confirm)
+
+    answers = _ask_git_answers(repo_root=tmp_path)
+
+    assert answers.repo_url is None
+    assert answers.reinitialize_git_repository is False
+    assert answers.create_initial_commit is True
+    assert calls == [
+        ("Reinitialize Git repository to remove cloned-template history and old origin?", False),
+        ("Create generated project setup commit?", True),
+    ]
 
 
 def test_git_reinitialize_default_is_true_without_existing_git_repo(tmp_path: Path) -> None:
