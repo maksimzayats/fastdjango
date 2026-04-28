@@ -11,7 +11,7 @@ Get the project running in minutes.
 ## Step 1: Clone and run setup
 
 ```bash
-git clone https://github.com/MaksimZayats/fastdjango.git && cd fastdjango && make setup
+git clone https://github.com/maksimzayats/fastdjango.git && cd fastdjango && make setup
 ```
 
 The setup wizard renames the checkout folder to the project slug, renames the project and Python package, writes `.env`, rewrites the app README, and lets you choose database,

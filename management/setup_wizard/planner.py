@@ -362,6 +362,7 @@ def _replace_text_references(
             new_package_name=answers.package_name,
             project_name=answers.project_name,
             docs_site_url=answers.docs_site_url,
+            repo_url=answers.repo_url,
         ),
     )
 

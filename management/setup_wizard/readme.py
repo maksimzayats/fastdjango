@@ -1,18 +1,23 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
+
+FASTDJANGO_TEMPLATE_URL = "https://github.com/maksimzayats/fastdjango"
 
 
 def build_project_readme(*, answers: SetupAnswers) -> str:  # noqa: PLR0912
     sections = [
         f"# {answers.project_name}",
         "",
-        "Application generated from the FastDjango template.",
+        f"Generated from [FastDjango]({FASTDJANGO_TEMPLATE_URL}) on {_generated_date()}.",
         "",
     ]
 
     if answers.repo_url is not None:
-        sections.extend([f"Repository: [{answers.repo_url}]({answers.repo_url})", ""])
+        repo_url = answers.repo_url.removesuffix(".git").rstrip("/")
+        sections.extend([f"Project repository: [{repo_url}]({repo_url})", ""])
 
     sections.extend(
         [
@@ -127,6 +132,10 @@ def _docker_services(*, answers: SetupAnswers) -> list[str]:
         services.append("minio")
 
     return services
+
+
+def _generated_date() -> str:
+    return datetime.now(tz=UTC).date().isoformat()
 
 
 def _database_label(*, answers: SetupAnswers) -> str:

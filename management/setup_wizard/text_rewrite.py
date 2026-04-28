@@ -11,6 +11,7 @@ class ProjectReferences:
     new_package_name: str
     project_name: str
     docs_site_url: str | None
+    repo_url: str | None
 
 
 def replace_project_references(text: str, *, references: ProjectReferences) -> str:
@@ -18,8 +19,10 @@ def replace_project_references(text: str, *, references: ProjectReferences) -> s
     new_package_name = references.new_package_name
     project_name = references.project_name
     docs_site_url = references.docs_site_url
+    repo_url = references.repo_url
 
     rewritten = _replace_docs_site_references(text=text, docs_site_url=docs_site_url)
+    rewritten = _replace_repository_references(text=rewritten, repo_url=repo_url)
     rewritten = rewritten.replace(f"src/{old_package_name}/manage.py", "management/manage.py")
     rewritten = rewritten.replace(f"src/{old_package_name}", f"src/{new_package_name}")
     rewritten = _replace_token(
@@ -52,3 +55,15 @@ def _replace_docs_site_references(*, text: str, docs_site_url: str | None) -> st
         "fastdjango.zayats.dev",
         docs_site_host,
     )
+
+
+def _replace_repository_references(*, text: str, repo_url: str | None) -> str:
+    template_repo_url = "https://github.com/maksimzayats/fastdjango"
+    if repo_url is not None:
+        return text.replace(template_repo_url, repo_url.removesuffix(".git").rstrip("/"))
+
+    return re.sub(
+        pattern=rf"\[([^\]]+)\]\({re.escape(template_repo_url)}(?:/[^\)]*)?\)",
+        repl=r"\1",
+        string=text,
+    ).replace(template_repo_url, "your repository")

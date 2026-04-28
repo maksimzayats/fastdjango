@@ -18,7 +18,7 @@ quickly without losing a clear application structure:
 ## Start with setup
 
 ```bash
-git clone https://github.com/MaksimZayats/fastdjango.git && cd fastdjango && make setup
+git clone https://github.com/maksimzayats/fastdjango.git && cd fastdjango && make setup
 ```
 
 The wizard renames the checkout folder to the project slug, renames the project
@@ -96,5 +96,5 @@ structures.
 
 ## Getting Help
 
-- [GitHub Issues](https://github.com/MaksimZayats/fastdjango/issues) - Report bugs or request features
+- [GitHub Issues](https://github.com/maksimzayats/fastdjango/issues) - Report bugs or request features
 - [Project Structure](getting-started/project-structure.md) - Understand the codebase organization

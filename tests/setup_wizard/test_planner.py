@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import textwrap
 import tomllib
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +59,10 @@ def test_blank_docs_site_url_keeps_docs_local_only(tmp_path: Path) -> None:
     assert "site_url" not in (tmp_path / "docs" / "mkdocs.yml").read_text()
     assert not (tmp_path / "docs" / "en" / "CNAME").exists()
     assert "[local docs](docs/en)" in (tmp_path / "README.md").read_text()
+    assert (
+        "github.com/maksimzayats/fastdjango"
+        not in (tmp_path / "docs" / "en" / "index.md").read_text()
+    )
 
 
 def test_local_storage_prunes_minio_compose_services(tmp_path: Path) -> None:
@@ -201,7 +206,15 @@ def test_ports_origins_logfire_and_repo_metadata_are_written(tmp_path: Path) -> 
     assert "${MINIO_API_PORT:-19000}:9000" in overlay
     assert "repo_url: https://github.com/acme/acme-api" in mkdocs
     assert "repo_name: acme/acme-api" in mkdocs
-    assert "Repository: [https://github.com/acme/acme-api]" in readme
+    assert "Project repository: [https://github.com/acme/acme-api]" in readme
+    assert (
+        f"Generated from [FastDjango](https://github.com/maksimzayats/fastdjango) "
+        f"on {datetime.now(tz=UTC).date().isoformat()}."
+    ) in readme
+    assert (
+        "https://github.com/acme/acme-api/issues"
+        in (tmp_path / "docs" / "en" / "index.md").read_text()
+    )
 
 
 def test_generated_env_files_are_grouped_by_concern(tmp_path: Path) -> None:
@@ -354,7 +367,10 @@ def _create_mini_repo(*, repo_root: Path) -> None:
     _write(repo_root / "docs" / "mkdocs.yml", _mkdocs_content())
     _write(
         repo_root / "docs" / "en" / "index.md",
-        "Use src/fastdjango/core/sample.py at https://fastdjango.zayats.dev\n",
+        """
+        Use src/fastdjango/core/sample.py at https://fastdjango.zayats.dev
+        Report bugs at [GitHub Issues](https://github.com/maksimzayats/fastdjango/issues).
+        """,
     )
     _write(repo_root / "docs" / "en" / "CNAME", "fastdjango.zayats.dev\n")
     _write(repo_root / ".env.example", "STORAGE_BACKEND=s3\n")

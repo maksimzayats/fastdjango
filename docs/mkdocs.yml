@@ -1,8 +1,8 @@
 site_name: Fast Django
 site_url: https://fastdjango.zayats.dev
 site_description: FastAPI, Django, and Celery project template with a setup wizard and dependency injection
-repo_url: https://github.com/MaksimZayats/fastdjango
-repo_name: MaksimZayats/fastdjango
+repo_url: https://github.com/maksimzayats/fastdjango
+repo_name: maksimzayats/fastdjango
 
 docs_dir: en
 site_dir: ../site
@@ -59,7 +59,7 @@ markdown_extensions:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/MaksimZayats
+      link: https://github.com/maksimzayats
       name: GitHub
     - icon: fontawesome/brands/linkedin
       link: https://www.linkedin.com/in/maksimzayats/
