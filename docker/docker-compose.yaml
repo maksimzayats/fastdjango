@@ -216,12 +216,12 @@ services:
       - ../.env
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc alias set my-minio http://minio:9000 ${AWS_S3_ACCESS_KEY_ID} ${AWS_S3_SECRET_ACCESS_KEY};
-      /usr/bin/mc mb my-minio/${AWS_S3_PROTECTED_BUCKET_NAME:-protected};
-      mc anonymous set none my-minio/${AWS_S3_PROTECTED_BUCKET_NAME:-protected};
+      /usr/bin/mc alias set my-minio http://minio:9000 \"$${AWS_S3_ACCESS_KEY_ID}\" \"$${AWS_S3_SECRET_ACCESS_KEY}\";
+      /usr/bin/mc mb --ignore-existing \"my-minio/$${AWS_S3_PROTECTED_BUCKET_NAME:-protected}\";
+      /usr/bin/mc anonymous set none \"my-minio/$${AWS_S3_PROTECTED_BUCKET_NAME:-protected}\";
 
-      /usr/bin/mc mb my-minio/${AWS_S3_PUBLIC_BUCKET_NAME:-public};
-      mc anonymous set public my-minio/${AWS_S3_PUBLIC_BUCKET_NAME:-public};
+      /usr/bin/mc mb --ignore-existing \"my-minio/$${AWS_S3_PUBLIC_BUCKET_NAME:-public}\";
+      /usr/bin/mc anonymous set public \"my-minio/$${AWS_S3_PUBLIC_BUCKET_NAME:-public}\";
 
       exit 0;
       "

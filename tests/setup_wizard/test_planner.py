@@ -31,6 +31,8 @@ def test_full_package_rename_rewrites_imports_config_and_docs(tmp_path: Path) ->
     assert pyproject["tool"]["django-stubs"]["django_settings_module"] == (
         "acme_api.infrastructure.django.settings"
     )
+    assert pyproject["dependency-groups"]["docs"] == ["mkdocs"]
+    assert pyproject["dependency-groups"]["setup"] == ["questionary"]
 
     ruff = _read_toml(tmp_path / "ruff.toml")
     assert ruff["lint"]["isort"]["known-first-party"] == ["acme_api"]
@@ -195,6 +197,44 @@ def test_ports_origins_logfire_and_repo_metadata_are_written(tmp_path: Path) -> 
     assert "repo_url: https://github.com/acme/acme-api" in mkdocs
     assert "repo_name: acme/acme-api" in mkdocs
     assert "Repository: [https://github.com/acme/acme-api]" in readme
+
+
+def test_generated_env_files_are_grouped_by_concern(tmp_path: Path) -> None:
+    _create_mini_repo(repo_root=tmp_path)
+    answers = _answers(storage_mode=StorageMode.MINIO, delete_wizard=False)
+
+    build_setup_plan(repo_root=tmp_path, answers=answers).apply(run_commands=False)
+
+    env_example_content = (tmp_path / ".env.example").read_text()
+    test_env_example_content = (tmp_path / ".env.test.example").read_text()
+
+    _assert_markers_in_order(
+        content=env_example_content,
+        markers=(
+            "# Compose\n",
+            "\n# Application\n",
+            "\n# Secrets\n",
+            "\n# HTTP\n",
+            "\n# Observability\n",
+            "\n# Database\n",
+            "\n# Redis\n",
+            "\n# Storage\n",
+            "\n# S3\n",
+        ),
+    )
+    _assert_markers_in_order(
+        content=test_env_example_content,
+        markers=(
+            "# Application\n",
+            "\n# Secrets\n",
+            "\n# Observability\n",
+            "\n# Database\n",
+            "\n# Redis\n",
+            "\n# Storage\n",
+        ),
+    )
+    assert "\n\n# Database\n" in env_example_content
+    assert "\n\n# Database\n" in test_env_example_content
 
 
 def test_docs_removal_deletes_docs_config_targets_and_links(tmp_path: Path) -> None:
@@ -505,6 +545,14 @@ def _mkdocs_content() -> str:
         docs_dir: en
         """,
     ).lstrip()
+
+
+def _assert_markers_in_order(*, content: str, markers: tuple[str, ...]) -> None:
+    previous_position = -1
+    for marker in markers:
+        marker_position = content.find(marker)
+        assert marker_position > previous_position
+        previous_position = marker_position
 
 
 def _write(path: Path, content: str) -> None:

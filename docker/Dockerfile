@@ -1,4 +1,8 @@
-FROM ghcr.io/astral-sh/uv:0.9.30-python3.14-bookworm-slim AS builder
+# syntax=docker/dockerfile:1
+
+FROM ghcr.io/astral-sh/uv:0.11.8 AS uv
+
+FROM python:3.14.4-slim-bookworm AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -7,25 +11,35 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
+COPY --from=uv /uv /uvx /bin/
+
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=uv.lock,target=uv.lock,readonly \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml,readonly \
     uv sync --locked --no-install-project
 
-COPY . /app
+COPY pyproject.toml uv.lock ./
+COPY src ./src
+COPY management/__init__.py management/manage.py ./management/
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
 
-# Final image without uv
 FROM python:3.14.4-slim-bookworm
 
-RUN groupadd --system --gid 999 nonroot \
- && useradd --system --gid 999 --uid 999 --create-home nonroot
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/app/.venv
 
-COPY --from=builder --chown=nonroot:nonroot /app /app
-ENV PATH="/app/.venv/bin:$PATH"
+RUN groupadd --gid 10001 app \
+ && useradd --uid 10001 --gid 10001 --home-dir /nonexistent --shell /usr/sbin/nologin --no-create-home app
 
-# Use the non-root user to run application
-USER nonroot
+COPY --from=builder --chown=app:app /app/.venv /app/.venv
+COPY --from=builder --chown=app:app /app/src /app/src
+COPY --from=builder --chown=app:app /app/management /app/management
+
 WORKDIR /app
+USER app
+
+EXPOSE 8000

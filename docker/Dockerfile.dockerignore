@@ -8,8 +8,11 @@ __pycache__/
 venv/
 ENV/
 env/
+__pypackages__/
+.uv-cache/
 
 # Agents
+.agents/
 .claude/
 
 # Git
@@ -27,8 +30,11 @@ env/
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .tox/
+tests/
 
 # Linting/Formatting
 .pre-commit-config.yaml
@@ -41,6 +47,7 @@ htmlcov/
 
 # Database
 db.sqlite3
+*.sqlite3
 *.db
 
 # Logs
@@ -49,10 +56,16 @@ logs/
 
 # Documentation
 README.md
+docs/
+site/
 *.md
 
 # Development
 Makefile
+build/
+dist/
+management/dependency_updater.py
+management/setup_wizard/
 
 # Static files (collected during build)
 staticfiles/

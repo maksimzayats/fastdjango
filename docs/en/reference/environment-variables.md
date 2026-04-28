@@ -240,44 +240,48 @@ COMPOSE_FILE=docker/docker-compose.yaml:docker/docker-compose.local.yaml
 
 # Application
 ENVIRONMENT=local
+DJANGO_DEBUG=true
+LOGGING_LEVEL=DEBUG
+
+# Secrets
+DJANGO_SECRET_KEY=example-django-secret-key
+JWT_SECRET_KEY=example-jwt-secret-key-with-at-least-32-bytes
+
+# HTTP
+ALLOWED_HOSTS=["127.0.0.1","localhost","0.0.0.0"]
+CSRF_TRUSTED_ORIGINS=["http://localhost"]
+CORS_ALLOW_ORIGINS=["http://localhost"]
+
+# Observability
+LOGFIRE_ENABLED=false
+LOGFIRE_SERVICE_NAME=fastdjango
+LOGFIRE_ENVIRONMENT=local
 
 # Database
+POSTGRES_DB=postgres
+POSTGRES_PASSWORD=example-postgres-password
 POSTGRES_PORT=5432
-DATABASE_URL=postgres://postgres:example-postgres-password@localhost:${POSTGRES_PORT}/postgres
+POSTGRES_USER=postgres
+DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}"
 
 # Redis
 REDIS_PASSWORD=example-redis-password
 REDIS_PORT=6379
-REDIS_URL=redis://default:${REDIS_PASSWORD}@localhost:${REDIS_PORT}/0
-
-# Django
-DJANGO_SECRET_KEY=your-secret-key-change-in-production
-DJANGO_DEBUG=true
-
-# JWT
-JWT_SECRET_KEY=your-jwt-secret-key-with-at-least-32-bytes
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
+REDIS_URL="redis://default:${REDIS_PASSWORD}@localhost:${REDIS_PORT}/0"
 
 # Storage
+STORAGE_BACKEND=s3
 MINIO_API_PORT=9000
 MINIO_CONSOLE_PORT=9001
-STORAGE_BACKEND=s3
-AWS_S3_ACCESS_KEY_ID=example-minio-access-key-id
-AWS_S3_SECRET_ACCESS_KEY=example-minio-secret-access-key
+
+# S3
 AWS_S3_ENDPOINT_URL=http://localhost:9000
 AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
+AWS_S3_ACCESS_KEY_ID=example-minio-access-key-id
+AWS_S3_SECRET_ACCESS_KEY=example-minio-secret-access-key
 AWS_S3_REGION_NAME=us-east-1
 AWS_S3_PUBLIC_BUCKET_NAME=public
 AWS_S3_PROTECTED_BUCKET_NAME=protected
-
-# CORS
-CORS_ALLOW_ORIGINS=["http://localhost:3000"]
-
-# Logging
-LOGGING_LEVEL=DEBUG
-
-# Observability
-LOGFIRE_ENABLED=false
 ```
 
 ## Environment-Specific Examples

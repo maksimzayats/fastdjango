@@ -32,6 +32,20 @@ EXCLUDED_TOP_LEVEL_DIRS = {
     "node_modules",
     "venv",
 }
+DOCKERFILE_REQUIRED_IGNORES = {
+    ".agents/",
+    ".mypy_cache/",
+    ".pytest_cache/",
+    ".ruff_cache/",
+    ".venv/",
+    "build/",
+    "dist/",
+    "docs/",
+    "htmlcov/",
+    "management/setup_wizard/",
+    "site/",
+    "tests/",
+}
 
 
 def test_docker_assets_stay_in_docker_directory() -> None:
@@ -49,6 +63,32 @@ def test_compose_files_are_known_and_parseable() -> None:
     compose_configs = {path.name: _load_yaml(path) for path in _iter_compose_files()}
 
     assert set(compose_configs) == COMPOSE_FILE_NAMES
+
+
+def test_dockerfile_uses_uv_cache_friendly_multistage_build() -> None:
+    dockerfile = (REPO_ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
+
+    assert dockerfile.startswith("# syntax=docker/dockerfile:")
+    assert "FROM ghcr.io/astral-sh/uv:" in dockerfile
+    assert dockerfile.count("FROM python:") == 2
+    assert "--mount=type=cache,target=/root/.cache/uv" in dockerfile
+    assert "--mount=type=bind,source=uv.lock,target=uv.lock,readonly" in dockerfile
+    assert "--mount=type=bind,source=pyproject.toml,target=pyproject.toml,readonly" in dockerfile
+    assert "uv sync --locked --no-install-project" in dockerfile
+    assert "COPY . /app" not in dockerfile
+    assert "COPY --from=builder --chown=app:app /app/.venv /app/.venv" in dockerfile
+    assert "COPY --from=builder --chown=app:app /app/src /app/src" in dockerfile
+    assert "USER app" in dockerfile
+    assert dockerfile.index("uv sync --locked --no-install-project") < dockerfile.index(
+        "COPY src ./src",
+    )
+
+
+def test_dockerfile_ignore_excludes_high_churn_non_runtime_paths() -> None:
+    dockerignore = _dockerignore_entries()
+    missing_entries = sorted(DOCKERFILE_REQUIRED_IGNORES - dockerignore)
+
+    assert missing_entries == []
 
 
 def test_runtime_compose_services_have_healthchecks() -> None:
@@ -119,6 +159,15 @@ def _compose_config(file_name: str) -> dict[str, Any]:
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     return cast(dict[str, Any], yaml.safe_load(path.read_text(encoding="utf-8")))
+
+
+def _dockerignore_entries() -> set[str]:
+    dockerignore_path = REPO_ROOT / "docker" / "Dockerfile.dockerignore"
+    return {
+        line.strip()
+        for line in dockerignore_path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    }
 
 
 def _services(compose: dict[str, Any]) -> dict[str, dict[str, Any]]:

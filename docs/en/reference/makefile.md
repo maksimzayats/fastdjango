@@ -60,7 +60,7 @@ make migrate
 | `make format` | Format code through prek hooks |
 | `make lint` | Run all prek checks except tests |
 | `make test` | Run tests with coverage |
-| `make update-dependencies` | Update uv lock, dependency bounds/templates, CI pins, and container image pins |
+| `make update-dependencies` | Update uv lock, dependency bounds, CI pins, and container image pins |
 
 ### Examples
 
@@ -72,7 +72,7 @@ make lint
 # Run tests
 make test
 
-# Update dependency metadata and CI action pins
+# Update dependency bounds and CI action pins
 make update-dependencies
 ```
 
@@ -131,7 +131,6 @@ uv run python -m management.dependency_updater $(ARGS)
 
 - Runs `uv lock --upgrade`
 - Syncs direct dependency lower bounds in `pyproject.toml` from `uv.lock`
-- Syncs generated setup wizard dependency templates from `pyproject.toml`
 - Updates GitHub Action major-version pins and supported CI tool versions in `.github/workflows`
 - Updates Dockerfile and Docker Compose image pins, including matching docs references
 - Runs `uv lock` again after pyproject changes

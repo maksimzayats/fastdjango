@@ -40,7 +40,6 @@ _NAME_RE = re.compile(r"(?P<name>[A-Za-z0-9_.-]+)(?P<extras>\[[^\]]+\])?")
 _LOWER_BOUND_RE = re.compile(r"(?P<operator>>=|>)\s*[^,; ]+")
 _UPPER_BOUND_RE = re.compile(r"(?:^|,)\s*(?P<operator><=|<)\s*(?P<version>[^,; ]+)")
 _VERSION_PREFIX_RE = re.compile(r"(?P<release>\d+(?:\.\d+)*)")
-_PYTHON_LIST_REQUIREMENT_RE = re.compile(r'^\s*"(?P<requirement>[^"]+)",\s*$', re.MULTILINE)
 _CONTAINER_VERSION_RE = re.compile(
     r"(?P<prefix>.*?)(?P<version>v?\d+(?:\.\d+)*)(?P<suffix>$|[-_.].*)",
 )
@@ -204,28 +203,13 @@ def update_dependencies(
         with progress_reporter.step("Updating uv.lock", spinner=False):
             _run_command(["uv", "lock", "--upgrade"], repo_root=repo_root)
 
-    pyproject_updates: tuple[DependencyUpdate, ...] = ()
     dependency_updates: tuple[DependencyUpdate, ...] = ()
     if update_options.update_pyproject:
-        with progress_reporter.step("Syncing dependency metadata"):
-            pyproject_updates = sync_pyproject_dependency_versions(
+        with progress_reporter.step("Syncing pyproject.toml dependency bounds"):
+            dependency_updates = sync_pyproject_dependency_versions(
                 repo_root=repo_root,
                 dry_run=update_options.dry_run,
             )
-            template_pyproject_text = (
-                _pyproject_text_with_dependency_updates(
-                    repo_root=repo_root,
-                    updates=pyproject_updates,
-                )
-                if update_options.dry_run and pyproject_updates
-                else None
-            )
-            template_updates = sync_setup_wizard_dependency_templates(
-                repo_root=repo_root,
-                dry_run=update_options.dry_run,
-                pyproject_text=template_pyproject_text,
-            )
-            dependency_updates = (*pyproject_updates, *template_updates)
 
     action_updates: tuple[ActionUpdate, ...] = ()
     if update_options.update_actions:
@@ -243,7 +227,7 @@ def update_dependencies(
                 dry_run=update_options.dry_run,
             )
 
-    if pyproject_updates and not update_options.dry_run:
+    if dependency_updates and not update_options.dry_run:
         with progress_reporter.step("Refreshing uv.lock", spinner=False):
             _run_command(["uv", "lock"], repo_root=repo_root)
 
@@ -302,57 +286,6 @@ def sync_pyproject_dependency_versions(
 
     if updates and not dry_run:
         pyproject_path.write_text(updated_text, encoding="utf-8")
-
-    return tuple(updates)
-
-
-def _pyproject_text_with_dependency_updates(
-    *,
-    repo_root: Path,
-    updates: tuple[DependencyUpdate, ...],
-) -> str:
-    updated_text = (repo_root / "pyproject.toml").read_text(encoding="utf-8")
-    for update in updates:
-        old_fragment = f'"{update.old_requirement}"'
-        new_fragment = f'"{update.new_requirement}"'
-        updated_text = updated_text.replace(old_fragment, new_fragment, 1)
-
-    return updated_text
-
-
-def sync_setup_wizard_dependency_templates(
-    *,
-    repo_root: Path,
-    dry_run: bool = False,
-    pyproject_text: str | None = None,
-) -> tuple[DependencyUpdate, ...]:
-    pyproject_path = repo_root / "pyproject.toml"
-    config_path = repo_root / "management" / "setup_wizard" / "config.py"
-    if not pyproject_path.exists() or not config_path.exists():
-        return ()
-
-    pyproject_data = tomllib.loads(pyproject_text or pyproject_path.read_text(encoding="utf-8"))
-    dependency_groups = cast(dict[str, list[str]], pyproject_data.get("dependency-groups", {}))
-    constants = {
-        "DOCS_DEPENDENCIES": tuple(dependency_groups.get("docs", [])),
-        "SETUP_DEPENDENCIES": tuple(dependency_groups.get("setup", [])),
-    }
-
-    updated_text = config_path.read_text(encoding="utf-8")
-    updates: list[DependencyUpdate] = []
-    for constant_name, requirements in constants.items():
-        if not requirements:
-            continue
-
-        updated_text, constant_updates = _with_python_dependency_list_constant(
-            text=updated_text,
-            constant_name=constant_name,
-            requirements=requirements,
-        )
-        updates.extend(constant_updates)
-
-    if updates and not dry_run:
-        config_path.write_text(updated_text, encoding="utf-8")
 
     return tuple(updates)
 
@@ -418,8 +351,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Update uv lock, pyproject dependency lower bounds, "
-            "setup wizard dependency templates, GitHub Action pins, "
-            "and container image pins."
+            "GitHub Action pins, and container image pins."
         ),
     )
     parser.add_argument(
@@ -441,10 +373,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--skip-pyproject",
         action="store_true",
-        help=(
-            "Do not sync pyproject.toml dependency lower bounds or setup wizard "
-            "dependency templates."
-        ),
+        help="Do not sync pyproject.toml dependency lower bounds.",
     )
     parser.add_argument(
         "--skip-actions",
@@ -563,61 +492,6 @@ def _with_lower_bound(*, requirement: str, version: str) -> str:
         return updated
 
     return f"{updated};{marker_suffix}"
-
-
-def _with_python_dependency_list_constant(
-    *,
-    text: str,
-    constant_name: str,
-    requirements: tuple[str, ...],
-) -> tuple[str, tuple[DependencyUpdate, ...]]:
-    pattern = re.compile(
-        rf"(?ms)^(?P<prefix>{re.escape(constant_name)} = \[\n)(?P<body>.*?)(?P<suffix>^\])",
-    )
-    match = pattern.search(text)
-    if match is None:
-        return text, ()
-
-    old_requirements = _python_dependency_list_requirements(text=match.group("body"))
-    new_body = "".join(f'    "{requirement}",\n' for requirement in requirements)
-    if match.group("body") == new_body:
-        return text, ()
-
-    updated_text = text[: match.start("body")] + new_body + text[match.end("body") :]
-    return updated_text, _dependency_template_updates(
-        constant_name=constant_name,
-        old_requirements=old_requirements,
-        new_requirements=requirements,
-    )
-
-
-def _python_dependency_list_requirements(*, text: str) -> tuple[str, ...]:
-    return tuple(match.group("requirement") for match in _PYTHON_LIST_REQUIREMENT_RE.finditer(text))
-
-
-def _dependency_template_updates(
-    *,
-    constant_name: str,
-    old_requirements: tuple[str, ...],
-    new_requirements: tuple[str, ...],
-) -> tuple[DependencyUpdate, ...]:
-    updates: list[DependencyUpdate] = []
-    for old_requirement, new_requirement in itertools.zip_longest(
-        old_requirements,
-        new_requirements,
-        fillvalue="<missing>",
-    ):
-        if old_requirement == new_requirement:
-            continue
-
-        updates.append(
-            DependencyUpdate(
-                old_requirement=f"{constant_name}: {old_requirement}",
-                new_requirement=f"{constant_name}: {new_requirement}",
-            ),
-        )
-
-    return tuple(updates)
 
 
 def _updated_action_ref(*, current_ref: str, latest_tag: str) -> str:
@@ -1478,7 +1352,7 @@ def _print_summary(*, summary: UpdateSummary, dry_run: bool) -> None:
         return
 
     if summary.dependency_updates:
-        _write_line(f"{prefix} dependency metadata:")
+        _write_line(f"{prefix} pyproject.toml dependencies:")
         for dependency_update in summary.dependency_updates:
             _write_line(
                 f"  {dependency_update.old_requirement} -> {dependency_update.new_requirement}",

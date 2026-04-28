@@ -10,17 +10,6 @@ from ruamel.yaml import YAML
 from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
 from management.setup_wizard.text_rewrite import ProjectReferences, replace_project_references
 
-SETUP_DEPENDENCIES = [
-    "libcst>=1.8.6",
-    "questionary>=2.1.1",
-    "rich>=15.0.0",
-    "ruamel.yaml>=0.19.1",
-    "tomlkit>=0.14.0",
-]
-DOCS_DEPENDENCIES = [
-    "mkdocs>=1.6.1",
-    "mkdocs-material>=9.7.6",
-]
 URL_WITH_SCHEME_PARTS_LENGTH = 4
 
 
@@ -139,24 +128,15 @@ def update_mkdocs_yaml(content: str, *, answers: SetupAnswers, old_package_name:
 
 
 def _update_dependency_groups(*, document: Any, answers: SetupAnswers) -> None:
-    if "dependency-groups" not in document:
-        document["dependency-groups"] = tomlkit.table()
+    groups = document.get("dependency-groups")
+    if groups is None:
+        return
 
-    groups = document["dependency-groups"]
-    if answers.keep_docs:
-        groups.setdefault("docs", DOCS_DEPENDENCIES)
-    else:
+    if not answers.keep_docs:
         groups.pop("docs", None)
 
     if answers.delete_wizard:
         groups.pop("setup", None)
-        return
-
-    setup_dependencies = tomlkit.array()
-    setup_dependencies.multiline(True)  # noqa: FBT003
-    for dependency in SETUP_DEPENDENCIES:
-        setup_dependencies.append(dependency)
-    groups["setup"] = setup_dependencies
 
 
 def _update_mypy_config(

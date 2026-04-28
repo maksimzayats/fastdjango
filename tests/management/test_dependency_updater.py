@@ -8,7 +8,6 @@ from management.dependency_updater import (
     ProgressReporter,
     UpdateOptions,
     sync_pyproject_dependency_versions,
-    sync_setup_wizard_dependency_templates,
     update_container_image_versions,
     update_dependencies,
     update_github_action_versions,
@@ -44,7 +43,8 @@ def test_update_dependencies_prints_progress(
     )
 
     assert capsys.readouterr().out == (
-        "Syncing dependency metadata...\nSyncing dependency metadata: done\n"
+        "Syncing pyproject.toml dependency bounds...\n"
+        "Syncing pyproject.toml dependency bounds: done\n"
     )
 
 
@@ -151,127 +151,6 @@ def test_sync_pyproject_dependency_versions_preserves_upper_bounds(tmp_path: Pat
     assert 'requires = ["uv_build>=0.11.0,<0.12.0"]' in (tmp_path / "pyproject.toml").read_text(
         encoding="utf-8",
     )
-
-
-def test_sync_setup_wizard_dependency_templates_uses_pyproject_groups(tmp_path: Path) -> None:
-    setup_wizard_path = tmp_path / "management" / "setup_wizard"
-    setup_wizard_path.mkdir(parents=True)
-    (tmp_path / "pyproject.toml").write_text(
-        textwrap.dedent(
-            """
-            [project]
-            dependencies = []
-
-            [dependency-groups]
-            docs = [
-                "mkdocs>=1.6.1",
-                "mkdocs-material>=9.7.6",
-            ]
-            setup = [
-                "questionary>=2.1.1",
-                "rich>=15.0.0",
-            ]
-            """,
-        ).lstrip(),
-        encoding="utf-8",
-    )
-    config_path = setup_wizard_path / "config.py"
-    config_path.write_text(
-        textwrap.dedent(
-            """
-            SETUP_DEPENDENCIES = [
-                "questionary>=2.0.0",
-                "rich>=14.2.0",
-            ]
-            DOCS_DEPENDENCIES = [
-                "mkdocs>=1.6.1",
-                "mkdocs-material>=9.6.0",
-            ]
-            """,
-        ).lstrip(),
-        encoding="utf-8",
-    )
-
-    updates = sync_setup_wizard_dependency_templates(repo_root=tmp_path)
-
-    assert (
-        dependency_updater.DependencyUpdate(
-            old_requirement="SETUP_DEPENDENCIES: rich>=14.2.0",
-            new_requirement="SETUP_DEPENDENCIES: rich>=15.0.0",
-        )
-        in updates
-    )
-    config_text = config_path.read_text(encoding="utf-8")
-    assert '"rich>=15.0.0"' in config_text
-    assert '"mkdocs-material>=9.7.6"' in config_text
-
-
-def test_update_dependencies_dry_run_projects_template_updates_from_pyproject_plan(
-    tmp_path: Path,
-) -> None:
-    setup_wizard_path = tmp_path / "management" / "setup_wizard"
-    setup_wizard_path.mkdir(parents=True)
-    (tmp_path / "pyproject.toml").write_text(
-        textwrap.dedent(
-            """
-            [project]
-            dependencies = []
-
-            [dependency-groups]
-            setup = [
-                "rich>=14.2.0",
-            ]
-            """,
-        ).lstrip(),
-        encoding="utf-8",
-    )
-    (tmp_path / "uv.lock").write_text(
-        textwrap.dedent(
-            """
-            version = 1
-
-            [[package]]
-            name = "rich"
-            version = "15.0.0"
-            """,
-        ).lstrip(),
-        encoding="utf-8",
-    )
-    config_path = setup_wizard_path / "config.py"
-    config_path.write_text(
-        textwrap.dedent(
-            """
-            SETUP_DEPENDENCIES = [
-                "rich>=14.2.0",
-            ]
-            """,
-        ).lstrip(),
-        encoding="utf-8",
-    )
-
-    summary = update_dependencies(
-        repo_root=tmp_path,
-        options=UpdateOptions(
-            dry_run=True,
-            upgrade_lock=False,
-            update_pyproject=True,
-            update_actions=False,
-            update_containers=False,
-        ),
-    )
-
-    assert summary.dependency_updates == (
-        dependency_updater.DependencyUpdate(
-            old_requirement="rich>=14.2.0",
-            new_requirement="rich>=15.0.0",
-        ),
-        dependency_updater.DependencyUpdate(
-            old_requirement="SETUP_DEPENDENCIES: rich>=14.2.0",
-            new_requirement="SETUP_DEPENDENCIES: rich>=15.0.0",
-        ),
-    )
-    assert '"rich>=14.2.0"' in (tmp_path / "pyproject.toml").read_text(encoding="utf-8")
-    assert '"rich>=14.2.0"' in config_path.read_text(encoding="utf-8")
 
 
 def test_update_github_action_versions_preserves_major_refs(tmp_path: Path) -> None:
