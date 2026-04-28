@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any, cast
 
-from asgiref.sync import sync_to_async
 from diwire import Injected
 from fastapi import HTTPException
 from fastapi.requests import Request
@@ -91,10 +90,7 @@ class JWTAuth(HTTPBearer):
                 detail="Token payload missing 'sub' field",
             )
 
-        user = await sync_to_async(
-            self._user_use_case.get_active_user_by_id,
-            thread_sensitive=False,
-        )(user_id=user_id)
+        user = await self._user_use_case.get_active_user_by_id(user_id=user_id)
 
         if user is None:
             raise HTTPException(

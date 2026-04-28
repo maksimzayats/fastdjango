@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from fastdjango.core.authentication.services.jwt import JWTService
 from fastdjango.core.user.models import User
-from fastdjango.entrypoints.celery.factories import CeleryAppFactory, TasksRegistryFactory
+from fastdjango.entrypoints.celery.factories import CeleryAppFactory
 from fastdjango.entrypoints.celery.registry import TasksRegistry
 from fastdjango.entrypoints.fastapi.factories import FastAPIFactory
 from tests.foundation.factories import ContainerBasedFactory
@@ -82,8 +82,7 @@ class TestTasksRegistryFactory(ContainerBasedFactory):
         celery_app_factory = self._container.resolve(CeleryAppFactory)
         configure_celery_app_for_tests(celery_app_factory())
 
-        factory = self._container.resolve(TasksRegistryFactory)
-        return factory()
+        return self._container.resolve(TasksRegistry)
 
 
 def configure_celery_app_for_tests(celery_app: Celery) -> None:

@@ -7,6 +7,7 @@ Understand the architectural patterns and design decisions behind the template.
 | Concept | What You'll Learn |
 |---------|-------------------|
 | [Service Layer](service-layer.md) | Why controllers use use cases or services instead of querying models directly |
+| [Async Django Boundaries](async-django-boundaries.md) | How async FastAPI workflows interact with Django ORM transactions |
 | [IoC Container](ioc-container.md) | How dependency injection works |
 | [Controller Pattern](controller-pattern.md) | Unified handling for HTTP and Celery |
 | [Factory Pattern](factory-pattern.md) | Complex object construction |

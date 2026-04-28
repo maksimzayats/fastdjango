@@ -37,10 +37,20 @@ services:
       - --bind=0.0.0.0:8000
       - --timeout=120
     depends_on:
-      - pgbouncer
-      - migrations
-      - collectstatic
-      - celery-worker
+      pgbouncer:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      collectstatic:
+        condition: service_completed_successfully
+      celery-worker:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/health', timeout=8).read()" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: always
 
   celery-worker:
@@ -52,9 +62,12 @@ services:
       - --loglevel=${LOGGING_LEVEL:-INFO}
       - --concurrency=4
     depends_on:
-      - pgbouncer
-      - migrations
-      - redis
+      pgbouncer:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     restart: always
 
   celery-beat:
@@ -65,23 +78,29 @@ services:
       - beat
       - --loglevel=${LOGGING_LEVEL:-INFO}
     depends_on:
-      - pgbouncer
-      - migrations
-      - redis
+      pgbouncer:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     restart: always
 
   migrations:
     <<: *common
     command: python src/fastdjango/manage.py migrate --noinput
     depends_on:
-      - pgbouncer
+      pgbouncer:
+        condition: service_healthy
 
   collectstatic:
     <<: *common
     command: python src/fastdjango/manage.py collectstatic --noinput
     depends_on:
-      - pgbouncer
-      - minio-create-buckets
+      pgbouncer:
+        condition: service_healthy
+      minio-create-buckets:
+        condition: service_completed_successfully
 
   postgres:
     image: postgres:18-alpine
@@ -152,8 +171,18 @@ services:
     restart: unless-stopped
     env_file:
       - ../.env
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: [ "CMD-SHELL", "REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping | grep PONG" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     networks:
       - main
 

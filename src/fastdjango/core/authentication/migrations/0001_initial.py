@@ -25,24 +25,49 @@ class Migration(migrations.Migration):
                         editable=False,
                         primary_key=True,
                         serialize=False,
+                        verbose_name="ID",
                     ),
                 ),
-                ("refresh_token_hash", models.CharField(max_length=128, unique=True)),
-                ("user_agent", models.TextField(blank=True)),
-                ("ip_address_trace", models.TextField(blank=True, default="")),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("last_used_at", models.DateTimeField(blank=True, null=True)),
-                ("expires_at", models.DateTimeField()),
-                ("revoked_at", models.DateTimeField(blank=True, null=True)),
-                ("rotation_counter", models.PositiveIntegerField(default=0)),
+                (
+                    "refresh_token_hash",
+                    models.CharField(
+                        max_length=128,
+                        unique=True,
+                        verbose_name="refresh token hash",
+                    ),
+                ),
+                ("user_agent", models.TextField(blank=True, verbose_name="user agent")),
+                (
+                    "ip_address_trace",
+                    models.TextField(blank=True, default="", verbose_name="IP address trace"),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="created at")),
+                (
+                    "last_used_at",
+                    models.DateTimeField(blank=True, null=True, verbose_name="last used at"),
+                ),
+                ("expires_at", models.DateTimeField(verbose_name="expires at")),
+                (
+                    "revoked_at",
+                    models.DateTimeField(blank=True, null=True, verbose_name="revoked at"),
+                ),
+                (
+                    "rotation_counter",
+                    models.PositiveIntegerField(default=0, verbose_name="rotation counter"),
+                ),
                 (
                     "user",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="refresh_sessions",
                         to=settings.AUTH_USER_MODEL,
+                        verbose_name="user",
                     ),
                 ),
             ],
+            options={
+                "verbose_name": "refresh session",
+                "verbose_name_plural": "refresh sessions",
+            },
         ),
     ]

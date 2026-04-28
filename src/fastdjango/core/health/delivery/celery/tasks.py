@@ -3,15 +3,15 @@ from dataclasses import dataclass
 from celery import Celery
 
 from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
-from fastdjango.foundation.delivery.controllers import BaseController
+from fastdjango.infrastructure.celery.controllers import BaseCeleryTaskController
 
 PING_TASK_NAME = "ping"
 
 
 @dataclass(kw_only=True)
-class PingTaskController(BaseController):
+class PingTaskController(BaseCeleryTaskController):
     def register(self, registry: Celery) -> None:
-        registry.task(name=PING_TASK_NAME)(self.ping)
+        self._register_task(registry, name=PING_TASK_NAME, handler=self.ping)
 
-    def ping(self) -> PingResultSchema:
+    async def ping(self) -> PingResultSchema:
         return PingResultSchema(result="pong")

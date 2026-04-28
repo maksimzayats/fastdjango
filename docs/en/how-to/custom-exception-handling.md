@@ -8,7 +8,7 @@ Convert service-level exceptions into meaningful HTTP error responses.
 
 ## Prerequisites
 
-- A controller extending `BaseController` or `BaseTransactionController`
+- A controller extending `BaseAsyncController` or `BaseCeleryTaskController`
 - Domain exceptions defined in `exceptions.py`
 
 ## The Pattern
@@ -21,13 +21,13 @@ from typing import Any
 from fastapi import HTTPException, status
 
 
-def handle_exception(self, exception: Exception) -> Any:
+async def handle_exception(self, exception: Exception) -> Any:
     if isinstance(exception, YourDomainError):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exception),
         ) from exception
-    return super().handle_exception(exception)
+    return await super().handle_exception(exception)
 ```
 
 ## Step-by-Step
@@ -60,7 +60,11 @@ class InvalidOrderStateError(ApplicationError):
 ### 2. Raise Exceptions in Service
 
 ```python
+from asgiref.sync import sync_to_async
+from diwire import Injected
+
 from fastdjango.foundation.services import BaseService
+from fastdjango.foundation.transactions import TransactionFactory
 from fastdjango.core.order.exceptions import (
     InsufficientStockError,
     InvalidOrderStateError,
@@ -70,26 +74,38 @@ from fastdjango.core.order.exceptions import (
 
 @dataclass(kw_only=True)
 class OrderService(BaseService):
-    def get_order_by_id(self, order_id: int) -> Order:
+    _transaction_factory: Injected[TransactionFactory]
+
+    async def get_order_by_id(self, *, order_id: int) -> Order:
         try:
-            return Order.objects.get(id=order_id)
+            return await Order.objects.aget(id=order_id)
         except Order.DoesNotExist as e:
             raise OrderNotFoundError(f"Order {order_id} not found") from e
 
-    def pay_order(self, order_id: int) -> Order:
-        order = self.get_order_by_id(order_id)
+    async def pay_order(self, *, order_id: int) -> Order:
+        return await sync_to_async(
+            self._pay_order_transactionally,
+            thread_sensitive=True,
+        )(order_id=order_id)
 
-        if order.status == OrderStatus.PAID:
-            raise OrderAlreadyPaidError(f"Order {order_id} is already paid")
+    def _pay_order_transactionally(self, *, order_id: int) -> Order:
+        with self._transaction_factory(span_name="pay order"):
+            try:
+                order = Order.objects.get(id=order_id)
+            except Order.DoesNotExist as e:
+                raise OrderNotFoundError(f"Order {order_id} not found") from e
 
-        if order.status != OrderStatus.PENDING:
-            raise InvalidOrderStateError(
-                f"Cannot pay order in {order.status} state"
-            )
+            if order.status == OrderStatus.PAID:
+                raise OrderAlreadyPaidError(f"Order {order_id} is already paid")
 
-        order.status = OrderStatus.PAID
-        order.save()
-        return order
+            if order.status != OrderStatus.PENDING:
+                raise InvalidOrderStateError(
+                    f"Cannot pay order in {order.status} state"
+                )
+
+            order.status = OrderStatus.PAID
+            order.save()
+            return order
 ```
 
 ### 3. Map Exceptions in Controller
@@ -110,11 +126,11 @@ from fastdjango.core.order.exceptions import (
 from fastdjango.core.order.services import (
     OrderService,
 )
-from fastdjango.infrastructure.django.controllers import BaseTransactionController
+from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
-class OrderController(BaseTransactionController):
+class OrderController(BaseAsyncController):
     _order_service: OrderService
 
     def register(self, registry: APIRouter) -> None:
@@ -124,11 +140,11 @@ class OrderController(BaseTransactionController):
             methods=["POST"],
         )
 
-    def pay_order(self, order_id: int) -> OrderSchema:
-        order = self._order_service.pay_order(order_id)
+    async def pay_order(self, order_id: int) -> OrderSchema:
+        order = await self._order_service.pay_order(order_id=order_id)
         return OrderSchema.model_validate(order, from_attributes=True)
 
-    def handle_exception(self, exception: Exception) -> Any:
+    async def handle_exception(self, exception: Exception) -> Any:
         # 404 - Resource not found
         if isinstance(exception, OrderNotFoundError):
             raise HTTPException(
@@ -158,7 +174,7 @@ class OrderController(BaseTransactionController):
             ) from exception
 
         # Re-raise unknown exceptions
-        return super().handle_exception(exception)
+        return await super().handle_exception(exception)
 ```
 
 ## Exception to HTTP Status Mapping
@@ -191,7 +207,7 @@ class ErrorResponseSchema(BaseFastAPISchema):
 Then use it in exception handling:
 
 ```python
-def handle_exception(self, exception: Exception) -> Any:
+async def handle_exception(self, exception: Exception) -> Any:
     if isinstance(exception, InsufficientStockError):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -211,7 +227,7 @@ def handle_exception(self, exception: Exception) -> Any:
 Handle multiple similar exceptions together:
 
 ```python
-def handle_exception(self, exception: Exception) -> Any:
+async def handle_exception(self, exception: Exception) -> Any:
     # Group 404 errors
     not_found_errors = (
         OrderNotFoundError,
@@ -235,7 +251,7 @@ def handle_exception(self, exception: Exception) -> Any:
             detail=str(exception),
         ) from exception
 
-    return super().handle_exception(exception)
+    return await super().handle_exception(exception)
 ```
 
 ## Testing Exception Handling

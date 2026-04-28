@@ -2,6 +2,7 @@ import ast
 from pathlib import Path
 
 from tests.architecture._source import (
+    ImportReference,
     SourceModule,
     base_names,
     has_base,
@@ -16,6 +17,18 @@ CORE_DELIVERY_IMPORT_EXEMPTIONS = {
         "fastdjango.core.user.delivery.django",
     ),
 }
+CORE_INTERNAL_IMPORT_EXEMPTIONS = {
+    (
+        Path("src/fastdjango/core/health/use_cases.py"),
+        "fastdjango.entrypoints.celery.registry",
+    ),
+}
+ASYNC_TO_SYNC_ALLOWED_PATHS = {
+    Path("src/fastdjango/infrastructure/celery/controllers.py"),
+}
+SYNC_CELERY_DELAY_ALLOWED_PATHS = {
+    Path("src/fastdjango/infrastructure/celery/registry.py"),
+}
 ENVIRONMENT_ACCESS_FILE_NAMES = {"configurator.py", "manage.py", "settings.py"}
 ROUTE_DECORATOR_NAMES = {
     "api_route",
@@ -29,8 +42,7 @@ ROUTE_DECORATOR_NAMES = {
 }
 CONTROLLER_BASES = {
     "BaseAsyncController",
-    "BaseController",
-    "BaseTransactionController",
+    "BaseCeleryTaskController",
 }
 CONTROLLER_NON_ENDPOINT_METHOD_NAMES = {"handle_exception", "register"}
 DOMAIN_LOGIC_EXCLUDED_FILE_NAMES = {
@@ -52,6 +64,14 @@ SCHEMA_COLLECTION_RETURN_NAMES = {
     "Sequence",
     "list",
     "tuple",
+}
+TASK_REGISTRY_DEPENDENCY_NAMES = {
+    "TasksRegistry",
+    "TasksRegistryFactory",
+}
+TASK_REGISTRY_MODULE_NAMES = {
+    "fastdjango.entrypoints.celery.factories",
+    "fastdjango.entrypoints.celery.registry",
 }
 
 
@@ -96,12 +116,13 @@ def test_domain_logic_modules_do_not_import_delivery_modules() -> None:
         for module in iter_source_modules()
         if _is_domain_logic_module(module)
         for import_reference in iter_imports(module)
-        if ".delivery." in import_reference.module_name
+        if _is_forbidden_domain_logic_delivery_import(import_reference)
     ]
 
     assert violations == [], (
-        "Domain logic modules must not import delivery modules, schemas, controllers, "
-        "tasks, auth, throttling, or other transport concerns."
+        "Domain logic modules must not import runtime delivery modules, schemas, "
+        "controllers, tasks, auth, throttling, or other transport concerns. "
+        "TYPE_CHECKING imports of delivery schemas are allowed for precise result types."
     )
 
 
@@ -394,7 +415,283 @@ def test_fastapi_controllers_are_registered_by_fastapi_factory() -> None:
     )
 
 
+def test_fastapi_controllers_are_async_first() -> None:
+    violations = [
+        f"{module.relative_path}:{class_node.lineno} {class_node.name}"
+        for module, class_node in _iter_fastapi_controller_classes()
+        if not has_base(class_node, {"BaseAsyncController"})
+    ]
+
+    assert violations == [], "Concrete FastAPI controllers must inherit BaseAsyncController."
+
+
+def test_fastapi_controller_endpoints_are_async() -> None:
+    violations = [
+        f"{module.relative_path}:{method_node.lineno} {class_node.name}.{method_node.name}"
+        for module, class_node in _iter_fastapi_controller_classes()
+        for method_node in _iter_public_controller_endpoint_methods(class_node)
+        if not isinstance(method_node, ast.AsyncFunctionDef)
+    ]
+
+    assert violations == [], "FastAPI controller endpoints must be async def methods."
+
+
+def test_celery_task_controllers_are_async_first() -> None:
+    violations = [
+        f"{module.relative_path}:{class_node.lineno} {class_node.name}"
+        for module, class_node in _iter_celery_task_controller_classes()
+        if not has_base(class_node, {"BaseCeleryTaskController"})
+    ]
+
+    assert violations == [], (
+        "Concrete Celery task controllers must inherit BaseCeleryTaskController."
+    )
+
+
+def test_celery_task_handlers_are_async() -> None:
+    violations = [
+        f"{module.relative_path}:{method_node.lineno} {class_node.name}.{method_node.name}"
+        for module, class_node in _iter_celery_task_controller_classes()
+        for method_node in _iter_public_controller_endpoint_methods(class_node)
+        if not isinstance(method_node, ast.AsyncFunctionDef)
+    ]
+
+    assert violations == [], "Celery task controller handlers must be async def methods."
+
+
+def test_celery_task_controllers_register_through_async_bridge() -> None:
+    violations = [
+        f"{module.relative_path}:{class_node.lineno} {class_node.name}"
+        for module, class_node in _iter_celery_task_controller_classes()
+        if not _register_method_uses_celery_task_bridge(class_node)
+    ]
+
+    assert violations == [], (
+        "Celery task controllers must register handlers through self._register_task()."
+    )
+
+
+def test_task_registries_stay_out_of_controllers() -> None:
+    violations = [
+        _format_import_violation(module, import_reference.module_name, import_reference.line_number)
+        for module in iter_source_modules()
+        if _module_defines_concrete_controller(module)
+        for import_reference in iter_imports(module)
+        if not import_reference.is_type_checking
+        if import_reference.module_name in TASK_REGISTRY_MODULE_NAMES
+    ]
+    violations.extend(
+        (
+            f"{module.relative_path}:{field_node.lineno} {class_node.name}."
+            f"{field_node.target.id} injects {_injected_dependency_name(field_node.annotation)}"
+        )
+        for module in iter_source_modules()
+        for class_node in iter_class_definitions(module)
+        if _is_concrete_controller(class_node)
+        for field_node in class_node.body
+        if isinstance(field_node, ast.AnnAssign)
+        if isinstance(field_node.target, ast.Name)
+        if _injected_dependency_name(field_node.annotation) in TASK_REGISTRY_DEPENDENCY_NAMES
+    )
+
+    assert violations == [], (
+        "Task registries and registry factories belong behind services/use cases, "
+        "not in controllers."
+    )
+
+
+def test_task_registry_usage_stays_in_behavior_or_composition_roots() -> None:
+    violations = [
+        _format_import_violation(module, import_reference.module_name, import_reference.line_number)
+        for module in iter_source_modules()
+        if not _can_use_task_registry(module)
+        for import_reference in iter_imports(module)
+        if not import_reference.is_type_checking
+        if import_reference.module_name == "fastdjango.entrypoints.celery.registry"
+    ]
+    violations.extend(
+        (
+            f"{module.relative_path}:{field_node.lineno} {class_node.name}."
+            f"{field_node.target.id} injects {_injected_dependency_name(field_node.annotation)}"
+        )
+        for module in iter_source_modules()
+        if not _can_use_task_registry(module)
+        for class_node in iter_class_definitions(module)
+        for field_node in class_node.body
+        if isinstance(field_node, ast.AnnAssign)
+        if isinstance(field_node.target, ast.Name)
+        if _injected_dependency_name(field_node.annotation) == "TasksRegistry"
+    )
+
+    assert violations == [], (
+        "TasksRegistry may be used by services/use cases and composition roots only."
+    )
+
+
+def test_fastapi_delivery_does_not_bridge_sync_orm_calls() -> None:
+    violations = [
+        f"{module.relative_path}:{node.lineno} calls sync_to_async"
+        for module in iter_source_modules()
+        if _is_delivery_framework_module(module, "fastapi")
+        for node in ast.walk(module.tree)
+        if isinstance(node, ast.Call)
+        if _is_sync_to_async_call(node)
+    ]
+
+    assert violations == [], (
+        "FastAPI delivery must stay async-native; sync_to_async belongs in use cases, "
+        "services, or infrastructure request-boundary code."
+    )
+
+
+def test_sync_to_async_calls_are_thread_sensitive() -> None:
+    violations = [
+        f"{module.relative_path}:{node.lineno} calls sync_to_async without thread_sensitive=True"
+        for module in iter_source_modules()
+        for node in ast.walk(module.tree)
+        if isinstance(node, ast.Call)
+        if _is_sync_to_async_call(node)
+        if not _has_true_keyword(node, "thread_sensitive")
+    ]
+
+    assert violations == [], (
+        "Django sync islands must explicitly pass thread_sensitive=True to "
+        "sync_to_async, even though asgiref currently defaults to it, so ORM "
+        "work and connection cleanup stay on the same thread-sensitive executor "
+        "and future default changes cannot alter behavior."
+    )
+
+
+def test_core_transactions_use_injected_transaction_factory() -> None:
+    violations = [
+        f"{module.relative_path}:{_line_number(node)} imports django.db.transaction"
+        for module in iter_source_modules()
+        if _is_core_behavior_module(module)
+        for node in ast.walk(module.tree)
+        if _is_django_transaction_import(node)
+    ]
+    violations.extend(
+        f"{module.relative_path}:{node.lineno} calls {ast.unparse(node.func)}"
+        for module in iter_source_modules()
+        if _is_core_behavior_module(module)
+        for node in ast.walk(module.tree)
+        if isinstance(node, ast.Call)
+        if _is_direct_transaction_boundary_call(node)
+    )
+
+    assert violations == [], (
+        "Core use cases and services must use an injected TransactionFactory, "
+        "not django.db.transaction.atomic() or traced_atomic() directly."
+    )
+
+
+def test_async_to_sync_stays_in_celery_task_bridge() -> None:
+    violations = [
+        f"{module.relative_path}:{node.lineno} calls async_to_sync"
+        for module in iter_source_modules()
+        if module.relative_path not in ASYNC_TO_SYNC_ALLOWED_PATHS
+        for node in ast.walk(module.tree)
+        if isinstance(node, ast.Call)
+        if _is_async_to_sync_call(node)
+    ]
+
+    assert violations == [], (
+        "async_to_sync is only allowed in the Celery task bridge; application handlers "
+        "should stay async."
+    )
+
+
+def test_async_functions_do_not_call_sync_celery_delay() -> None:
+    violations = [
+        f"{module.relative_path}:{node.lineno} {function_node.name} calls .delay()"
+        for module in iter_source_modules()
+        if module.relative_path not in SYNC_CELERY_DELAY_ALLOWED_PATHS
+        for function_node in ast.walk(module.tree)
+        if isinstance(function_node, ast.AsyncFunctionDef)
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        if isinstance(node.func, ast.Attribute)
+        if node.func.attr == "delay"
+    ]
+
+    assert violations == [], "Async code must enqueue Celery tasks with .adelay(), not .delay()."
+
+
+def test_django_transactions_are_not_opened_inside_async_functions() -> None:
+    violations = [
+        f"{module.relative_path}:{function_node.lineno} {function_node.name}"
+        for module in iter_source_modules()
+        for function_node in ast.walk(module.tree)
+        if isinstance(function_node, ast.AsyncFunctionDef)
+        if _function_contains_transaction_boundary(function_node)
+    ]
+
+    assert violations == [], (
+        "Django transactions are sync-only; async functions must call a sync "
+        "transactional method through sync_to_async instead."
+    )
+
+
+def test_django_password_work_does_not_run_inside_async_functions() -> None:
+    violations = [
+        f"{module.relative_path}:{function_node.lineno} {function_node.name}"
+        for module in iter_source_modules()
+        for function_node in ast.walk(module.tree)
+        if isinstance(function_node, ast.AsyncFunctionDef)
+        if _function_contains_django_password_work(function_node)
+    ]
+
+    assert violations == [], (
+        "Django password hashing, validation, and verification are sync CPU work; "
+        "wrap them in a sync use-case/service method with sync_to_async(..., "
+        "thread_sensitive=True)."
+    )
+
+
+def test_django_password_work_does_not_run_inside_transactions() -> None:
+    violations = [
+        f"{module.relative_path}:{context_node.lineno}"
+        for module in iter_source_modules()
+        for context_node in ast.walk(module.tree)
+        if isinstance(context_node, ast.With)
+        if _is_transaction_context(context_node)
+        if _block_contains_django_password_work(context_node.body)
+    ]
+    violations.extend(
+        f"{module.relative_path}:{function_node.lineno} {function_node.name}"
+        for module in iter_source_modules()
+        for function_node in ast.walk(module.tree)
+        if isinstance(function_node, ast.FunctionDef | ast.AsyncFunctionDef)
+        if _has_transaction_decorator(function_node)
+        if _function_contains_django_password_work(function_node)
+    )
+
+    assert violations == [], (
+        "Django password hashing, validation, and verification are CPU work; "
+        "do them before opening transaction.atomic()."
+    )
+
+
+def test_core_transactional_sync_methods_use_transactional_suffix() -> None:
+    violations = [
+        f"{module.relative_path}:{function_node.lineno} {function_node.name}"
+        for module in iter_source_modules()
+        if module.source_parts[0] == "core"
+        for function_node in ast.walk(module.tree)
+        if isinstance(function_node, ast.FunctionDef)
+        if _function_contains_transaction_boundary(function_node)
+        if not function_node.name.endswith("_transactionally")
+    ]
+
+    assert violations == [], (
+        "Sync core methods that open Django transactions must end with _transactionally."
+    )
+
+
 def _is_forbidden_core_internal_import(module: SourceModule, module_name: str) -> bool:
+    if _is_exempt_core_internal_import(module, module_name):
+        return False
+
     if module_name.startswith(
         ("fastdjango.entrypoints", "fastdjango.infrastructure", "fastdjango.ioc"),
     ):
@@ -406,15 +703,48 @@ def _is_forbidden_core_internal_import(module: SourceModule, module_name: str) -
     return not _is_exempt_core_delivery_import(module, module_name)
 
 
+def _is_forbidden_domain_logic_delivery_import(
+    import_reference: ImportReference,
+) -> bool:
+    if ".delivery." not in import_reference.module_name:
+        return False
+
+    return not (
+        import_reference.is_type_checking and import_reference.module_name.endswith(".schemas")
+    )
+
+
 def _is_core_delivery_module(module_name: str) -> bool:
     return module_name.startswith("fastdjango.core.") and ".delivery." in module_name
 
 
 def _is_exempt_core_delivery_import(module: SourceModule, module_name: str) -> bool:
+    if _is_same_domain_django_admin_import_from_app_config(module, module_name):
+        return True
+
     relative_path = module.relative_path
     return any(
         relative_path == exempt_path and module_name.startswith(exempt_module)
         for exempt_path, exempt_module in CORE_DELIVERY_IMPORT_EXEMPTIONS
+    )
+
+
+def _is_same_domain_django_admin_import_from_app_config(
+    module: SourceModule,
+    module_name: str,
+) -> bool:
+    if module.source_parts[0] != "core" or module.path.name != "apps.py":
+        return False
+
+    domain_name = module.source_parts[1]
+    return module_name == f"fastdjango.core.{domain_name}.delivery.django"
+
+
+def _is_exempt_core_internal_import(module: SourceModule, module_name: str) -> bool:
+    relative_path = module.relative_path
+    return any(
+        relative_path == exempt_path and module_name.startswith(exempt_module)
+        for exempt_path, exempt_module in CORE_INTERNAL_IMPORT_EXEMPTIONS
     )
 
 
@@ -445,6 +775,13 @@ def _is_domain_logic_module(module: SourceModule) -> bool:
         _is_core_internal_module(module)
         and "migrations" not in module.source_parts
         and module.path.name not in DOMAIN_LOGIC_EXCLUDED_FILE_NAMES
+    )
+
+
+def _is_core_behavior_module(module: SourceModule) -> bool:
+    is_service_module = module.path.name == "services.py" or "services" in module.source_parts
+    return module.source_parts[0] == "core" and (
+        module.path.name == "use_cases.py" or is_service_module
     )
 
 
@@ -548,6 +885,13 @@ def _can_access_container(module: SourceModule) -> bool:
 
 def _can_access_environment(module: SourceModule) -> bool:
     return module.path.name in ENVIRONMENT_ACCESS_FILE_NAMES or module.source_parts[0] in {
+        "entrypoints",
+        "ioc",
+    }
+
+
+def _can_use_task_registry(module: SourceModule) -> bool:
+    return _is_core_behavior_module(module) or module.source_parts[0] in {
         "entrypoints",
         "ioc",
     }
@@ -814,6 +1158,36 @@ def _is_core_fastapi_controller_module(module: SourceModule) -> bool:
     )
 
 
+def _module_defines_concrete_controller(module: SourceModule) -> bool:
+    return any(_is_concrete_controller(class_node) for class_node in iter_class_definitions(module))
+
+
+def _iter_celery_task_controller_classes() -> list[tuple[SourceModule, ast.ClassDef]]:
+    return [
+        (module, class_node)
+        for module in iter_source_modules()
+        if _is_core_celery_delivery_module(module)
+        for class_node in iter_class_definitions(module)
+        if class_node.name.endswith("TaskController")
+    ]
+
+
+def _is_core_celery_delivery_module(module: SourceModule) -> bool:
+    return module.source_parts[0] == "core" and _is_delivery_framework_module(module, "celery")
+
+
+def _register_method_uses_celery_task_bridge(class_node: ast.ClassDef) -> bool:
+    register_method = _class_method_map(class_node).get("register")
+    return register_method is not None and any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "_register_task"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "self"
+        for node in ast.walk(register_method)
+    )
+
+
 def _fastapi_factory_class() -> tuple[SourceModule, ast.ClassDef]:
     for module in iter_source_modules():
         if module.source_parts != ("entrypoints", "fastapi", "factories.py"):
@@ -843,6 +1217,15 @@ def _injected_field_names_by_type(class_node: ast.ClassDef) -> dict[str, str]:
             fields[injected_type_name] = statement.target.id
 
     return fields
+
+
+def _injected_dependency_name(annotation: ast.expr) -> str:
+    if not (
+        isinstance(annotation, ast.Subscript) and _annotation_name(annotation.value) == "Injected"
+    ):
+        return ""
+
+    return _annotation_name(annotation.slice)
 
 
 def _registered_controller_field_names(class_node: ast.ClassDef) -> set[str]:
@@ -937,6 +1320,92 @@ def _is_none_annotation(annotation: ast.expr) -> bool:
 def _has_non_none_keyword(call: ast.Call, keyword_name: str) -> bool:
     keyword_value = _keyword_value(call, keyword_name)
     return keyword_value is not None and not _is_none_annotation(keyword_value)
+
+
+def _has_true_keyword(call: ast.Call, keyword_name: str) -> bool:
+    keyword_value = _keyword_value(call, keyword_name)
+    return isinstance(keyword_value, ast.Constant) and keyword_value.value is True
+
+
+def _is_sync_to_async_call(call: ast.Call) -> bool:
+    return _annotation_name(call.func) == "sync_to_async"
+
+
+def _is_async_to_sync_call(call: ast.Call) -> bool:
+    return _annotation_name(call.func) == "async_to_sync"
+
+
+def _is_django_transaction_import(node: ast.AST) -> bool:
+    if isinstance(node, ast.ImportFrom) and node.module == "django.db":
+        return any(alias.name == "transaction" for alias in node.names)
+
+    if isinstance(node, ast.Import):
+        return any(alias.name == "django.db.transaction" for alias in node.names)
+
+    return False
+
+
+def _function_contains_transaction_boundary(
+    function_node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    return any(
+        isinstance(node, ast.Call) and _is_transaction_boundary_call(node)
+        for statement in function_node.body
+        for node in ast.walk(statement)
+    ) or _has_transaction_decorator(function_node)
+
+
+def _has_transaction_decorator(
+    function_node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    return any(_decorator_name(decorator) == "atomic" for decorator in function_node.decorator_list)
+
+
+def _is_transaction_boundary_call(call: ast.Call) -> bool:
+    return _is_direct_transaction_boundary_call(call) or _is_transaction_factory_call(call)
+
+
+def _is_direct_transaction_boundary_call(call: ast.Call) -> bool:
+    return _annotation_name(call.func) in {"atomic", "traced_atomic"}
+
+
+def _is_transaction_factory_call(call: ast.Call) -> bool:
+    return (
+        isinstance(call.func, ast.Attribute)
+        and call.func.attr == "_transaction_factory"
+        and isinstance(call.func.value, ast.Name)
+        and call.func.value.id == "self"
+    )
+
+
+def _function_contains_django_password_work(
+    function_node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    return _block_contains_django_password_work(function_node.body)
+
+
+def _block_contains_django_password_work(statements: list[ast.stmt]) -> bool:
+    return any(
+        isinstance(node, ast.Call) and _is_django_password_work_call(node)
+        for statement in statements
+        for node in ast.walk(statement)
+    )
+
+
+def _is_django_password_work_call(call: ast.Call) -> bool:
+    return _annotation_name(call.func) in {
+        "check_password",
+        "make_password",
+        "set_password",
+        "validate_password",
+    }
+
+
+def _is_transaction_context(context_node: ast.With) -> bool:
+    return any(
+        isinstance(item.context_expr, ast.Call) and _is_transaction_boundary_call(item.context_expr)
+        for item in context_node.items
+    )
 
 
 def _decorator_name(decorator: ast.expr) -> str | None:

@@ -83,6 +83,7 @@ nav:
   - Concepts:
     - concepts/index.md
     - Service Layer: concepts/service-layer.md
+    - Async Django Boundaries: concepts/async-django-boundaries.md
     - IoC Container: concepts/ioc-container.md
     - Controller Pattern: concepts/controller-pattern.md
     - Factory Pattern: concepts/factory-pattern.md

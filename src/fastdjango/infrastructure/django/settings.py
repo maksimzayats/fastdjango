@@ -71,16 +71,31 @@ class DjangoDatabaseSettings(BaseSettings):
 
     url: SecretStr
     default_auto_field: str = "django.db.models.BigAutoField"
-    conn_max_age: int = 600
+    # Django recommends disabling persistent connections under ASGI and using
+    # backend pooling instead; our FastAPI request middleware closes old
+    # connections at the HTTP boundary, while PgBouncer handles reuse.
+    conn_max_age: int = 0
+    # Docker routes app traffic through PgBouncer in transaction pooling mode.
+    # Server-side cursors are bound to one server connection, so they are unsafe
+    # when PgBouncer may move the next transaction to another connection.
+    disable_server_side_cursors: bool = True
+    test_name: str | None = None
 
     @computed_field()
     def databases(self) -> dict[str, Any]:
-        return {
-            "default": dj_database_url.parse(
-                self.url.get_secret_value(),
-                conn_max_age=self.conn_max_age,
-            ),
-        }
+        default_database = dj_database_url.parse(
+            self.url.get_secret_value(),
+            conn_max_age=self.conn_max_age,
+        )
+        default_database["DISABLE_SERVER_SIDE_CURSORS"] = self.disable_server_side_cursors
+
+        if self.test_name is not None:
+            default_database["TEST"] = {
+                **default_database.get("TEST", {}),
+                "NAME": self.test_name,
+            }
+
+        return {"default": default_database}
 
 
 class DjangoSecuritySettings(BaseSettings):

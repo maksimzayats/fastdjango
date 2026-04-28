@@ -1,7 +1,17 @@
 line-length = 100
+src = ["src", "tests"]
+target-version = "py314"
 
 [lint]
 select = ["ALL"]
+extend-select = [
+    "DOC201",
+    "DOC402",
+    "DOC502",
+    "RUF100",
+]
+preview = true
+explicit-preview-rules = true
 unfixable = ["T201"]
 ignore = [
     "D100",
@@ -32,18 +42,11 @@ ignore = [
     "ARG001",  # Unused function argument"
     "RUF012",  # Mutable class attributes
 ]
-"**/controllers.py" = [
-    "ARG001",  # Unused function argument: `request`
-    "ARG002",  # Unused function argument: `request`
-]
 "**/models.py" = [
     "RUF012",
 ]
 "**/factories.py" = [
     "PLR0913",
-]
-"**/settings.py" = [
-    "RUF012",  # Unused function argument: `request`
 ]
 "tests/**" = [
     "S101",  # Use of assert detected
@@ -56,6 +59,19 @@ ignore = [
 
 [lint.isort]
 combine-as-imports = true
+known-first-party = ["fastdjango"]
+
+[lint.ruff]
+strictly-empty-init-modules = true
+
+[lint.pylint]
+max-args = 4
+max-bool-expr = 3
+max-branches = 8
+max-locals = 10
+max-nested-blocks = 3
+max-positional-args = 3
+max-statements = 30
 
 [lint.flake8-tidy-imports]
 ban-relative-imports = "all"

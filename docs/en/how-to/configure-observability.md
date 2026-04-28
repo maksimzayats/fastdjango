@@ -143,7 +143,7 @@ def batch_process(items: list[Item]) -> BatchResult:
 ```python
 def process_order(order_id: int) -> Order:
     with logfire.span("process_order", order_id=order_id):
-        order = self._order_service.get_order(order_id)
+        order = self._order_service.get_order(order_id=order_id)
 
         with logfire.span("validate_payment"):
             self._payment_service.validate(order)
@@ -157,18 +157,22 @@ def process_order(order_id: int) -> Order:
         return order
 ```
 
-## BaseTransactionController Tracing
+## Transaction Tracing
 
-`BaseTransactionController` automatically creates spans:
+`TransactionFactory` wraps explicit Django transactions in Logfire spans:
 
 ```python
 @dataclass(kw_only=True)
-class OrderController(BaseTransactionController):
-    def create_order(self, body: CreateOrderSchema) -> OrderSchema:
-        # Automatically wrapped with span:
-        # "OrderController.create_order"
-        # Plus transaction management
-        ...
+class OrderService(BaseService):
+    _transaction_factory: Injected[TransactionFactory]
+
+    def _create_order_transactionally(self, *, data: CreateOrderDTO) -> Order:
+        with self._transaction_factory(
+            span_name="create order",
+            service=type(self).__name__,
+            method="_create_order_transactionally",
+        ):
+            return Order.objects.create(...)
 ```
 
 ## Sensitive Data Scrubbing
@@ -281,12 +285,12 @@ Celery tasks are automatically instrumented. For additional logging:
 import logfire
 
 
-class SendEmailTaskController(BaseController):
-    def send_email(self, user_id: int, subject: str) -> SendResult:
+class SendEmailTaskController(BaseCeleryTaskController):
+    async def send_email(self, *, user_id: int, subject: str) -> SendResult:
         logfire.info("Starting email send", user_id=user_id)
 
         try:
-            result = self._email_service.send(...)
+            result = await self._email_service.send(...)
             logfire.info("Email sent", user_id=user_id, message_id=result.id)
             return SendResult(success=True)
         except Exception as e:

@@ -83,7 +83,8 @@ class DjangoDatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DATABASE_")
 
     url: SecretStr  # Required - no default
-    conn_max_age: int = 600
+    conn_max_age: int = 0
+    disable_server_side_cursors: bool = True
 ```
 
 If `DATABASE_URL` is missing, the application fails fast with a clear error:
@@ -160,7 +161,7 @@ from fastdjango.foundation.services import BaseService
 class JWTService(BaseService):
     _settings: JWTServiceSettings
 
-    def issue_access_token(self, user_id: int) -> str:
+    def issue_access_token(self, *, user_id: int) -> str:
         payload = {
             "sub": str(user_id),
             "exp": datetime.now(UTC)
@@ -192,7 +193,8 @@ class DjangoDatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DATABASE_")
 
     url: SecretStr
-    conn_max_age: int = 600
+    conn_max_age: int = 0
+    disable_server_side_cursors: bool = True
 
 
 # Adapter merges all settings into Django's settings dict

@@ -17,8 +17,10 @@ Complete reference for all configuration options.
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | - | PostgreSQL connection string |
-| `DATABASE_CONN_MAX_AGE` | No | `600` | Django persistent connection lifetime in seconds |
+| `DATABASE_CONN_MAX_AGE` | No | `0` | Django persistent connection lifetime in seconds. Keep `0` for ASGI/FastAPI; use database/backend pooling instead. |
+| `DATABASE_DISABLE_SERVER_SIDE_CURSORS` | No | `true` | Disable server-side cursors; keep `true` when using PgBouncer transaction pooling. |
 | `DATABASE_DEFAULT_AUTO_FIELD` | No | `django.db.models.BigAutoField` | Default primary-key field type for Django models |
+| `DATABASE_TEST_NAME` | No | - | Optional Django test database name. Use a file-backed SQLite test DB to avoid in-memory connection warnings. |
 
 Example:
 ```bash
@@ -30,10 +32,12 @@ DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `REDIS_URL` | Yes | - | Redis connection string |
+| `REDIS_PASSWORD` | Yes | - | Password enforced by the Docker Redis container. Must match the password embedded in `REDIS_URL`. |
 
 Example:
 ```bash
-REDIS_URL=redis://localhost:6379/0
+REDIS_PASSWORD=example-redis-password
+REDIS_URL=redis://default:${REDIS_PASSWORD}@localhost:6379/0
 ```
 
 ## Django Settings
@@ -208,7 +212,8 @@ ENVIRONMENT=local
 DATABASE_URL=postgres://postgres:example-postgres-password@localhost:5432/postgres
 
 # Redis
-REDIS_URL=redis://localhost:6379/0
+REDIS_PASSWORD=example-redis-password
+REDIS_URL=redis://default:${REDIS_PASSWORD}@localhost:6379/0
 
 # Django
 DJANGO_SECRET_KEY=your-secret-key-change-in-production

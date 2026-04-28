@@ -14,11 +14,11 @@ from fastdjango.core.user.delivery.fastapi.schemas import (
     UserSchema,
 )
 from fastdjango.core.user.use_cases import UserUseCase
-from fastdjango.infrastructure.django.controllers import BaseTransactionController
+from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
-class UserController(BaseTransactionController):
+class UserController(BaseAsyncController):
     _jwt_auth_factory: Injected[JWTAuthFactory]
     _user_use_case: Injected[UserUseCase]
 
@@ -51,19 +51,19 @@ class UserController(BaseTransactionController):
             response_model=UserSchema,
         )
 
-    def create_user(self, request_body: CreateUserRequestSchema) -> UserSchema:
-        user = self._user_use_case.create_user(data=request_body)
+    async def create_user(self, request_body: CreateUserRequestSchema) -> UserSchema:
+        user = await self._user_use_case.create_user(data=request_body)
 
         return UserSchema.model_validate(user, from_attributes=True)
 
-    def get_current_user(self, request: AuthenticatedRequest) -> UserSchema:
+    async def get_current_user(self, request: AuthenticatedRequest) -> UserSchema:
         return UserSchema.model_validate(request.state.user, from_attributes=True)
 
-    def get_user_by_id(
+    async def get_user_by_id(
         self,
         user_id: int,
     ) -> UserSchema:
-        user = self._user_use_case.get_user_by_id(user_id=user_id)
+        user = await self._user_use_case.get_user_by_id(user_id=user_id)
         if user is None:
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
@@ -72,7 +72,7 @@ class UserController(BaseTransactionController):
 
         return UserSchema.model_validate(user, from_attributes=True)
 
-    def handle_exception(self, exception: Exception) -> Any:
+    async def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, UserUseCase.WEAK_PASSWORD_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
@@ -85,4 +85,4 @@ class UserController(BaseTransactionController):
                 detail="A user with the given username or email already exists",
             ) from exception
 
-        return super().handle_exception(exception)
+        return await super().handle_exception(exception)

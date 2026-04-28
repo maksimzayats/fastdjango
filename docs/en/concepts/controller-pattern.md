@@ -1,39 +1,40 @@
 # Controller Pattern
 
-Controllers provide a unified pattern for handling requests from any source: HTTP, Celery, CLI, etc.
+Controllers provide a unified async-first pattern for handling HTTP routes and
+Celery tasks.
 
 ## The Core Abstraction
 
-Synchronous controllers inherit from `BaseController`; asynchronous controllers
-inherit from `BaseAsyncController`:
+FastAPI controllers inherit from `BaseAsyncController`. Celery task controllers
+inherit from `BaseCeleryTaskController`, which lets task handlers stay async
+while Celery still receives a normal sync task callable.
 
 ```python
-# src/fastdjango/foundation/delivery/controllers.py
+# Base controller shapes
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from celery import Celery, Task
+
 
 @dataclass(kw_only=True)
-class BaseController(ABC):
-    def __post_init__(self) -> None:
-        self._wrap_methods()
-
+class BaseAsyncController(ABC):
     @abstractmethod
     def register(self, registry: Any) -> None:
         """Register this controller with the appropriate registry."""
         ...
 
-    def handle_exception(self, exception: Exception) -> Any:
-        """Handle exceptions raised by controller methods."""
-        raise exception
-
-
-@dataclass(kw_only=True)
-class BaseAsyncController(ABC):
     async def handle_exception(self, exception: Exception) -> Any:
         """Handle exceptions raised by async controller methods."""
         raise exception
+
+
+class BaseCeleryTaskController(BaseAsyncController):
+    def _register_task(self, registry: Celery, *, name: str, handler: Callable) -> Task:
+        """Register an async handler through the Celery sync boundary."""
+        ...
 ```
 
 ## Key Features
@@ -47,9 +48,13 @@ Every controller implements `register()` to connect to its delivery mechanism:
 def register(self, registry: APIRouter) -> None:
     registry.add_api_route("/v1/users", self.list_users, methods=["GET"])
 
+# WebSocket Controller
+def register(self, registry: APIRouter) -> None:
+    registry.add_api_websocket_route("/v1/health/ws", self.health_check_websocket)
+
 # Celery Task Controller
 def register(self, registry: Celery) -> None:
-    registry.task(name=PING_TASK_NAME)(self.ping)
+    self._register_task(registry, name=PING_TASK_NAME, handler=self.ping)
 ```
 
 ### 2. Automatic Exception Handling
@@ -66,9 +71,9 @@ def _wrap_methods(self) -> None:
 
         if (
             callable(attr)
-            and not hasattr(BaseController, attr_name)
+            and not hasattr(BaseAsyncController, attr_name)
             and not attr_name.startswith("_")
-            and attr_name not in dir(BaseController)
+            and attr_name not in dir(BaseAsyncController)
         ):
             setattr(self, attr_name, self._wrap_route(attr))
 
@@ -76,67 +81,63 @@ def _wrap_route(self, method: Callable[..., Any]) -> Callable[..., Any]:
     return self._add_exception_handler(method)
 ```
 
-This means every public method automatically goes through `handle_exception()` if it raises.
-Use `BaseController` for sync route methods and `BaseAsyncController` for async
-route methods; the base classes fail fast when the route style does not match.
+This means every public async endpoint automatically goes through
+`handle_exception()` if it raises.
+Use `BaseAsyncController` for FastAPI route methods and `BaseCeleryTaskController`
+for Celery task handlers. The base classes fail fast when the handler style does
+not match.
 
 ### 3. Custom Exception Handling
 
 Override `handle_exception()` to map domain exceptions to responses:
 
 ```python
-def handle_exception(self, exception: Exception) -> Any:
+async def handle_exception(self, exception: Exception) -> Any:
     if isinstance(exception, TodoNotFoundError):
         raise HTTPException(status_code=404, detail=str(exception))
     if isinstance(exception, TodoAccessDeniedError):
         raise HTTPException(status_code=403, detail=str(exception))
-    return super().handle_exception(exception)
+    return await super().handle_exception(exception)
 ```
 
-## BaseTransactionController
-
-For sync database operations, use `BaseTransactionController`. Async route
-methods should use `BaseAsyncController` and keep Django transaction management
-inside synchronous services or use cases.
+WebSocket handlers should accept the connection, delegate health or business
+checks to use cases/services, send a small wire response, and close or continue
+listening:
 
 ```python
-# src/fastdjango/infrastructure/django/controllers.py
-from inspect import iscoroutinefunction
-
-from fastdjango.foundation.delivery.controllers import BaseController
-from fastdjango.infrastructure.django.traced_atomic import traced_atomic
-
-
-@dataclass(kw_only=True)
-class BaseTransactionController(BaseController, ABC):
-    def _wrap_route(self, method: Callable[..., Any]) -> Callable[..., Any]:
-        method = self._add_transaction(method)
-        return super()._wrap_route(method)
-
-    def _add_transaction(self, method: Callable[..., Any]) -> Callable[..., Any]:
-        method_name = getattr(method, "__name__", type(method).__name__)
-
-        if iscoroutinefunction(method):
-            msg = f"Async route '{method_name}' cannot use BaseTransactionController."
-            raise TypeError(msg)
-
-        @wraps(method)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            with traced_atomic(
-                "controller transaction",
-                controller=type(self).__name__,
-                method=method_name,
-            ):
-                return method(*args, **kwargs)
-
-        return wrapper
+async def health_check_websocket(self, websocket: WebSocket) -> None:
+    await websocket.accept()
+    await self._system_health_use_case.check()
+    await websocket.send_json({"status": "ok"})
+    await websocket.close()
 ```
 
-This wraps methods with:
+## Transaction Boundaries
 
-- `traced_atomic` - Combined database transaction and Logfire tracing
-- Controller and method names as span attributes
-- A sync-only guard so async routes use `BaseAsyncController`
+Controllers do not own database transactions. Keep transaction boundaries inside
+small synchronous use-case or service methods, and inject `TransactionFactory`
+there. FastAPI and Celery controllers stay async-first and delegate to the
+application layer.
+
+```python
+@dataclass(kw_only=True)
+class UserUseCase(BaseUseCase):
+    _transaction_factory: Injected[TransactionFactory]
+
+    async def create_user(self, *, data: CreateUserDTO) -> User:
+        return await sync_to_async(
+            self._create_user_transactionally,
+            thread_sensitive=True,
+        )(data=data)
+
+    def _create_user_transactionally(self, *, data: CreateUserDTO) -> User:
+        with self._transaction_factory(
+            span_name="create user",
+            use_case=type(self).__name__,
+            method="_create_user_transactionally",
+        ):
+            return User.objects.create(...)
+```
 
 ## HTTP Controller Example
 
@@ -149,11 +150,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuthFactory
-from fastdjango.infrastructure.django.controllers import BaseTransactionController
+from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
-class UserController(BaseTransactionController):
+class UserController(BaseAsyncController):
     """HTTP controller for user operations."""
 
     _jwt_auth_factory: JWTAuthFactory
@@ -173,16 +174,16 @@ class UserController(BaseTransactionController):
             dependencies=[Depends(self._jwt_auth)],
         )
 
-    def get_current_user(self, request: AuthenticatedRequest) -> UserSchema:
+    async def get_current_user(self, request: AuthenticatedRequest) -> UserSchema:
         return UserSchema.model_validate(request.state.user, from_attributes=True)
 
-    def handle_exception(self, exception: Exception) -> Any:
+    async def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, UserNotFoundError):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=str(exception),
             ) from exception
-        return super().handle_exception(exception)
+        return await super().handle_exception(exception)
 ```
 
 ### Key Patterns
@@ -199,58 +200,47 @@ class UserController(BaseTransactionController):
 from celery import Celery
 
 from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
-from fastdjango.foundation.delivery.controllers import BaseController
+from fastdjango.infrastructure.celery.controllers import BaseCeleryTaskController
 
 PING_TASK_NAME = "ping"
 
 
-class PingTaskController(BaseController):
+@dataclass(kw_only=True)
+class PingTaskController(BaseCeleryTaskController):
     """Simple task controller with no dependencies."""
 
     def register(self, registry: Celery) -> None:
-        registry.task(name=PING_TASK_NAME)(self.ping)
+        self._register_task(registry, name=PING_TASK_NAME, handler=self.ping)
 
-    def ping(self) -> PingResultSchema:
+    async def ping(self) -> PingResultSchema:
         return PingResultSchema(result="pong")
 ```
 
 !!! note "Dataclass decorator"
-    Controllers without dependencies don't need the `@dataclass` decorator. The base `BaseController` class already uses `@dataclass(kw_only=True)`, so subclasses inherit that behavior. Only add `@dataclass(kw_only=True)` when you have dependency fields to inject.
+    Concrete controllers use `@dataclass(kw_only=True)` even when they do not have dependencies. This keeps the injectable class shape consistent.
 
-## Sync vs Async Handlers
+## Async HTTP Handlers
 
-### Prefer Sync Handlers
-
-FastAPI runs sync handlers in a thread pool automatically:
+FastAPI controllers should expose async handlers:
 
 ```python
-# ✅ Recommended - sync handler
-def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
-    user = self._user_use_case.get_user_by_id(user_id)
+async def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
+    user = await self._user_use_case.get_user_by_id(user_id=user_id)
     return UserSchema.model_validate(user, from_attributes=True)
 ```
 
-### Async When Needed
-
-For truly async operations (external APIs, etc.):
+If the workflow needs a Django transaction, the async use case calls a short sync
+transactional method:
 
 ```python
 from asgiref.sync import sync_to_async
 
-async def get_user_async(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
-    user = await sync_to_async(
-        self._user_use_case.get_user_by_id,
-        thread_sensitive=False,  # Read-only = parallel OK
-    )(user_id)
-    return UserSchema.model_validate(user, from_attributes=True)
+async def create_user(self, *, data: CreateUserDTO) -> User:
+    return await sync_to_async(
+        self._create_user_transactionally,
+        thread_sensitive=True,
+    )(data=data)
 ```
-
-Thread sensitivity:
-
-| `thread_sensitive` | Use Case |
-|-------------------|----------|
-| `False` | Read-only operations (SELECT) |
-| `True` | Write operations (INSERT/UPDATE/DELETE) |
 
 ## Controller Registration
 
@@ -296,9 +286,9 @@ Same structure for HTTP and Celery:
 # - handle_exception() for errors
 ```
 
-### 2. Automatic Tracing
+### 2. Transaction Tracing
 
-`BaseTransactionController` adds Logfire spans automatically.
+`TransactionFactory` adds Logfire spans around explicit database transactions.
 
 ### 3. Exception Isolation
 
@@ -309,8 +299,8 @@ Exceptions are caught and handled uniformly.
 Test business logic at the use-case or service layer, and keep controller tests focused on delivery behavior:
 
 ```python
-def test_get_user_by_id(user_use_case: UserUseCase):
-    user = user_use_case.get_user_by_id(1)
+async def test_get_user_by_id(user_use_case: UserUseCase) -> None:
+    user = await user_use_case.get_user_by_id(user_id=1)
     assert user is not None
 ```
 
@@ -321,5 +311,5 @@ The controller pattern:
 - **Unifies** request handling across HTTP and Celery
 - **Enforces** consistent structure via `register()`
 - **Wraps** methods with exception handling
-- **Provides** `BaseTransactionController` for database operations
+- **Keeps** database transactions inside use cases and services
 - **Enables** easy testing through dependency injection

@@ -1,6 +1,7 @@
 import hashlib
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
-from typing import Any, Self, cast
+from typing import Self, cast
 
 import pytest
 
@@ -51,14 +52,31 @@ class FakeRefreshSessionQuerySet:
 class FakeRefreshSessionManager:
     queryset: FakeRefreshSessionQuerySet
 
-    def all(self) -> FakeRefreshSessionQuerySet:
+    def select_related(self, *_fields: str) -> FakeRefreshSessionQuerySet:
         return self.queryset
 
 
-def test_rotate_refresh_token_locks_session_row(
+class NoopAtomic:
+    def __enter__(self) -> None:
+        return None
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+
+class NoopTransactionFactory:
+    def __call__(self, *_args: object, **_kwargs: object) -> AbstractContextManager[None]:
+        return NoopAtomic()
+
+
+@pytest.mark.anyio
+async def test_rotate_refresh_token_locks_session_row(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    service = RefreshSessionService(_settings=RefreshSessionServiceSettings())
+    service = RefreshSessionService(
+        _settings=RefreshSessionServiceSettings(),
+        _transaction_factory=NoopTransactionFactory(),
+    )
     session = FakeRefreshSession()
     queryset = FakeRefreshSessionQuerySet(session=session)
     monkeypatch.setattr(
@@ -67,10 +85,7 @@ def test_rotate_refresh_token_locks_session_row(
         FakeRefreshSessionManager(queryset=queryset),
     )
 
-    cast(Any, service.rotate_refresh_token).__wrapped__(
-        service,
-        _OLD_REFRESH_TOKEN,
-    )
+    await service.rotate_refresh_token(refresh_token=_OLD_REFRESH_TOKEN)
 
     assert queryset.selected_for_update is True
     assert queryset.lookup == {
@@ -84,10 +99,14 @@ def test_rotate_refresh_token_locks_session_row(
     ]
 
 
-def test_revoke_refresh_token_locks_session_row(
+@pytest.mark.anyio
+async def test_revoke_refresh_token_locks_session_row(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    service = RefreshSessionService(_settings=RefreshSessionServiceSettings())
+    service = RefreshSessionService(
+        _settings=RefreshSessionServiceSettings(),
+        _transaction_factory=NoopTransactionFactory(),
+    )
     session = FakeRefreshSession()
     queryset = FakeRefreshSessionQuerySet(session=session)
     monkeypatch.setattr(
@@ -96,10 +115,9 @@ def test_revoke_refresh_token_locks_session_row(
         FakeRefreshSessionManager(queryset=queryset),
     )
 
-    cast(Any, service.revoke_refresh_token).__wrapped__(
-        service,
-        _OLD_REFRESH_TOKEN,
-        session.user,
+    await service.revoke_refresh_token(
+        refresh_token=_OLD_REFRESH_TOKEN,
+        user=cast(RefreshSession, session).user,
     )
 
     assert queryset.selected_for_update is True

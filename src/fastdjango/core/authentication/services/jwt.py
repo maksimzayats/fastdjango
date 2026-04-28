@@ -32,6 +32,7 @@ class JWTService(BaseService):
 
     def issue_access_token(
         self,
+        *,
         user_id: Any,
         **payload_kwargs: Any,
     ) -> str:
@@ -50,7 +51,7 @@ class JWTService(BaseService):
             algorithm=self._settings.algorithm,
         )
 
-    def decode_token(self, token: str) -> dict[str, Any]:
+    def decode_token(self, *, token: str) -> dict[str, Any]:
         return jwt.decode(
             jwt=token,
             key=self._settings.secret_key.get_secret_value(),

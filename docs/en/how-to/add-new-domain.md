@@ -15,7 +15,7 @@ Add a new domain (e.g., `product`, `order`, `comment`) with all required compone
 
 - [ ] Create Django app in `core/<domain>/`
 - [ ] Add to `installed_apps` in settings
-- [ ] Create model in `models.py`
+- [ ] Create model in `models.py` with explicit field verbose names
 - [ ] Create domain exceptions in `exceptions.py`
 - [ ] Create service in `services.py`
 - [ ] Create delivery directories in `core/<domain>/delivery/`
@@ -69,14 +69,16 @@ from django.db import models
 
 
 class Product(models.Model):
-    name = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    name = models.CharField(verbose_name="name", max_length=200)
+    description = models.TextField(verbose_name="description", blank=True)
+    price = models.DecimalField(verbose_name="price", max_digits=10, decimal_places=2)
+    is_active = models.BooleanField(verbose_name="is active", default=True)
+    created_at = models.DateTimeField(verbose_name="created at", auto_now_add=True)
+    updated_at = models.DateTimeField(verbose_name="updated at", auto_now=True)
 
     class Meta:
+        verbose_name = "product"
+        verbose_name_plural = "products"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
@@ -105,40 +107,56 @@ Create `src/fastdjango/core/product/services.py`:
 from dataclasses import dataclass
 from decimal import Decimal
 
-from django.db import transaction
+from asgiref.sync import sync_to_async
+from diwire import Injected
 
 from fastdjango.core.product.exceptions import ProductNotFoundError
 from fastdjango.foundation.services import BaseService
+from fastdjango.foundation.transactions import TransactionFactory
 from fastdjango.core.product.models import Product
 
 
 @dataclass(kw_only=True)
 class ProductService(BaseService):
-    def get_product_by_id(self, product_id: int) -> Product:
+    _transaction_factory: Injected[TransactionFactory]
+
+    async def get_product_by_id(self, *, product_id: int) -> Product:
         try:
-            return Product.objects.get(id=product_id)
+            return await Product.objects.aget(id=product_id)
         except Product.DoesNotExist as e:
             raise ProductNotFoundError(f"Product {product_id} not found") from e
 
-    def list_products(self, *, active_only: bool = True) -> list[Product]:
+    async def list_products(self, *, active_only: bool = True) -> list[Product]:
         queryset = Product.objects.all()
         if active_only:
             queryset = queryset.filter(is_active=True)
-        return list(queryset)
+        return [product async for product in queryset]
 
-    @transaction.atomic
-    def create_product(
+    async def create_product(
         self,
         *,
         name: str,
         description: str = "",
         price: Decimal,
     ) -> Product:
-        return Product.objects.create(
-            name=name,
-            description=description,
-            price=price,
-        )
+        return await sync_to_async(
+            self._create_product_transactionally,
+            thread_sensitive=True,
+        )(name=name, description=description, price=price)
+
+    def _create_product_transactionally(
+        self,
+        *,
+        name: str,
+        description: str = "",
+        price: Decimal,
+    ) -> Product:
+        with self._transaction_factory(span_name="create product"):
+            return Product.objects.create(
+                name=name,
+                description=description,
+                price=price,
+            )
 ```
 
 ### 6. Create Delivery Directories
@@ -189,6 +207,7 @@ Create `src/fastdjango/core/product/delivery/fastapi/controllers.py`:
 from dataclasses import dataclass
 from typing import Any
 
+from diwire import Injected
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from fastdjango.core.product.exceptions import ProductNotFoundError
@@ -198,13 +217,13 @@ from fastdjango.core.product.delivery.fastapi.schemas import (
     CreateProductRequestSchema,
     ProductSchema,
 )
-from fastdjango.infrastructure.django.controllers import BaseTransactionController
+from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
-class ProductController(BaseTransactionController):
-    _product_service: ProductService
-    _jwt_auth_factory: JWTAuthFactory
+class ProductController(BaseAsyncController):
+    _product_service: Injected[ProductService]
+    _jwt_auth_factory: Injected[JWTAuthFactory]
 
     def __post_init__(self) -> None:
         self._staff_auth = self._jwt_auth_factory(require_staff=True)
@@ -232,32 +251,32 @@ class ProductController(BaseTransactionController):
             dependencies=[Depends(self._staff_auth)],  # Staff only
         )
 
-    def list_products(self) -> list[ProductSchema]:
-        products = self._product_service.list_products()
+    async def list_products(self) -> list[ProductSchema]:
+        products = await self._product_service.list_products()
         return [
             ProductSchema.model_validate(p, from_attributes=True)
             for p in products
         ]
 
-    def get_product(self, product_id: int) -> ProductSchema:
-        product = self._product_service.get_product_by_id(product_id)
+    async def get_product(self, product_id: int) -> ProductSchema:
+        product = await self._product_service.get_product_by_id(product_id=product_id)
         return ProductSchema.model_validate(product, from_attributes=True)
 
-    def create_product(self, body: CreateProductRequestSchema) -> ProductSchema:
-        product = self._product_service.create_product(
+    async def create_product(self, body: CreateProductRequestSchema) -> ProductSchema:
+        product = await self._product_service.create_product(
             name=body.name,
             description=body.description,
             price=body.price,
         )
         return ProductSchema.model_validate(product, from_attributes=True)
 
-    def handle_exception(self, exception: Exception) -> Any:
+    async def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, ProductNotFoundError):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=str(exception),
             ) from exception
-        return super().handle_exception(exception)
+        return await super().handle_exception(exception)
 ```
 
 ### 9. Register the Controller
@@ -272,7 +291,7 @@ from fastdjango.core.product.delivery.fastapi.controllers import ProductControll
 @dataclass(kw_only=True)
 class FastAPIFactory(BaseFactory):
     # ... existing controller fields ...
-    _product_controller: ProductController  # Add this field
+    _product_controller: Injected[ProductController]  # Add this field
 
     def _register_controllers(self, app: FastAPI) -> None:
         # ... existing controller registrations ...
@@ -308,7 +327,7 @@ Import the admin module from the domain app config so Django registers it:
 
 ```python
 def ready(self) -> None:
-    from fastdjango.core.product.delivery.django import admin as _product_admin  # noqa: F401, I001, PLC0415
+    from fastdjango.core.product.delivery.django import admin as _product_admin  # noqa: F401, PLC0415
 ```
 
 ### 11. Run Migrations

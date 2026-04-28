@@ -95,6 +95,8 @@ omit = [
     "src/fastdjango/manage.py",
     "src/fastdjango/entrypoints/fastapi/app.py",
     "src/fastdjango/entrypoints/celery/app.py",
+    # Import-time framework settings
+    "src/fastdjango/infrastructure/django/settings.py",
     # Django admin (requires manual testing)
     "src/**/admin.py",
     # Observability/telemetry (requires external services)

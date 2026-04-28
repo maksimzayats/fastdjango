@@ -21,6 +21,7 @@ from fastdjango.core.user.delivery.fastapi.controllers import UserController
 from fastdjango.entrypoints.django.factories import DjangoWSGIFactory
 from fastdjango.foundation.factories import BaseFactory
 from fastdjango.infrastructure.anyio.configurator import AnyIOConfigurator
+from fastdjango.infrastructure.django.middleware import DjangoDatabaseConnectionMiddleware
 from fastdjango.infrastructure.logfire.instrumentor import OpenTelemetryInstrumentor
 from fastdjango.infrastructure.shared import ApplicationSettings, Environment
 
@@ -103,6 +104,8 @@ class FastAPIFactory(BaseFactory):
         add_trusted_hosts_middleware: bool = True,
         add_cors_middleware: bool = True,
     ) -> None:
+        app.add_middleware(DjangoDatabaseConnectionMiddleware)
+
         if add_trusted_hosts_middleware:
             app.add_middleware(
                 TrustedHostMiddleware,

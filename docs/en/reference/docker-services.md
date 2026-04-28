@@ -68,16 +68,22 @@ docker compose stop postgres
 ```yaml
 redis:
   image: redis:latest
+  command:
+    - redis-server
+    - --requirepass
+    - ${REDIS_PASSWORD}
   ports:
     - "6379:6379"
   volumes:
     - redis_data:/data
+  healthcheck:
+    test: ["CMD-SHELL", "REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping | grep PONG"]
 ```
 
 ### Connection String
 
 ```bash
-REDIS_URL=redis://localhost:6379/0
+REDIS_URL=redis://default:${REDIS_PASSWORD}@localhost:6379/0
 ```
 
 ### Commands
@@ -150,6 +156,25 @@ Access MinIO console at http://localhost:9001
 
 - Username: value of `AWS_S3_ACCESS_KEY_ID`
 - Password: value of `AWS_S3_SECRET_ACCESS_KEY`
+
+## Health Checks
+
+The `api` service healthcheck calls the existing HTTP health endpoint:
+
+```yaml
+api:
+  healthcheck:
+    test:
+      - CMD
+      - python
+      - -c
+      - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/health', timeout=8).read()"
+```
+
+`GET /v1/health` checks database connectivity, enqueues the built-in Celery
+`ping` task with `.adelay()`, waits for the worker result, and forgets the
+result after it is read. This keeps Docker health aligned with the real HTTP
+readiness contract instead of adding a second Celery-only health entrypoint.
 
 ## Init Containers
 

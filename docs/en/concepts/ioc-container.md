@@ -101,8 +101,8 @@ Most services need no manual registration, but when needed use native `diwire` A
 # Register a concrete class for itself
 container.add(UserUseCase)
 
-# Register a factory for an abstraction
-container.add_factory(lambda: container.resolve(UserUseCase), provides=UserUseCaseProtocol)
+# Register a callable factory class for the value it builds
+container.add_factory_class(TasksRegistryFactory, provides=TasksRegistry)
 
 # Register an existing instance/mock
 container.add_instance(mock_service, provides=UserUseCase)

@@ -58,20 +58,23 @@ from fastdjango.core.user.models import User
 class Todo(models.Model):
     """A todo item belonging to a user."""
 
-    title = models.CharField(max_length=200)
-    description = models.TextField(blank=True, default="")
-    completed = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    title = models.CharField(verbose_name="title", max_length=200)
+    description = models.TextField(verbose_name="description", blank=True, default="")
+    completed = models.BooleanField(verbose_name="completed", default=False)
+    created_at = models.DateTimeField(verbose_name="created at", auto_now_add=True)
+    updated_at = models.DateTimeField(verbose_name="updated at", auto_now=True)
 
     # Foreign key to User - each todo belongs to one user
-    user = models.ForeignKey(
-        User,
+    user: models.ForeignKey[User, User] = models.ForeignKey(
+        to=User,
         on_delete=models.CASCADE,
         related_name="todos",
+        verbose_name="user",
     )
 
     class Meta:
+        verbose_name = "todo"
+        verbose_name_plural = "todos"
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["user", "completed"]),
@@ -86,6 +89,8 @@ Key points:
 
 - `user` foreign key establishes ownership
 - `related_name="todos"` allows `user.todos.all()`
+- Explicit `verbose_name` values keep admin/forms human-readable
+- The `models.ForeignKey[User, User]` annotation keeps model relationships typed
 - Indexes improve query performance
 - `ordering` sets default sort order
 
@@ -161,10 +166,12 @@ Create `src/fastdjango/core/todo/services.py`:
 # src/fastdjango/core/todo/services.py
 from dataclasses import dataclass
 
-from django.db import transaction
+from asgiref.sync import sync_to_async
+from diwire import Injected
 
 from fastdjango.core.todo.exceptions import TodoAccessDeniedError, TodoNotFoundError
 from fastdjango.foundation.services import BaseService
+from fastdjango.foundation.transactions import TransactionFactory
 from fastdjango.core.todo.models import Todo
 from fastdjango.core.user.models import User
 
@@ -177,7 +184,9 @@ class TodoService(BaseService):
     Controllers should use this service instead of accessing Todo directly.
     """
 
-    def get_todo_by_id(self, todo_id: int, user: User) -> Todo:
+    _transaction_factory: Injected[TransactionFactory]
+
+    async def get_todo_by_id(self, *, todo_id: int, user: User) -> Todo:
         """Get a todo by ID, ensuring it belongs to the user.
 
         Args:
@@ -191,6 +200,12 @@ class TodoService(BaseService):
             TodoNotFoundError: If the todo doesn't exist.
             TodoAccessDeniedError: If the todo belongs to another user.
         """
+        return await sync_to_async(
+            self._get_todo_by_id,
+            thread_sensitive=True,
+        )(todo_id=todo_id, user=user)
+
+    def _get_todo_by_id(self, *, todo_id: int, user: User) -> Todo:
         try:
             todo = Todo.objects.get(id=todo_id)
         except Todo.DoesNotExist as e:
@@ -201,10 +216,10 @@ class TodoService(BaseService):
 
         return todo
 
-    def list_todos_for_user(
+    async def list_todos_for_user(
         self,
-        user: User,
         *,
+        user: User,
         completed: bool | None = None,
     ) -> list[Todo]:
         """List all todos for a user.
@@ -216,6 +231,17 @@ class TodoService(BaseService):
         Returns:
             List of Todo instances.
         """
+        return await sync_to_async(
+            self._list_todos_for_user,
+            thread_sensitive=True,
+        )(user=user, completed=completed)
+
+    def _list_todos_for_user(
+        self,
+        *,
+        user: User,
+        completed: bool | None = None,
+    ) -> list[Todo]:
         queryset = Todo.objects.filter(user=user)
 
         if completed is not None:
@@ -223,11 +249,10 @@ class TodoService(BaseService):
 
         return list(queryset)
 
-    @transaction.atomic
-    def create_todo(
+    async def create_todo(
         self,
-        user: User,
         *,
+        user: User,
         title: str,
         description: str = "",
     ) -> Todo:
@@ -241,18 +266,30 @@ class TodoService(BaseService):
         Returns:
             The created Todo instance.
         """
-        return Todo.objects.create(
-            user=user,
-            title=title,
-            description=description,
-        )
+        return await sync_to_async(
+            self._create_todo_transactionally,
+            thread_sensitive=True,
+        )(user=user, title=title, description=description)
 
-    @transaction.atomic
-    def update_todo(
+    def _create_todo_transactionally(
         self,
+        *,
+        user: User,
+        title: str,
+        description: str = "",
+    ) -> Todo:
+        with self._transaction_factory(span_name="create todo"):
+            return Todo.objects.create(
+                user=user,
+                title=title,
+                description=description,
+            )
+
+    async def update_todo(
+        self,
+        *,
         todo_id: int,
         user: User,
-        *,
         title: str | None = None,
         description: str | None = None,
         completed: bool | None = None,
@@ -273,20 +310,40 @@ class TodoService(BaseService):
             TodoNotFoundError: If the todo doesn't exist.
             TodoAccessDeniedError: If the todo belongs to another user.
         """
-        todo = self.get_todo_by_id(todo_id, user)
+        return await sync_to_async(
+            self._update_todo_transactionally,
+            thread_sensitive=True,
+        )(
+            todo_id=todo_id,
+            user=user,
+            title=title,
+            description=description,
+            completed=completed,
+        )
 
-        if title is not None:
-            todo.title = title
-        if description is not None:
-            todo.description = description
-        if completed is not None:
-            todo.completed = completed
+    def _update_todo_transactionally(
+        self,
+        *,
+        todo_id: int,
+        user: User,
+        title: str | None = None,
+        description: str | None = None,
+        completed: bool | None = None,
+    ) -> Todo:
+        with self._transaction_factory(span_name="update todo"):
+            todo = self._get_todo_by_id(todo_id=todo_id, user=user)
 
-        todo.save()
-        return todo
+            if title is not None:
+                todo.title = title
+            if description is not None:
+                todo.description = description
+            if completed is not None:
+                todo.completed = completed
 
-    @transaction.atomic
-    def delete_todo(self, todo_id: int, user: User) -> None:
+            todo.save()
+            return todo
+
+    async def delete_todo(self, *, todo_id: int, user: User) -> None:
         """Delete a todo item.
 
         Args:
@@ -297,10 +354,17 @@ class TodoService(BaseService):
             TodoNotFoundError: If the todo doesn't exist.
             TodoAccessDeniedError: If the todo belongs to another user.
         """
-        todo = self.get_todo_by_id(todo_id, user)
-        todo.delete()
+        await sync_to_async(
+            self._delete_todo_transactionally,
+            thread_sensitive=True,
+        )(todo_id=todo_id, user=user)
 
-    def mark_completed(self, todo_id: int, user: User) -> Todo:
+    def _delete_todo_transactionally(self, *, todo_id: int, user: User) -> None:
+        with self._transaction_factory(span_name="delete todo"):
+            todo = self._get_todo_by_id(todo_id=todo_id, user=user)
+            todo.delete()
+
+    async def mark_completed(self, *, todo_id: int, user: User) -> Todo:
         """Mark a todo as completed.
 
         Args:
@@ -310,9 +374,9 @@ class TodoService(BaseService):
         Returns:
             The updated Todo instance.
         """
-        return self.update_todo(todo_id, user, completed=True)
+        return await self.update_todo(todo_id=todo_id, user=user, completed=True)
 
-    def mark_incomplete(self, todo_id: int, user: User) -> Todo:
+    async def mark_incomplete(self, *, todo_id: int, user: User) -> Todo:
         """Mark a todo as incomplete.
 
         Args:
@@ -322,10 +386,9 @@ class TodoService(BaseService):
         Returns:
             The updated Todo instance.
         """
-        return self.update_todo(todo_id, user, completed=False)
+        return await self.update_todo(todo_id=todo_id, user=user, completed=False)
 
-    @transaction.atomic
-    def delete_completed_todos(self, user: User) -> int:
+    async def delete_completed_todos(self, *, user: User) -> int:
         """Delete all completed todos for a user.
 
         Args:
@@ -334,11 +397,18 @@ class TodoService(BaseService):
         Returns:
             Number of todos deleted.
         """
-        deleted_count, _ = Todo.objects.filter(
-            user=user,
-            completed=True,
-        ).delete()
-        return deleted_count
+        return await sync_to_async(
+            self._delete_completed_todos_transactionally,
+            thread_sensitive=True,
+        )(user=user)
+
+    def _delete_completed_todos_transactionally(self, *, user: User) -> int:
+        with self._transaction_factory(span_name="delete completed todos"):
+            deleted_count, _ = Todo.objects.filter(
+                user=user,
+                completed=True,
+            ).delete()
+            return deleted_count
 ```
 
 ## Understanding the Service Pattern
@@ -348,7 +418,7 @@ class TodoService(BaseService):
 1. **Testability**: Test business logic without HTTP concerns
 2. **Reusability**: Same service for HTTP, Celery, CLI
 3. **Encapsulation**: Database operations are hidden from controllers
-4. **Transaction Management**: `@transaction.atomic` ensures data integrity
+4. **Transaction Management**: `TransactionFactory` keeps transaction behavior injectable
 
 ### Key Patterns in This Service
 
@@ -369,28 +439,46 @@ uv run src/fastdjango/manage.py shell
 ```
 
 ```python
+import asyncio
+
+from asgiref.sync import sync_to_async
+
 from fastdjango.core.user.models import User
 from fastdjango.core.todo.services import TodoService
+from fastdjango.infrastructure.django.transactions import DjangoTransactionFactory
 
-# Get or create a test user
-user = User.objects.first()
-if not user:
-    user = User.objects.create_user("testuser", "test@example.com", "password")
 
-# Create a service instance
-service = TodoService()
+async def main() -> None:
+    # Get or create a test user
+    user = await User.objects.afirst()
+    if not user:
+        user = await sync_to_async(User.objects.create_user, thread_sensitive=True)(
+            username="testuser",
+            email="test@example.com",
+            password="password",
+        )
 
-# Create a todo
-todo = service.create_todo(user, title="Learn Fast Django", description="Complete the tutorial")
-print(f"Created: {todo.title}")
+    # Create a service instance
+    service = TodoService(_transaction_factory=DjangoTransactionFactory())
 
-# List todos
-todos = service.list_todos_for_user(user)
-print(f"User has {len(todos)} todos")
+    # Create a todo
+    todo = await service.create_todo(
+        user=user,
+        title="Learn Fast Django",
+        description="Complete the tutorial",
+    )
+    print(f"Created: {todo.title}")
 
-# Mark complete
-service.mark_completed(todo.id, user)
-print(f"Completed: {todo.completed}")
+    # List todos
+    todos = await service.list_todos_for_user(user=user)
+    print(f"User has {len(todos)} todos")
+
+    # Mark complete
+    todo = await service.mark_completed(todo_id=todo.id, user=user)
+    print(f"Completed: {todo.completed}")
+
+
+asyncio.run(main())
 ```
 
 ## Summary

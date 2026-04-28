@@ -300,12 +300,13 @@ from fastdjango.core.todo.services import (
     TodoService,
 )
 from fastdjango.core.user.models import User
+from fastdjango.infrastructure.django.transactions import DjangoTransactionFactory
 
 
 @pytest.fixture(scope="function")
 def service() -> TodoService:
     """Create a TodoService instance."""
-    return TodoService()
+    return TodoService(_transaction_factory=DjangoTransactionFactory())
 
 
 @pytest.fixture(scope="function")
@@ -328,14 +329,15 @@ def other_user(transactional_db: None) -> User:
     )
 
 
+@pytest.mark.anyio
 @pytest.mark.django_db(transaction=True)
 class TestTodoService:
     """Unit tests for TodoService."""
 
-    def test_create_todo(self, service: TodoService, user: User) -> None:
+    async def test_create_todo(self, service: TodoService, user: User) -> None:
         """Test creating a todo."""
-        todo = service.create_todo(
-            user,
+        todo = await service.create_todo(
+            user=user,
             title="Test Todo",
             description="Test description",
         )
@@ -346,70 +348,70 @@ class TestTodoService:
         assert todo.completed is False
         assert todo.user_id == user.id
 
-    def test_get_todo_by_id(self, service: TodoService, user: User) -> None:
+    async def test_get_todo_by_id(self, service: TodoService, user: User) -> None:
         """Test getting a todo by ID."""
-        created = service.create_todo(user, title="Test")
-        retrieved = service.get_todo_by_id(created.id, user)
+        created = await service.create_todo(user=user, title="Test")
+        retrieved = await service.get_todo_by_id(todo_id=created.id, user=user)
 
         assert retrieved.id == created.id
 
-    def test_get_todo_by_id_not_found(
+    async def test_get_todo_by_id_not_found(
         self,
         service: TodoService,
         user: User,
     ) -> None:
         """Test getting a non-existent todo."""
         with pytest.raises(TodoNotFoundError):
-            service.get_todo_by_id(99999, user)
+            await service.get_todo_by_id(todo_id=99999, user=user)
 
-    def test_get_todo_by_id_access_denied(
+    async def test_get_todo_by_id_access_denied(
         self,
         service: TodoService,
         user: User,
         other_user: User,
     ) -> None:
         """Test accessing another user's todo."""
-        todo = service.create_todo(user, title="Private Todo")
+        todo = await service.create_todo(user=user, title="Private Todo")
 
         with pytest.raises(TodoAccessDeniedError):
-            service.get_todo_by_id(todo.id, other_user)
+            await service.get_todo_by_id(todo_id=todo.id, user=other_user)
 
-    def test_list_todos_for_user(
+    async def test_list_todos_for_user(
         self,
         service: TodoService,
         user: User,
     ) -> None:
         """Test listing todos for a user."""
-        service.create_todo(user, title="Todo 1")
-        service.create_todo(user, title="Todo 2")
+        await service.create_todo(user=user, title="Todo 1")
+        await service.create_todo(user=user, title="Todo 2")
 
-        todos = service.list_todos_for_user(user)
+        todos = await service.list_todos_for_user(user=user)
 
         assert len(todos) == 2
 
-    def test_list_todos_filter_completed(
+    async def test_list_todos_filter_completed(
         self,
         service: TodoService,
         user: User,
     ) -> None:
         """Test filtering todos by completion status."""
-        service.create_todo(user, title="Incomplete")
-        completed = service.create_todo(user, title="Completed")
-        service.mark_completed(completed.id, user)
+        await service.create_todo(user=user, title="Incomplete")
+        completed = await service.create_todo(user=user, title="Completed")
+        await service.mark_completed(todo_id=completed.id, user=user)
 
-        incomplete_todos = service.list_todos_for_user(user, completed=False)
-        completed_todos = service.list_todos_for_user(user, completed=True)
+        incomplete_todos = await service.list_todos_for_user(user=user, completed=False)
+        completed_todos = await service.list_todos_for_user(user=user, completed=True)
 
         assert len(incomplete_todos) == 1
         assert len(completed_todos) == 1
 
-    def test_update_todo(self, service: TodoService, user: User) -> None:
+    async def test_update_todo(self, service: TodoService, user: User) -> None:
         """Test updating a todo."""
-        todo = service.create_todo(user, title="Original")
+        todo = await service.create_todo(user=user, title="Original")
 
-        updated = service.update_todo(
-            todo.id,
-            user,
+        updated = await service.update_todo(
+            todo_id=todo.id,
+            user=user,
             title="Updated",
             completed=True,
         )
@@ -417,47 +419,47 @@ class TestTodoService:
         assert updated.title == "Updated"
         assert updated.completed is True
 
-    def test_delete_todo(self, service: TodoService, user: User) -> None:
+    async def test_delete_todo(self, service: TodoService, user: User) -> None:
         """Test deleting a todo."""
-        todo = service.create_todo(user, title="To Delete")
+        todo = await service.create_todo(user=user, title="To Delete")
 
-        service.delete_todo(todo.id, user)
+        await service.delete_todo(todo_id=todo.id, user=user)
 
-        assert not Todo.objects.filter(id=todo.id).exists()
+        assert not await Todo.objects.filter(id=todo.id).aexists()
 
-    def test_mark_completed(self, service: TodoService, user: User) -> None:
+    async def test_mark_completed(self, service: TodoService, user: User) -> None:
         """Test marking a todo as completed."""
-        todo = service.create_todo(user, title="Test")
+        todo = await service.create_todo(user=user, title="Test")
 
-        result = service.mark_completed(todo.id, user)
+        result = await service.mark_completed(todo_id=todo.id, user=user)
 
         assert result.completed is True
 
-    def test_mark_incomplete(self, service: TodoService, user: User) -> None:
+    async def test_mark_incomplete(self, service: TodoService, user: User) -> None:
         """Test marking a todo as incomplete."""
-        todo = service.create_todo(user, title="Test")
-        service.mark_completed(todo.id, user)
+        todo = await service.create_todo(user=user, title="Test")
+        await service.mark_completed(todo_id=todo.id, user=user)
 
-        result = service.mark_incomplete(todo.id, user)
+        result = await service.mark_incomplete(todo_id=todo.id, user=user)
 
         assert result.completed is False
 
-    def test_delete_completed_todos(
+    async def test_delete_completed_todos(
         self,
         service: TodoService,
         user: User,
     ) -> None:
         """Test deleting all completed todos."""
-        service.create_todo(user, title="Keep")
-        completed1 = service.create_todo(user, title="Delete 1")
-        completed2 = service.create_todo(user, title="Delete 2")
-        service.mark_completed(completed1.id, user)
-        service.mark_completed(completed2.id, user)
+        await service.create_todo(user=user, title="Keep")
+        completed1 = await service.create_todo(user=user, title="Delete 1")
+        completed2 = await service.create_todo(user=user, title="Delete 2")
+        await service.mark_completed(todo_id=completed1.id, user=user)
+        await service.mark_completed(todo_id=completed2.id, user=user)
 
-        deleted_count = service.delete_completed_todos(user)
+        deleted_count = await service.delete_completed_todos(user=user)
 
         assert deleted_count == 2
-        assert Todo.objects.filter(user=user).count() == 1
+        assert await Todo.objects.filter(user=user).acount() == 1
 ```
 
 ## Step 3: Create Celery Task Tests

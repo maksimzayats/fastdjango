@@ -116,7 +116,7 @@ from fastdjango.foundation.services import BaseService
 
 @dataclass(kw_only=True)
 class TodoService(BaseService):
-    def delete_completed_todos(self, user: User) -> int:
+    def delete_completed_todos(self, *, user: User) -> int:
         with logfire.span(
             "delete_completed_todos",
             user_id=user.id,
@@ -132,60 +132,32 @@ class TodoService(BaseService):
             return deleted_count
 ```
 
-## Step 5: BaseTransactionController Tracing
+## Step 5: Transaction Tracing
 
-The `BaseTransactionController` uses `traced_atomic` to combine database transactions with Logfire tracing:
-
-```python
-# src/fastdjango/infrastructure/django/controllers.py
-from inspect import iscoroutinefunction
-
-from fastdjango.foundation.delivery.controllers import BaseController
-from fastdjango.infrastructure.django.traced_atomic import traced_atomic
-
-
-@dataclass(kw_only=True)
-class BaseTransactionController(BaseController, ABC):
-    def _wrap_route(self, method: Callable[..., Any]) -> Callable[..., Any]:
-        method = self._add_transaction(method)
-        return super()._wrap_route(method)
-
-    def _add_transaction(self, method: Callable[..., Any]) -> Callable[..., Any]:
-        method_name = getattr(method, "__name__", type(method).__name__)
-
-        if iscoroutinefunction(method):
-            msg = f"Async route '{method_name}' cannot use BaseTransactionController."
-            raise TypeError(msg)
-
-        @wraps(method)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            with traced_atomic(
-                "controller transaction",
-                controller=type(self).__name__,
-                method=method_name,
-            ):
-                return method(*args, **kwargs)
-
-        return wrapper
-```
-
-When you extend `BaseTransactionController`, every public method automatically gets:
-
-- **Database transaction**: Wrapped in `@transaction.atomic`
-- **Logfire span**: Named "controller transaction" with attributes
-- **Span attributes**: Controller name and method name for filtering
-- **Sync guard**: Async routes fail fast; use `BaseAsyncController` for async endpoints
+Use the injected `TransactionFactory` in synchronous use-case or service
+transaction methods. It combines `transaction.atomic()` with a Logfire span and
+keeps controllers free of database transaction policy.
 
 ```python
-# Automatically traced when extending BaseTransactionController
 @dataclass(kw_only=True)
-class TodoController(BaseTransactionController):
-    def list_todos(self, request: AuthenticatedRequest) -> TodoListSchema:
-        # This method is automatically wrapped with traced_atomic:
-        # - Span name: "controller transaction"
-        # - Span attributes: controller="TodoController", method="list_todos"
-        ...
+class TodoService(BaseService):
+    _transaction_factory: Injected[TransactionFactory]
+
+    def _create_todo_transactionally(self, *, user: User, title: str) -> Todo:
+        with self._transaction_factory(
+            span_name="create todo",
+            service=type(self).__name__,
+            method="_create_todo_transactionally",
+        ):
+            return Todo.objects.create(user=user, title=title)
 ```
+
+Every explicit transaction gets:
+
+- **Database transaction**: Provided by Django's transaction manager
+- **Logfire span**: Named by the caller
+- **Span attributes**: Service/use-case and method names for filtering
+- **Rollback visibility**: Exceptions are recorded on the transaction span
 
 ## Step 6: Health Check Endpoint
 
@@ -194,12 +166,12 @@ The project includes a health check endpoint at `GET /v1/health`:
 ```python
 # src/fastdjango/core/health/delivery/fastapi/controllers.py
 @dataclass(kw_only=True)
-class HealthController(BaseController):
-    _system_health_use_case: SystemHealthUseCase
+class HealthController(BaseAsyncController):
+    _system_health_use_case: Injected[SystemHealthUseCase]
 
-    def health_check(self) -> HealthCheckResponseSchema:
+    async def health_check(self) -> HealthCheckResponseSchema:
         try:
-            self._system_health_use_case.check()
+            await self._system_health_use_case.check()
         except HealthCheckError as e:
             raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
@@ -217,10 +189,10 @@ from fastdjango.foundation.use_cases import BaseUseCase
 
 
 class SystemHealthUseCase(BaseUseCase):
-    def check(self) -> None:
+    async def check(self) -> None:
         try:
             # Verify database connection
-            Session.objects.first()
+            await Session.objects.afirst()
         except Exception as e:
             logger.exception("Health check failed: database is not reachable")
             raise HealthCheckError from e

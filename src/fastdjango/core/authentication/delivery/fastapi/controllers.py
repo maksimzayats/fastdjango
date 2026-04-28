@@ -20,11 +20,11 @@ from fastdjango.core.authentication.dtos import TokenRequestContextDTO
 from fastdjango.core.authentication.use_cases import TokenUseCase
 from fastdjango.core.shared.delivery.fastapi.request import RequestInfoService
 from fastdjango.core.shared.delivery.fastapi.throttling import IPThrottlerFactory
-from fastdjango.infrastructure.django.controllers import BaseTransactionController
+from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
-class AuthenticationTokenController(BaseTransactionController):
+class AuthenticationTokenController(BaseAsyncController):
     _jwt_auth_factory: Injected[JWTAuthFactory]
     _request_info_service: Injected[RequestInfoService]
     _ip_throttler_factory: Injected[IPThrottlerFactory]
@@ -67,12 +67,12 @@ class AuthenticationTokenController(BaseTransactionController):
             ],
         )
 
-    def issue_token(
+    async def issue_token(
         self,
         request: Request,
         body: IssueTokenRequestSchema,
     ) -> TokenResponseSchema:
-        token = self._token_use_case.issue_token(
+        token = await self._token_use_case.issue_token(
             data=body,
             context=TokenRequestContextDTO(
                 user_agent=self._request_info_service.get_user_agent(request=request),
@@ -84,27 +84,27 @@ class AuthenticationTokenController(BaseTransactionController):
 
         return TokenResponseSchema.model_validate(token)
 
-    def refresh_token(
+    async def refresh_token(
         self,
         body: RefreshTokenRequestSchema,
     ) -> TokenResponseSchema:
-        token = self._token_use_case.refresh_token(
+        token = await self._token_use_case.refresh_token(
             data=body,
         )
 
         return TokenResponseSchema.model_validate(token)
 
-    def revoke_token(
+    async def revoke_token(
         self,
         request: AuthenticatedRequest,
         body: RefreshTokenRequestSchema,
     ) -> None:
-        self._token_use_case.revoke_token(
+        await self._token_use_case.revoke_token(
             data=body,
             user=request.state.user,
         )
 
-    def handle_exception(self, exception: Exception) -> Any:
+    async def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, TokenUseCase.INVALID_CREDENTIALS_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
@@ -129,4 +129,4 @@ class AuthenticationTokenController(BaseTransactionController):
                 detail="Refresh token error",
             ) from exception
 
-        return super().handle_exception(exception)
+        return await super().handle_exception(exception)

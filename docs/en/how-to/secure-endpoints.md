@@ -31,7 +31,7 @@ from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuthFactory
 
 
 @dataclass(kw_only=True)
-class ProductController(BaseTransactionController):
+class ProductController(BaseAsyncController):
     _product_service: ProductService
     _jwt_auth_factory: JWTAuthFactory
 
@@ -95,9 +95,9 @@ Use `AuthenticatedRequest` to access the user:
 from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest
 
 
-def list_favorites(self, request: AuthenticatedRequest) -> list[ProductSchema]:
+async def list_favorites(self, request: AuthenticatedRequest) -> list[ProductSchema]:
     user = request.state.user
-    return self._product_service.list_favorites_for_user(user)
+    return await self._product_service.list_favorites_for_user(user=user)
 ```
 
 ## Complete Example
@@ -119,11 +119,11 @@ from fastdjango.core.product.delivery.fastapi.schemas import (
     CreateProductRequestSchema,
     ProductSchema,
 )
-from fastdjango.infrastructure.django.controllers import BaseTransactionController
+from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
-class ProductController(BaseTransactionController):
+class ProductController(BaseAsyncController):
     _product_service: ProductService
     _jwt_auth_factory: JWTAuthFactory
 
@@ -161,33 +161,33 @@ class ProductController(BaseTransactionController):
         )
 
     # Public endpoint - no request parameter needed
-    def list_products(self) -> list[ProductSchema]:
-        products = self._product_service.list_products()
+    async def list_products(self) -> list[ProductSchema]:
+        products = await self._product_service.list_products()
         return [
             ProductSchema.model_validate(p, from_attributes=True)
             for p in products
         ]
 
     # Authenticated endpoint - uses AuthenticatedRequest
-    def list_favorites(
+    async def list_favorites(
         self,
         request: AuthenticatedRequest,
     ) -> list[ProductSchema]:
         user = request.state.user
-        products = self._product_service.list_favorites(user)
+        products = await self._product_service.list_favorites(user=user)
         return [
             ProductSchema.model_validate(p, from_attributes=True)
             for p in products
         ]
 
     # Staff endpoint - uses AuthenticatedRequest
-    def create_product(
+    async def create_product(
         self,
         request: AuthenticatedRequest,
         body: CreateProductRequestSchema,
     ) -> ProductSchema:
         # request.state.user is guaranteed to be staff
-        product = self._product_service.create_product(
+        product = await self._product_service.create_product(
             name=body.name,
             price=body.price,
         )
@@ -215,7 +215,7 @@ from fastdjango.core.shared.delivery.fastapi.throttling import IPThrottlerFactor
 
 
 @dataclass(kw_only=True)
-class AuthController(BaseTransactionController):
+class AuthController(BaseAsyncController):
     _ip_throttler_factory: IPThrottlerFactory
 
     def register(self, registry: APIRouter) -> None:
@@ -226,7 +226,11 @@ class AuthController(BaseTransactionController):
             dependencies=[Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10)))],
         )
 
-    def issue_token(self, request: Request, body: IssueTokenRequestSchema) -> TokenResponseSchema:
+    async def issue_token(
+        self,
+        request: Request,
+        body: IssueTokenRequestSchema,
+    ) -> TokenResponseSchema:
         # ... token issuing logic ...
 ```
 

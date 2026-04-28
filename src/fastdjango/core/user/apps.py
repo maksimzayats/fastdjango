@@ -7,4 +7,4 @@ class UserConfig(AppConfig):
     label = "user"
 
     def ready(self) -> None:
-        from fastdjango.core.user.delivery.django import admin as _user_admin  # noqa: F401, I001, PLC0415
+        from fastdjango.core.user.delivery.django import admin as _user_admin  # noqa: F401, PLC0415

@@ -1,6 +1,7 @@
 import os
 
 import django
+import pytest
 from django.apps import apps
 from dotenv import find_dotenv, load_dotenv
 
@@ -27,3 +28,8 @@ configure_django_for_tests()
 
 def pytest_configure() -> None:
     configure_django_for_tests()
+
+
+@pytest.fixture()
+def anyio_backend() -> str:
+    return "asyncio"

@@ -31,20 +31,20 @@ class TokenUseCase(BaseUseCase):
     _refresh_session_service: Injected[RefreshSessionService]
     _user_use_case: Injected[UserUseCase]
 
-    def issue_token(
+    async def issue_token(
         self,
         *,
         data: IssueTokenDTO,
         context: TokenRequestContextDTO,
     ) -> TokenDTO:
-        user = self._user_use_case.get_user_by_username_and_password(
+        user = await self._user_use_case.get_user_by_username_and_password(
             username=data.username,
             password=data.password,
         )
         if user is None:
             raise self.INVALID_CREDENTIALS_ERROR
 
-        refresh_session = self._refresh_session_service.create_refresh_session(
+        refresh_session = await self._refresh_session_service.create_refresh_session(
             user=user,
             user_agent=context.user_agent,
             ip_address_trace=context.ip_address_trace,
@@ -55,8 +55,8 @@ class TokenUseCase(BaseUseCase):
             refresh_token=refresh_session.refresh_token,
         )
 
-    def refresh_token(self, *, data: RefreshTokenDTO) -> TokenDTO:
-        rotated_session = self._refresh_session_service.rotate_refresh_token(
+    async def refresh_token(self, *, data: RefreshTokenDTO) -> TokenDTO:
+        rotated_session = await self._refresh_session_service.rotate_refresh_token(
             refresh_token=data.refresh_token,
         )
 
@@ -65,8 +65,8 @@ class TokenUseCase(BaseUseCase):
             refresh_token=rotated_session.refresh_token,
         )
 
-    def revoke_token(self, *, data: RefreshTokenDTO, user: User) -> None:
-        self._refresh_session_service.revoke_refresh_token(
+    async def revoke_token(self, *, data: RefreshTokenDTO, user: User) -> None:
+        await self._refresh_session_service.revoke_refresh_token(
             refresh_token=data.refresh_token,
             user=user,
         )

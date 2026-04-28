@@ -25,7 +25,7 @@ This causes problems:
 
 ## The Solution
 
-The service layer acts as an intermediary:
+The service layer acts as an intermediary. FastAPI-facing workflows are async:
 
 ```python
 # ✅ Correct - Controller uses a use case or service
@@ -35,8 +35,8 @@ class UserController:
     def __init__(self, user_use_case: UserUseCase) -> None:
         self._user_use_case = user_use_case
 
-    def get_user(self, user_id: int) -> UserSchema:
-        user = self._user_use_case.get_user_by_id(user_id)
+    async def get_user(self, user_id: int) -> UserSchema:
+        user = await self._user_use_case.get_user_by_id(user_id=user_id)
         return UserSchema.model_validate(user, from_attributes=True)
 ```
 
@@ -60,10 +60,11 @@ Services are dataclasses with injected dependencies:
 # src/fastdjango/core/todo/services.py
 from dataclasses import dataclass
 
-from django.db import transaction
+from diwire import Injected
 
 from fastdjango.core.todo.exceptions import TodoNotFoundError
 from fastdjango.foundation.services import BaseService
+from fastdjango.foundation.transactions import TransactionFactory
 from fastdjango.core.todo.models import Todo
 from fastdjango.core.user.models import User
 
@@ -72,19 +73,31 @@ from fastdjango.core.user.models import User
 class TodoService(BaseService):
     """Service for todo operations."""
 
-    def get_todo_by_id(self, todo_id: int) -> Todo:
+    _transaction_factory: Injected[TransactionFactory]
+
+    async def get_todo_by_id(self, *, todo_id: int) -> Todo:
         try:
-            return Todo.objects.get(id=todo_id)
+            return await Todo.objects.aget(id=todo_id)
         except Todo.DoesNotExist as e:
             raise TodoNotFoundError(f"Todo {todo_id} not found") from e
 
-    def list_todos(self) -> list[Todo]:
-        return list(Todo.objects.all())
+    async def list_todos(self) -> list[Todo]:
+        return [todo async for todo in Todo.objects.all()]
 
-    @transaction.atomic
-    def create_todo(self, user: User, title: str) -> Todo:
-        return Todo.objects.create(user=user, title=title)
+    async def create_todo(self, *, user: User, title: str) -> Todo:
+        return await sync_to_async(
+            self._create_todo_transactionally,
+            thread_sensitive=True,
+        )(user=user, title=title)
+
+    def _create_todo_transactionally(self, *, user: User, title: str) -> Todo:
+        with self._transaction_factory(span_name="create todo"):
+            return Todo.objects.create(user=user, title=title)
 ```
+
+Django transactions are sync-only. Keep them in short methods named
+`*_transactionally` and call them from async orchestration with
+`sync_to_async(..., thread_sensitive=True)`.
 
 ### Return Value Patterns
 
@@ -92,7 +105,7 @@ Services can use two patterns for "not found" scenarios:
 
 === "Exception pattern"
     ```python
-    def get_todo_by_id(self, todo_id: int) -> Todo:
+    def get_todo_by_id(self, *, todo_id: int) -> Todo:
         try:
             return Todo.objects.get(id=todo_id)
         except Todo.DoesNotExist as e:
@@ -103,7 +116,7 @@ Services can use two patterns for "not found" scenarios:
 
 === "None pattern"
     ```python
-    def get_user_by_id(self, user_id: int) -> User | None:
+    def get_user_by_id(self, *, user_id: int) -> User | None:
         return User.objects.filter(id=user_id).first()
     ```
     - Use when absence is a normal case (e.g., lookup by credentials)
@@ -119,9 +132,10 @@ Services can use two patterns for "not found" scenarios:
 Test business logic without HTTP:
 
 ```python
-def test_create_todo():
-    service = TodoService()
-    todo = service.create_todo(user, "Test")
+@pytest.mark.anyio
+async def test_create_todo() -> None:
+    service = TodoService(_transaction_factory=DjangoTransactionFactory())
+    todo = await service.create_todo(user=user, title="Test")
     assert todo.title == "Test"
 ```
 
@@ -131,16 +145,16 @@ Same service works everywhere:
 
 ```python
 # HTTP Controller
-class TodoController:
-    def create(self, body: CreateTodoSchema) -> TodoSchema:
-        todo = self._service.create_todo(user, body.title)
+class TodoController(BaseAsyncController):
+    async def create(self, body: CreateTodoSchema) -> TodoSchema:
+        todo = await self._service.create_todo(user=user, title=body.title)
         return TodoSchema.model_validate(todo, from_attributes=True)
 
 # Celery Task
-class ImportTaskController:
-    def import_todos(self, titles: list[str]) -> None:
+class ImportTaskController(BaseCeleryTaskController):
+    async def import_todos(self, *, titles: list[str]) -> None:
         for title in titles:
-            self._service.create_todo(user, title)
+            await self._service.create_todo(user=user, title=title)
 ```
 
 ### 3. Clear Boundaries
@@ -172,34 +186,44 @@ class TodoAccessDeniedError(ApplicationError):
 Controllers map these to HTTP responses:
 
 ```python
-def handle_exception(self, exception: Exception) -> Any:
+async def handle_exception(self, exception: Exception) -> Any:
     if isinstance(exception, TodoNotFoundError):
         raise HTTPException(status_code=404, detail=str(exception))
     if isinstance(exception, TodoAccessDeniedError):
         raise HTTPException(status_code=403, detail=str(exception))
-    return super().handle_exception(exception)
+    return await super().handle_exception(exception)
 ```
 
 ## Transaction Management
 
-Use `@transaction.atomic` for database writes:
+Use a short sync transaction island for database writes:
 
 ```python
-from django.db import transaction
+from diwire import Injected
 
 from fastdjango.foundation.services import BaseService
+from fastdjango.foundation.transactions import TransactionFactory
 
 @dataclass(kw_only=True)
 class TodoService(BaseService):
-    @transaction.atomic
-    def create_todo(self, user: User, title: str) -> Todo:
-        todo = Todo.objects.create(user=user, title=title)
-        # If anything fails here, the transaction rolls back
-        self._audit_service.log_creation(todo)
-        return todo
+    _transaction_factory: Injected[TransactionFactory]
+
+    async def create_todo(self, *, user: User, title: str) -> Todo:
+        return await sync_to_async(
+            self._create_todo_transactionally,
+            thread_sensitive=True,
+        )(user=user, title=title)
+
+    def _create_todo_transactionally(self, *, user: User, title: str) -> Todo:
+        with self._transaction_factory(span_name="create todo"):
+            todo = Todo.objects.create(user=user, title=title)
+            # If anything fails here, the transaction rolls back
+            self._audit_service.log_creation(todo)
+            return todo
 ```
 
-The `BaseTransactionController` also wraps methods in transactions automatically.
+FastAPI controllers stay async and do not wrap whole request handlers in
+transactions.
 
 ## Acceptable Exceptions
 
@@ -242,10 +266,10 @@ Controllers can reference models in type hints for validation, but must use serv
 ```python
 from fastdjango.core.user.models import User  # For type hint only
 
-def get_user(self, request: AuthenticatedRequest) -> UserSchema:
+async def get_user(self, request: AuthenticatedRequest) -> UserSchema:
     user: User = request.state.user  # Type hint is fine
     # But operations go through service
-    return self._user_use_case.get_user_details(user.id)
+    return await self._user_use_case.get_user_details(user_id=user.id)
 ```
 
 ## Service Dependencies
@@ -257,17 +281,32 @@ from fastdjango.foundation.services import BaseService
 
 @dataclass(kw_only=True)
 class OrderService(BaseService):
-    _user_use_case: UserUseCase
-    _payment_service: PaymentService
-    _notification_service: NotificationService
+    _user_use_case: Injected[UserUseCase]
+    _payment_service: Injected[PaymentService]
+    _notification_service: Injected[NotificationService]
+    _transaction_factory: Injected[TransactionFactory]
 
-    @transaction.atomic
-    def create_order(self, user_id: int, items: list[Item]) -> Order:
-        user = self._user_use_case.get_user_by_id(user_id)
-        order = Order.objects.create(user=user)
-        self._payment_service.charge(user, order.total)
-        self._notification_service.send_confirmation(user, order)
+    async def create_order(self, *, user_id: int, items: list[Item]) -> Order:
+        user = await self._user_use_case.get_user_by_id(user_id=user_id)
+        payment = await self._payment_service.authorize(user=user, items=items)
+        order = await sync_to_async(
+            self._create_order_transactionally,
+            thread_sensitive=True,
+        )(user=user, items=items, payment=payment)
+        await self._notification_service.send_confirmation(user=user, order=order)
         return order
+
+    def _create_order_transactionally(
+        self,
+        *,
+        user: User,
+        items: list[Item],
+        payment: PaymentAuthorization,
+    ) -> Order:
+        with self._transaction_factory(span_name="create order"):
+            order = Order.objects.create(user=user)
+            Payment.objects.create(order=order, authorization_id=payment.id)
+            return order
 ```
 
 The IoC container resolves the entire dependency graph automatically.
