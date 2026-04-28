@@ -111,7 +111,11 @@ uv run --group setup python -m management.setup_wizard $(ARGS)
 
 - Renames the project/package
 - Writes `.env` and updates committed environment examples
+- Configures SQLite, local Docker PostgreSQL, or remote PostgreSQL
+- Configures local Docker Redis or remote Redis
 - Configures local filesystem, local MinIO, or remote S3-compatible storage
+- Rewrites the README for the generated app
+- Sets optional public origins, repository metadata, ports, and Logfire defaults
 - Can remove template docs and setup-only files
 
 ### `make celery-dev`

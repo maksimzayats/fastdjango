@@ -1,13 +1,13 @@
 services:
   postgres:
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
 
   minio:
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
 
   redis:
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"

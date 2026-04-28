@@ -16,8 +16,8 @@ cd fastdjango
 make setup
 ```
 
-The setup wizard renames the template, writes `.env`, and lets you choose local filesystem, local MinIO,
-or remote S3-compatible storage.
+The setup wizard renames the template, writes `.env`, rewrites the app README, and lets you choose database,
+Redis, storage, docs, public origins, and Logfire defaults.
 
 ## Step 2: Install Dependencies
 
@@ -33,23 +33,26 @@ The generated `.env` file is configured for local development. Key variables inc
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `DATABASE_URL` | `postgres://...` | PostgreSQL connection string |
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection string |
+| `REDIS_URL` | `redis://...` | Redis connection string |
 | `DJANGO_SECRET_KEY` | Development key | Django security key |
 | `DJANGO_DEBUG` | `true` | Enable debug mode |
 | `STORAGE_BACKEND` | `local` or `s3` | File and static storage mode |
+| `CORS_ALLOW_ORIGINS` | `["http://localhost"]` | Browser origins allowed to call the API |
 
 !!! warning "Production Configuration"
     For production, you must change `DJANGO_SECRET_KEY` and set `DJANGO_DEBUG=false`.
 
 ## Step 4: Start Infrastructure
 
-Start the required services:
+Start the required local services for the choices you made in the wizard:
 
 ```bash
+# If you selected local Docker PostgreSQL and local Docker Redis:
 docker compose up -d postgres redis
 
 # If you selected local MinIO storage:
-docker compose up -d minio minio-create-buckets
+docker compose up -d minio
+docker compose up minio-create-buckets
 ```
 
 Verify services are running:
@@ -58,7 +61,7 @@ Verify services are running:
 docker compose ps
 ```
 
-You should see `postgres` and `redis` containers running, plus `minio` when you selected local MinIO storage.
+You can skip a local service when you selected SQLite, remote PostgreSQL, remote Redis, or remote S3.
 
 ## Step 5: Run Migrations
 
@@ -78,7 +81,8 @@ Collect static files for the admin panel:
 docker compose up collectstatic
 ```
 
-For local MinIO or remote S3-compatible storage, keep S3 endpoints split:
+For Dockerized local MinIO, Compose overrides the internal endpoint for containers while `.env` keeps
+the browser-reachable endpoint for host commands:
 
 - `AWS_S3_ENDPOINT_URL=http://minio:9000` (internal container networking)
 - `AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000` (browser-reachable static URLs)

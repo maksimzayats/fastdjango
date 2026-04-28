@@ -21,9 +21,9 @@ from management.setup_wizard.env import (
 from management.setup_wizard.file_operations import FilePlan
 from management.setup_wizard.models import SetupAnswers
 from management.setup_wizard.python_rewrite import rewrite_python_imports
+from management.setup_wizard.readme import build_project_readme
 from management.setup_wizard.text_rewrite import (
     ProjectReferences,
-    remove_readme_docs_section,
     replace_project_references,
 )
 
@@ -219,14 +219,11 @@ def _plan_environment_files(*, plan: FilePlan, answers: SetupAnswers) -> None:
 def _plan_docs(*, plan: FilePlan, answers: SetupAnswers, current_package_name: str) -> None:
     readme_path = plan.repo_root / "README.md"
     if readme_path.exists():
-        readme_content = _replace_text_references(
-            text=readme_path.read_text(encoding="utf-8"),
-            answers=answers,
-            current_package_name=current_package_name,
+        plan.add_write(
+            readme_path,
+            content=build_project_readme(answers=answers),
+            detail="Rewrite README for generated project",
         )
-        if not answers.keep_docs:
-            readme_content = remove_readme_docs_section(readme_content)
-        plan.add_write(readme_path, content=readme_content, detail="Update README")
 
     docs_path = plan.repo_root / "docs"
     if not answers.keep_docs:

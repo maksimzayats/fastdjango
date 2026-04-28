@@ -2,18 +2,58 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
 import questionary
 
-from management.setup_wizard.models import SetupAnswers, StorageMode
+from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
 
 PACKAGE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 DISTRIBUTION_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*[a-z0-9]$")
 TEMPLATE_PROJECT_NAME = "Fast Django"
 TEMPLATE_PACKAGE_NAME = "fastdjango"
 TEMPLATE_DISTRIBUTION_NAME = "fastdjango"
+MAX_PORT = 65535
+
+
+@dataclass(frozen=True, kw_only=True)
+class StoragePromptAnswers:
+    s3_endpoint_url: str | None = None
+    s3_public_endpoint_url: str | None = None
+    s3_region_name: str | None = None
+    s3_access_key_id: str | None = None
+    s3_secret_access_key: str | None = None
+    s3_public_bucket_name: str = "public"
+    s3_protected_bucket_name: str = "protected"
+    minio_api_port: int = 9000
+    minio_console_port: int = 9001
+
+
+@dataclass(frozen=True, kw_only=True)
+class DatabasePromptAnswers:
+    database_url: str | None = None
+    postgres_port: int = 5432
+
+
+@dataclass(frozen=True, kw_only=True)
+class RedisPromptAnswers:
+    redis_url: str | None = None
+    redis_port: int = 6379
+
+
+@dataclass(frozen=True, kw_only=True)
+class PublicOriginPromptAnswers:
+    production_api_origin: str | None = None
+    frontend_origin: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class LogfirePromptAnswers:
+    enable_logfire: bool = False
+    logfire_token: str | None = None
+    logfire_environment: str = "local"
 
 
 def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
@@ -21,20 +61,29 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
         f"Project name (replace template default: {TEMPLATE_PROJECT_NAME})",
         validate=_validate_project_name,
     )
+    suggested_package_name = _suggest_package_name(project_name=project_name)
     package_name = _ask_text(
-        f"Python package name (replace template default: {TEMPLATE_PACKAGE_NAME})",
+        "Python package name (import path; edit or press Enter)",
+        default=suggested_package_name,
         validate=_validate_package_name,
     )
     suggested_distribution_name = package_name.strip().replace("_", "-")
     distribution_name = _ask_text(
-        "Distribution name",
+        "Distribution name (pyproject package name; edit or press Enter)",
         default=suggested_distribution_name,
         validate=_validate_distribution_name,
     )
     keep_docs = _ask_confirm("Keep documentation?", default=True)
     docs_site_url = _ask_docs_site_url(keep_docs=keep_docs)
+    repo_url = _ask_repo_url()
     storage_mode = _ask_storage_mode()
-    storage_answers = _ask_remote_s3_answers(storage_mode=storage_mode)
+    storage_answers = _ask_storage_answers(storage_mode=storage_mode)
+    database_mode = _ask_database_mode()
+    database_answers = _ask_database_answers(database_mode=database_mode)
+    redis_mode = _ask_redis_mode()
+    redis_answers = _ask_redis_answers(redis_mode=redis_mode)
+    public_origin_answers = _ask_public_origin_answers()
+    logfire_answers = _ask_logfire_answers()
     delete_wizard = _ask_confirm("Delete setup wizard after setup?", default=True)
     overwrite_env = _ask_overwrite_env(repo_root=repo_root)
 
@@ -44,10 +93,30 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
         distribution_name=distribution_name.strip(),
         docs_site_url=docs_site_url,
         storage_mode=storage_mode,
+        database_mode=database_mode,
+        redis_mode=redis_mode,
         keep_docs=keep_docs,
         delete_wizard=delete_wizard,
         overwrite_env=overwrite_env,
-        **storage_answers,
+        repo_url=repo_url,
+        s3_endpoint_url=storage_answers.s3_endpoint_url,
+        s3_public_endpoint_url=storage_answers.s3_public_endpoint_url,
+        s3_region_name=storage_answers.s3_region_name,
+        s3_access_key_id=storage_answers.s3_access_key_id,
+        s3_secret_access_key=storage_answers.s3_secret_access_key,
+        s3_public_bucket_name=storage_answers.s3_public_bucket_name,
+        s3_protected_bucket_name=storage_answers.s3_protected_bucket_name,
+        database_url=database_answers.database_url,
+        redis_url=redis_answers.redis_url,
+        production_api_origin=public_origin_answers.production_api_origin,
+        frontend_origin=public_origin_answers.frontend_origin,
+        enable_logfire=logfire_answers.enable_logfire,
+        logfire_token=logfire_answers.logfire_token,
+        logfire_environment=logfire_answers.logfire_environment,
+        postgres_port=database_answers.postgres_port,
+        redis_port=redis_answers.redis_port,
+        minio_api_port=storage_answers.minio_api_port,
+        minio_console_port=storage_answers.minio_console_port,
     )
 
 
@@ -71,36 +140,143 @@ def _ask_storage_mode() -> StorageMode:
     return cast(StorageMode, value)
 
 
-def _ask_remote_s3_answers(*, storage_mode: StorageMode) -> dict[str, str]:
-    if storage_mode != StorageMode.REMOTE_S3:
-        return {}
+def _ask_database_mode() -> DatabaseMode:
+    value = questionary.select(
+        "Database",
+        choices=[
+            questionary.Choice("Local Docker PostgreSQL", DatabaseMode.DOCKER_POSTGRES),
+            questionary.Choice("Local SQLite", DatabaseMode.SQLITE),
+            questionary.Choice("Remote PostgreSQL", DatabaseMode.REMOTE_POSTGRES),
+        ],
+        default=DatabaseMode.DOCKER_POSTGRES,
+    ).ask()
+    if value is None:
+        raise KeyboardInterrupt
 
-    return {
-        "s3_endpoint_url": _ask_text(
+    return cast(DatabaseMode, value)
+
+
+def _ask_database_answers(*, database_mode: DatabaseMode) -> DatabasePromptAnswers:
+    if database_mode == DatabaseMode.DOCKER_POSTGRES:
+        return DatabasePromptAnswers(
+            postgres_port=_ask_int("PostgreSQL host port", default=5432),
+        )
+
+    if database_mode != DatabaseMode.REMOTE_POSTGRES:
+        return DatabasePromptAnswers()
+
+    return DatabasePromptAnswers(
+        database_url=_ask_text(
+            "Database URL (example: postgres://user:password@db.example.com:5432/app)",
+            validate=_validate_required_text,
+        ),
+    )
+
+
+def _ask_redis_mode() -> RedisMode:
+    value = questionary.select(
+        "Redis",
+        choices=[
+            questionary.Choice("Local Docker Redis", RedisMode.DOCKER_REDIS),
+            questionary.Choice("Remote Redis", RedisMode.REMOTE_REDIS),
+        ],
+        default=RedisMode.DOCKER_REDIS,
+    ).ask()
+    if value is None:
+        raise KeyboardInterrupt
+
+    return cast(RedisMode, value)
+
+
+def _ask_redis_answers(*, redis_mode: RedisMode) -> RedisPromptAnswers:
+    if redis_mode == RedisMode.REMOTE_REDIS:
+        return RedisPromptAnswers(
+            redis_url=_ask_text(
+                "Redis URL (example: redis://default:password@redis.example.com:6379/0)",
+                validate=_validate_required_text,
+            ),
+        )
+
+    return RedisPromptAnswers(
+        redis_port=_ask_int("Redis host port", default=6379),
+    )
+
+
+def _ask_storage_answers(*, storage_mode: StorageMode) -> StoragePromptAnswers:
+    if storage_mode == StorageMode.MINIO:
+        return StoragePromptAnswers(
+            minio_api_port=_ask_int("MinIO API host port", default=9000),
+            minio_console_port=_ask_int("MinIO console host port", default=9001),
+        )
+
+    if storage_mode != StorageMode.REMOTE_S3:
+        return StoragePromptAnswers()
+
+    return StoragePromptAnswers(
+        s3_endpoint_url=_ask_text(
             "S3 endpoint URL (example: https://s3.example.com)",
             validate=_validate_required_text,
         ),
-        "s3_public_endpoint_url": _ask_text(
+        s3_public_endpoint_url=_ask_text(
             "Public S3 endpoint URL (example: https://cdn.example.com)",
             validate=_validate_required_text,
         ),
-        "s3_region_name": _ask_text(
+        s3_region_name=_ask_text(
             "S3 region (example: us-east-1)",
             validate=_validate_required_text,
         ),
-        "s3_access_key_id": _ask_text("S3 access key ID", validate=_validate_required_text),
-        "s3_secret_access_key": _ask_text("S3 secret access key", validate=_validate_required_text),
-        "s3_public_bucket_name": _ask_text("Public bucket (blank uses: public)") or "public",
-        "s3_protected_bucket_name": _ask_text("Protected bucket (blank uses: protected)")
+        s3_access_key_id=_ask_text("S3 access key ID", validate=_validate_required_text),
+        s3_secret_access_key=_ask_text("S3 secret access key", validate=_validate_required_text),
+        s3_public_bucket_name=_ask_text("Public bucket (blank uses: public)") or "public",
+        s3_protected_bucket_name=_ask_text("Protected bucket (blank uses: protected)")
         or "protected",
-    }
+    )
 
 
 def _ask_docs_site_url(*, keep_docs: bool) -> str | None:
     if not keep_docs:
         return None
 
-    return _optional_text("Docs site URL (optional; blank keeps docs local-only for now)")
+    return _optional_text(
+        "Docs site URL (optional; blank keeps docs local-only for now)",
+        validate=_validate_optional_url,
+    )
+
+
+def _ask_repo_url() -> str | None:
+    return _optional_text(
+        "Repository URL (optional; blank removes template repository links)",
+        validate=_validate_optional_url,
+    )
+
+
+def _ask_public_origin_answers() -> PublicOriginPromptAnswers:
+    return PublicOriginPromptAnswers(
+        production_api_origin=_optional_text(
+            "Production API origin (optional; blank keeps localhost-only trusted hosts)",
+            validate=_validate_optional_origin,
+        ),
+        frontend_origin=_optional_text(
+            "Frontend origin (optional; blank skips generated CORS origin)",
+            validate=_validate_optional_origin,
+        ),
+    )
+
+
+def _ask_logfire_answers() -> LogfirePromptAnswers:
+    enable_logfire = _ask_confirm("Enable Logfire observability?", default=False)
+    if not enable_logfire:
+        return LogfirePromptAnswers()
+
+    return LogfirePromptAnswers(
+        enable_logfire=True,
+        logfire_token=_ask_text("Logfire token", validate=_validate_required_text),
+        logfire_environment=_ask_text(
+            "Logfire environment (blank uses: local)",
+            default="local",
+        )
+        or "local",
+    )
 
 
 def _ask_overwrite_env(*, repo_root: Path) -> bool:
@@ -123,10 +299,19 @@ def _ask_text(
     return value
 
 
-def _optional_text(message: str) -> str | None:
-    value = _ask_text(message, default="")
+def _optional_text(
+    message: str,
+    *,
+    validate: QuestionaryValidator | None = None,
+) -> str | None:
+    value = _ask_text(message, default="", validate=validate)
     value = value.strip()
     return value or None
+
+
+def _ask_int(message: str, *, default: int) -> int:
+    value = _ask_text(message, default=str(default), validate=_validate_port)
+    return int(value.strip() or default)
 
 
 def _ask_confirm(message: str, *, default: bool) -> bool:
@@ -164,7 +349,7 @@ def _validate_project_name(value: str) -> bool | str:
     if not value:
         return "Project name is required."
 
-    if value.casefold() == TEMPLATE_PROJECT_NAME.casefold():
+    if _normalized_name(value) == _normalized_name(TEMPLATE_PROJECT_NAME):
         return "Replace the template project name with your own project name."
 
     return True
@@ -175,6 +360,63 @@ def _validate_required_text(value: str) -> bool | str:
         return True
 
     return "This value is required."
+
+
+def _validate_optional_origin(value: str) -> bool | str:
+    value = value.strip()
+    if not value:
+        return True
+
+    if re.fullmatch(r"https?://[^/\s]+", value):
+        return True
+
+    return "Use an origin like https://api.example.com without a path."
+
+
+def _validate_optional_url(value: str) -> bool | str:
+    value = value.strip()
+    if not value:
+        return True
+
+    if re.fullmatch(r"https?://[^/\s]+(?:/[^ \t]*)?", value):
+        return True
+
+    if re.fullmatch(r"git@[^:\s]+:[^/\s]+/[^/\s]+(?:\.git)?", value):
+        return True
+
+    return "Use a URL like https://example.com or git@github.com:owner/repo.git."
+
+
+def _validate_port(value: str) -> bool | str:
+    value = value.strip()
+    if not value:
+        return True
+
+    try:
+        port = int(value)
+    except ValueError:
+        return "Use a number between 1 and 65535."
+
+    if 1 <= port <= MAX_PORT:
+        return True
+
+    return "Use a number between 1 and 65535."
+
+
+def _suggest_package_name(*, project_name: str) -> str:
+    normalized = project_name.strip().casefold().replace(" ", "")
+    package_name = re.sub(pattern=r"[^a-z0-9_]", repl="", string=normalized).lstrip("_")
+    if not package_name:
+        return ""
+
+    if not package_name[0].isalpha():
+        return f"app{package_name}"
+
+    return package_name
+
+
+def _normalized_name(value: str) -> str:
+    return re.sub(pattern=r"[^a-z0-9]", repl="", string=value.casefold())
 
 
 type QuestionaryValidator = Callable[[str], bool | str]

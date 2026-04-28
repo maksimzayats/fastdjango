@@ -5,7 +5,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from management.setup_wizard.models import SetupAnswers, StorageMode
+from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
 from management.setup_wizard.planner import build_setup_plan
 
 
@@ -74,6 +74,63 @@ def test_local_storage_prunes_minio_compose_services(tmp_path: Path) -> None:
     assert "minio:" not in local_overlay
 
 
+def test_sqlite_database_prunes_postgres_compose_services(tmp_path: Path) -> None:
+    _create_mini_repo(repo_root=tmp_path)
+    answers = _answers(database_mode=DatabaseMode.SQLITE, delete_wizard=False)
+
+    build_setup_plan(repo_root=tmp_path, answers=answers).apply(run_commands=False)
+
+    compose = (tmp_path / "docker" / "docker-compose.yaml").read_text()
+    env_content = (tmp_path / ".env").read_text()
+
+    assert "postgres:" not in compose
+    assert "pgbouncer:" not in compose
+    assert "postgres_data" not in compose
+    assert "DATABASE_URL: " not in compose
+    assert "DATABASE_URL=sqlite:///db.sqlite3" in env_content
+    assert "POSTGRES_PASSWORD" not in env_content
+
+
+def test_remote_postgres_writes_placeholder_example_and_real_env(tmp_path: Path) -> None:
+    _create_mini_repo(repo_root=tmp_path)
+    answers = _answers(
+        database_mode=DatabaseMode.REMOTE_POSTGRES,
+        database_url="postgres://real:secret@db.example.com:5432/app",
+        delete_wizard=False,
+    )
+
+    build_setup_plan(repo_root=tmp_path, answers=answers).apply(run_commands=False)
+
+    env_content = (tmp_path / ".env").read_text()
+    env_example_content = (tmp_path / ".env.example").read_text()
+
+    assert 'DATABASE_URL="postgres://real:secret@db.example.com:5432/app"' in env_content
+    assert "postgres://user:password@db.example.com:5432/example_api" in env_example_content
+    assert "real:secret" not in env_example_content
+
+
+def test_remote_redis_prunes_redis_compose_service(tmp_path: Path) -> None:
+    _create_mini_repo(repo_root=tmp_path)
+    answers = _answers(
+        redis_mode=RedisMode.REMOTE_REDIS,
+        redis_url="redis://default:secret@redis.example.com:6379/0",
+        delete_wizard=False,
+    )
+
+    build_setup_plan(repo_root=tmp_path, answers=answers).apply(run_commands=False)
+
+    compose = (tmp_path / "docker" / "docker-compose.yaml").read_text()
+    env_content = (tmp_path / ".env").read_text()
+    env_example_content = (tmp_path / ".env.example").read_text()
+
+    assert "redis:" not in compose
+    assert "redis_data" not in compose
+    assert "REDIS_URL: " not in compose
+    assert 'REDIS_URL="redis://default:secret@redis.example.com:6379/0"' in env_content
+    assert "redis://default:password@redis.example.com:6379/0" in env_example_content
+    assert "default:secret" not in env_example_content
+
+
 def test_remote_s3_writes_placeholders_to_examples_and_real_values_to_env(tmp_path: Path) -> None:
     _create_mini_repo(repo_root=tmp_path)
     answers = _answers(
@@ -95,6 +152,49 @@ def test_remote_s3_writes_placeholders_to_examples_and_real_values_to_env(tmp_pa
     assert "AWS_S3_SECRET_ACCESS_KEY=real-secret-key" in env_content
     assert "AWS_S3_ENDPOINT_URL=https://s3.example.com" in env_example_content
     assert "real-secret-key" not in env_example_content
+
+
+def test_ports_origins_logfire_and_repo_metadata_are_written(tmp_path: Path) -> None:
+    _create_mini_repo(repo_root=tmp_path)
+    answers = _answers(
+        project_name="Acme API",
+        package_name="acme_api",
+        distribution_name="acme-api",
+        storage_mode=StorageMode.MINIO,
+        delete_wizard=False,
+        repo_url="https://github.com/acme/acme-api",
+        production_api_origin="https://api.acme.com",
+        frontend_origin="https://app.acme.com",
+        enable_logfire=True,
+        logfire_token="real-logfire-token",  # noqa: S106
+        logfire_environment="staging",
+        postgres_port=15432,
+        redis_port=16379,
+        minio_api_port=19000,
+        minio_console_port=19001,
+    )
+
+    build_setup_plan(repo_root=tmp_path, answers=answers).apply(run_commands=False)
+
+    env_content = (tmp_path / ".env").read_text()
+    env_example_content = (tmp_path / ".env.example").read_text()
+    overlay = (tmp_path / "docker" / "docker-compose.local.yaml").read_text()
+    mkdocs = (tmp_path / "docs" / "mkdocs.yml").read_text()
+    readme = (tmp_path / "README.md").read_text()
+
+    assert "COMPOSE_PROJECT_NAME=acme-api" in env_content
+    assert 'ALLOWED_HOSTS=["127.0.0.1","localhost","0.0.0.0","api.acme.com"]' in env_content
+    assert 'CORS_ALLOW_ORIGINS=["http://localhost","https://app.acme.com"]' in env_content
+    assert "LOGFIRE_ENABLED=true" in env_content
+    assert "LOGFIRE_TOKEN=real-logfire-token" in env_content
+    assert "LOGFIRE_TOKEN=replace-me" in env_example_content
+    assert "AWS_S3_ENDPOINT_URL=http://localhost:19000" in env_content
+    assert "${POSTGRES_PORT:-15432}:5432" in overlay
+    assert "${REDIS_PORT:-16379}:6379" in overlay
+    assert "${MINIO_API_PORT:-19000}:9000" in overlay
+    assert "repo_url: https://github.com/acme/acme-api" in mkdocs
+    assert "repo_name: acme/acme-api" in mkdocs
+    assert "Repository: [https://github.com/acme/acme-api]" in readme
 
 
 def test_docs_removal_deletes_docs_config_targets_and_links(tmp_path: Path) -> None:
@@ -128,8 +228,22 @@ def _answers(
     distribution_name: str = "example-api",
     docs_site_url: str | None = None,
     storage_mode: StorageMode = StorageMode.LOCAL,
+    database_mode: DatabaseMode = DatabaseMode.DOCKER_POSTGRES,
+    redis_mode: RedisMode = RedisMode.DOCKER_REDIS,
     keep_docs: bool = True,
     delete_wizard: bool = True,
+    repo_url: str | None = None,
+    production_api_origin: str | None = None,
+    frontend_origin: str | None = None,
+    database_url: str | None = None,
+    redis_url: str | None = None,
+    enable_logfire: bool = False,
+    logfire_token: str | None = None,
+    logfire_environment: str = "local",
+    postgres_port: int = 5432,
+    redis_port: int = 6379,
+    minio_api_port: int = 9000,
+    minio_console_port: int = 9001,
     s3_endpoint_url: str | None = None,
     s3_public_endpoint_url: str | None = None,
     s3_region_name: str | None = None,
@@ -142,9 +256,23 @@ def _answers(
         distribution_name=distribution_name,
         docs_site_url=docs_site_url,
         storage_mode=storage_mode,
+        database_mode=database_mode,
+        redis_mode=redis_mode,
         keep_docs=keep_docs,
         delete_wizard=delete_wizard,
         overwrite_env=True,
+        repo_url=repo_url,
+        production_api_origin=production_api_origin,
+        frontend_origin=frontend_origin,
+        database_url=database_url,
+        redis_url=redis_url,
+        enable_logfire=enable_logfire,
+        logfire_token=logfire_token,
+        logfire_environment=logfire_environment,
+        postgres_port=postgres_port,
+        redis_port=redis_port,
+        minio_api_port=minio_api_port,
+        minio_console_port=minio_console_port,
         s3_endpoint_url=s3_endpoint_url,
         s3_public_endpoint_url=s3_public_endpoint_url,
         s3_region_name=s3_region_name,
@@ -286,25 +414,65 @@ def _compose_content() -> str:
         """
         x-common:
           environment:
+            DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}"
             AWS_S3_ENDPOINT_URL: "http://minio:9000"
+            REDIS_URL: "redis://default:${REDIS_PASSWORD}@redis:6379/0"
 
         services:
           api:
             command:
               - fastdjango.entrypoints.fastapi.app:app
+            depends_on:
+              pgbouncer:
+                condition: service_healthy
           migrations:
             command: python src/fastdjango/manage.py migrate --noinput
+            depends_on:
+              pgbouncer:
+                condition: service_healthy
           collectstatic:
             command: python src/fastdjango/manage.py collectstatic --noinput
             depends_on:
+              pgbouncer:
+                condition: service_healthy
               minio-create-buckets:
                 condition: service_completed_successfully
+          celery-worker:
+            command:
+              - celery
+              - --app=fastdjango.entrypoints.celery.app
+              - worker
+            depends_on:
+              redis:
+                condition: service_healthy
+              pgbouncer:
+                condition: service_healthy
+          celery-beat:
+            command:
+              - celery
+              - --app=fastdjango.entrypoints.celery.app
+              - beat
+            depends_on:
+              redis:
+                condition: service_healthy
+              pgbouncer:
+                condition: service_healthy
+          postgres:
+            image: postgres:18-alpine
+          pgbouncer:
+            image: edoburu/pgbouncer:latest
+          redis:
+            image: redis:latest
           minio:
             image: minio/minio:latest
           minio-create-buckets:
             image: minio/mc
 
         volumes:
+          postgres_data:
+            driver: local
+          redis_data:
+            driver: local
           minio_data:
             driver: local
         """,
@@ -315,9 +483,16 @@ def _compose_overlay_content() -> str:
     return textwrap.dedent(
         """
         services:
+          postgres:
+            ports:
+              - "5432:5432"
+          redis:
+            ports:
+              - "6379:6379"
           minio:
             ports:
               - "9000:9000"
+              - "9001:9001"
         """,
     ).lstrip()
 

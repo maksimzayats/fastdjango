@@ -10,7 +10,13 @@ from rich.panel import Panel
 from rich.table import Table
 
 from management.setup_wizard.file_operations import FilePlan
-from management.setup_wizard.models import FileOperation
+from management.setup_wizard.models import (
+    DatabaseMode,
+    FileOperation,
+    RedisMode,
+    SetupAnswers,
+    StorageMode,
+)
 from management.setup_wizard.planner import build_setup_plan, detect_current_package_name
 from management.setup_wizard.prompts import confirm_plan, prompt_for_answers
 
@@ -63,6 +69,7 @@ def main() -> int:
 
     plan.apply()
     console.print("[green]Setup complete.[/green]")
+    _render_next_steps(console=console, answers=answers)
     return 0
 
 
@@ -121,3 +128,38 @@ def _operation_target(*, plan: FilePlan, operation: FileOperation) -> str:
         return " ".join(operation.command)
 
     return plan.relative_path(operation.path)
+
+
+def _render_next_steps(*, console: Console, answers: SetupAnswers) -> None:
+    table = Table(title="Next steps")
+    table.add_column("Step")
+    table.add_column("Command")
+
+    table.add_row("Install dependencies", "uv sync --locked --all-groups")
+
+    docker_services = _docker_services(answers=answers)
+    if docker_services:
+        table.add_row("Start local services", f"docker compose up -d {' '.join(docker_services)}")
+
+    if answers.storage_mode == StorageMode.MINIO:
+        table.add_row("Create MinIO buckets", "docker compose up minio-create-buckets")
+
+    table.add_row("Apply migrations", "make migrate")
+    table.add_row("Collect static files", "make collectstatic")
+    table.add_row("Run the app", "make dev")
+
+    if answers.keep_docs:
+        table.add_row("Serve docs", "make docs")
+
+    console.print(table)
+
+
+def _docker_services(*, answers: SetupAnswers) -> list[str]:
+    services: list[str] = []
+    if answers.database_mode == DatabaseMode.DOCKER_POSTGRES:
+        services.append("postgres")
+    if answers.redis_mode == RedisMode.DOCKER_REDIS:
+        services.append("redis")
+    if answers.storage_mode == StorageMode.MINIO:
+        services.append("minio")
+    return services

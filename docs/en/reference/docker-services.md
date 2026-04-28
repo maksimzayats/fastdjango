@@ -11,10 +11,10 @@ after copying `.env.example` to `.env`.
 
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
-| `postgres` | `postgres:18-alpine` | 5432 | Database |
+| `postgres` | `postgres:18-alpine` | `${POSTGRES_PORT:-5432}` | Database |
 | `pgbouncer` | `edoburu/pgbouncer` | internal | PostgreSQL connection pool |
-| `redis` | `redis:latest` | 6379 | Cache, throttling, Celery broker/result backend |
-| `minio` | `minio/minio:latest` | 9000, 9001 | Object storage (S3-compatible) |
+| `redis` | `redis:latest` | `${REDIS_PORT:-6379}` | Cache, throttling, Celery broker/result backend |
+| `minio` | `minio/minio:latest` | `${MINIO_API_PORT:-9000}`, `${MINIO_CONSOLE_PORT:-9001}` | Object storage (S3-compatible) |
 
 ## PostgreSQL
 
@@ -28,7 +28,7 @@ postgres:
     POSTGRES_PASSWORD: example-postgres-password
     POSTGRES_DB: postgres
   ports:
-    - "5432:5432"
+    - "${POSTGRES_PORT:-5432}:5432"
   volumes:
     - postgres_data:/var/lib/postgresql
 ```
@@ -36,7 +36,7 @@ postgres:
 ### Connection String
 
 ```bash
-DATABASE_URL=postgres://postgres:example-postgres-password@localhost:5432/postgres
+DATABASE_URL=postgres://postgres:example-postgres-password@localhost:${POSTGRES_PORT:-5432}/postgres
 ```
 
 Containers connect through PgBouncer by default:
@@ -73,7 +73,7 @@ redis:
     - --requirepass
     - ${REDIS_PASSWORD}
   ports:
-    - "6379:6379"
+    - "${REDIS_PORT:-6379}:6379"
   volumes:
     - redis_data:/data
   healthcheck:
@@ -83,7 +83,7 @@ redis:
 ### Connection String
 
 ```bash
-REDIS_URL=redis://default:${REDIS_PASSWORD}@localhost:6379/0
+REDIS_URL=redis://default:${REDIS_PASSWORD}@localhost:${REDIS_PORT:-6379}/0
 ```
 
 ### Commands
@@ -117,8 +117,8 @@ minio:
     MINIO_ROOT_USER: ${AWS_S3_ACCESS_KEY_ID}
     MINIO_ROOT_PASSWORD: ${AWS_S3_SECRET_ACCESS_KEY}
   ports:
-    - "9000:9000"  # API
-    - "9001:9001"  # Console
+    - "${MINIO_API_PORT:-9000}:9000"  # API
+    - "${MINIO_CONSOLE_PORT:-9001}:9001"  # Console
   volumes:
     - minio_data:/data
 ```
@@ -128,7 +128,9 @@ minio:
 ```bash
 AWS_S3_ACCESS_KEY_ID=example-minio-access-key-id
 AWS_S3_SECRET_ACCESS_KEY=example-minio-secret-access-key
-AWS_S3_ENDPOINT_URL=http://minio:9000
+MINIO_API_PORT=9000
+MINIO_CONSOLE_PORT=9001
+AWS_S3_ENDPOINT_URL=http://localhost:9000
 AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
 AWS_S3_PUBLIC_BUCKET_NAME=public
 AWS_S3_PROTECTED_BUCKET_NAME=protected

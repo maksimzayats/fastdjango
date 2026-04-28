@@ -31,15 +31,6 @@ def replace_project_references(text: str, *, references: ProjectReferences) -> s
     return rewritten.replace("FastDjango", project_name.replace(" ", ""))
 
 
-def remove_readme_docs_section(text: str) -> str:
-    return re.sub(
-        pattern=r"\n## Documentation\n.*?(?=\n## Tech Stack)",
-        repl="",
-        string=text,
-        flags=re.DOTALL,
-    )
-
-
 def _replace_token(*, text: str, old_value: str, new_value: str) -> str:
     return re.sub(
         pattern=rf"\b{re.escape(old_value)}\b",
