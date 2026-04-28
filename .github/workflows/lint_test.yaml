@@ -11,6 +11,8 @@ permissions:
 jobs:
   check-code:
     runs-on: ubuntu-latest
+    env:
+      COMPOSE_FILE: docker/docker-compose.yaml:docker/docker-compose.test.yaml
     steps:
       - uses: actions/checkout@v6
 
@@ -20,12 +22,12 @@ jobs:
           python-version-file: "pyproject.toml"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v8
         with:
           enable-cache: true
 
       - name: Install the project
-        run: uv sync --locked --all-extras --dev
+        run: uv sync --locked --all-groups
 
       - name: Create .env
         run: |
@@ -52,12 +54,9 @@ jobs:
         run: make lint
 
       - name: Set up Docker Compose
-        uses: docker/setup-compose-action@v1
+        uses: docker/setup-compose-action@v2
         with:
           version: latest
-
-      - name: Set docker-compose file
-        run: echo "COMPOSE_FILE=docker/docker-compose.yaml:docker/docker-compose.test.yaml" >> $GITHUB_ENV
 
       - name: Build Docker image
         run: docker compose build base
@@ -72,4 +71,6 @@ jobs:
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose logs
+        run: |
+          docker compose ps || true
+          docker compose logs --no-color || true

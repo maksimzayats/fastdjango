@@ -99,6 +99,7 @@ The source layout follows that rule:
 | `make collectstatic` | Collect Django static files |
 | `make celery-dev` | Run a Celery worker |
 | `make celery-beat-dev` | Run Celery beat |
+| `make update-dependencies` | Update uv lock, direct dependency bounds, GitHub Action pins, and container image pins |
 | `make format` | Format through `prek` hooks |
 | `make lint` | Run lint and type checks |
 | `make test` | Run the test suite |

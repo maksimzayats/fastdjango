@@ -1,4 +1,4 @@
-.PHONY: dev makemigrations migrate collectstatic setup format lint test celery-dev celery-beat-dev docs docs-build
+.PHONY: dev makemigrations migrate collectstatic setup update-dependencies format lint test celery-dev celery-beat-dev docs docs-build
 
 dev:
 	uv run uvicorn fastdjango.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
@@ -14,6 +14,9 @@ collectstatic:
 
 setup:
 	uv run --group setup python -m management.setup_wizard $(ARGS)
+
+update-dependencies:
+	uv run python -m management.dependency_updater $(ARGS)
 
 format:
 	uv run prek run trailing-whitespace end-of-file-fixer ruff-check-fix ruff-format-fix --all-files --hook-stage manual

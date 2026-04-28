@@ -103,7 +103,7 @@ services:
         condition: service_completed_successfully
 
   postgres:
-    image: postgres:18-alpine
+    image: postgres:18.3-alpine
     restart: unless-stopped
     env_file:
       - ../.env
@@ -125,7 +125,7 @@ services:
       - main
 
   pgbouncer:
-    image: edoburu/pgbouncer:latest
+    image: edoburu/pgbouncer:v1.25.1-p0
     restart: unless-stopped
     env_file:
       - ../.env
@@ -167,7 +167,7 @@ services:
       - no-new-privileges:true
 
   redis:
-    image: redis:latest
+    image: redis:8.6.2
     restart: unless-stopped
     env_file:
       - ../.env
@@ -187,7 +187,7 @@ services:
       - main
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     ports:
       - "${MINIO_API_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
@@ -208,7 +208,7 @@ services:
       - main
 
   minio-create-buckets:
-    image: minio/mc
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
     depends_on:
       minio:
         condition: service_healthy

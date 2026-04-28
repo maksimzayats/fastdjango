@@ -60,6 +60,7 @@ make migrate
 | `make format` | Format code through prek hooks |
 | `make lint` | Run all prek checks except tests |
 | `make test` | Run tests with coverage |
+| `make update-dependencies` | Update uv lock, direct dependency bounds, GitHub Action pins, and container image pins |
 
 ### Examples
 
@@ -70,6 +71,9 @@ make lint
 
 # Run tests
 make test
+
+# Update dependency metadata and CI action pins
+make update-dependencies
 ```
 
 ## Documentation
@@ -117,6 +121,30 @@ uv run --group setup python -m management.setup_wizard $(ARGS)
 - Rewrites the README for the generated app
 - Sets optional public origins, repository metadata, ports, and Logfire defaults
 - Can remove template docs and setup-only files
+
+### `make update-dependencies`
+
+Runs:
+```bash
+uv run python -m management.dependency_updater $(ARGS)
+```
+
+- Runs `uv lock --upgrade`
+- Syncs direct dependency lower bounds in `pyproject.toml` from `uv.lock`
+- Updates GitHub Action major-version pins in `.github/workflows`
+- Updates Dockerfile and Docker Compose image pins, including matching docs references
+- Runs `uv lock` again after pyproject changes
+- Prints progress while it checks package indexes, GitHub, and container registries
+
+Preview without writing files:
+```bash
+make update-dependencies ARGS="--dry-run"
+```
+
+Hide progress messages:
+```bash
+make update-dependencies ARGS="--quiet"
+```
 
 ### `make celery-dev`
 

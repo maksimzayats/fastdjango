@@ -11,10 +11,10 @@ after the setup wizard generates `.env`.
 
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
-| `postgres` | `postgres:18-alpine` | `${POSTGRES_PORT:-5432}` | Database |
-| `pgbouncer` | `edoburu/pgbouncer` | internal | PostgreSQL connection pool |
-| `redis` | `redis:latest` | `${REDIS_PORT:-6379}` | Cache, throttling, Celery broker/result backend |
-| `minio` | `minio/minio:latest` | `${MINIO_API_PORT:-9000}`, `${MINIO_CONSOLE_PORT:-9001}` | Object storage (S3-compatible) |
+| `postgres` | `postgres:18.3-alpine` | `${POSTGRES_PORT:-5432}` | Database |
+| `pgbouncer` | `edoburu/pgbouncer:v1.25.1-p0` | internal | PostgreSQL connection pool |
+| `redis` | `redis:8.6.2` | `${REDIS_PORT:-6379}` | Cache, throttling, Celery broker/result backend |
+| `minio` | `minio/minio:RELEASE.2025-09-07T16-13-09Z` | `${MINIO_API_PORT:-9000}`, `${MINIO_CONSOLE_PORT:-9001}` | Object storage (S3-compatible) |
 
 ## PostgreSQL
 
@@ -22,7 +22,7 @@ after the setup wizard generates `.env`.
 
 ```yaml
 postgres:
-  image: postgres:18-alpine
+  image: postgres:18.3-alpine
   environment:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: example-postgres-password
@@ -67,7 +67,7 @@ docker compose stop postgres
 
 ```yaml
 redis:
-  image: redis:latest
+  image: redis:8.6.2
   command:
     - redis-server
     - --requirepass
@@ -111,7 +111,7 @@ docker compose stop redis
 
 ```yaml
 minio:
-  image: minio/minio:latest
+  image: minio/minio:RELEASE.2025-09-07T16-13-09Z
   command: server /data --console-address ":9001"
   environment:
     MINIO_ROOT_USER: ${AWS_S3_ACCESS_KEY_ID}

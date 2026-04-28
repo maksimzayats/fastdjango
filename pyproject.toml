@@ -5,56 +5,56 @@ requires-python = ">=3.14"
 dependencies = [
     "a2wsgi>=1.10.10",
     "annotated-types>=0.7.0",
-    "boto3>=1.42.96",
+    "boto3>=1.42.97",
     "cachetools>=7.0.6",
-    "celery>=5.6.2",
-    "celery-types>=0.24.0",
+    "celery>=5.6.3",
+    "celery-types>=0.26.0",
     "colorlog>=6.10.1",
     "diwire>=1.4.0",
-    "dj-database-url>=3.1.0",
-    "django>6",
+    "dj-database-url>=3.1.2",
+    "django>=6.0.4",
     "django-storages[s3]>=1.14.6",
     "django-stubs[compatible-mypy]>=6.0.3",
     "fastapi>=0.136.1",
-    "gunicorn>=23.0.0",
+    "gunicorn>=25.3.0",
     "httpx>=0.28.1",
     "logfire[fastapi, django, celery, requests, psycopg, httpx, redis]>=4.32.1",
     "psycopg[binary]>=3.3.3",
     "pydantic-settings>=2.14.0",
     "pydantic[email]>=2.13.3",
-    "pyjwt>=2.10.1",
-    "python-dotenv>=1.2.1",
-    "redis>=7.1.0",
-    "throttled-py>=3.1.1",
+    "pyjwt>=2.12.1",
+    "python-dotenv>=1.2.2",
+    "redis>=7.4.0",
+    "throttled-py>=3.2.0",
     "uvicorn[standard]>=0.46.0",
     "watchdog[watchmedo]>=6.0.0",
-    "whitenoise>=6.11.0",
+    "whitenoise>=6.12.0",
 ]
 
 [dependency-groups]
 dev = [
     "mypy>=1.20.2",
     "prek>=0.3.11",
-    "pytest>=9.0.2",
-    "pytest-cov>=7.0.0",
-    "pytest-django>=4.11.1",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
+    "pytest-django>=4.12.0",
     "pytest-mock>=3.15.1",
-    "ruff>=0.15.11",
+    "ruff>=0.15.12",
 ]
 docs = [
     "mkdocs>=1.6.1",
-    "mkdocs-material>=9.6.0",
+    "mkdocs-material>=9.7.6",
 ]
 setup = [
     "libcst>=1.8.6",
     "questionary>=2.1.1",
-    "rich>=14.2.0",
-    "ruamel.yaml>=0.18.16",
-    "tomlkit>=0.13.3",
+    "rich>=15.0.0",
+    "ruamel.yaml>=0.19.1",
+    "tomlkit>=0.14.0",
 ]
 
 [build-system]
-requires = ["uv_build>=0.11.7,<0.12.0"]
+requires = ["uv_build>=0.11.8,<0.12.0"]
 build-backend = "uv_build"
 
 [tool.mypy]
