@@ -128,6 +128,20 @@ def test_declined_git_reinitialization_prints_warning() -> None:
     assert "verify `git remote -v` before pushing" in output.getvalue()
 
 
+def test_declined_git_reinitialization_without_git_repo_prints_skip_reason() -> None:
+    output = io.StringIO()
+    console = Console(file=output, width=200)
+
+    _render_git_result(
+        console=console,
+        answers=_answers(reinitialize_git_repository=False),
+        result=GitSetupResult(reinitialized=False, had_git_repository=False),
+    )
+
+    assert "No Git repository was found" in output.getvalue()
+    assert "existing origin was not changed" not in output.getvalue()
+
+
 def test_failed_initial_commit_prints_exact_next_step() -> None:
     output = io.StringIO()
     console = Console(file=output, width=200)

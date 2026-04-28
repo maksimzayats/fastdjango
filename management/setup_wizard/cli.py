@@ -195,6 +195,12 @@ def _render_git_result(
     result: GitSetupResult,
 ) -> None:
     if not answers.reinitialize_git_repository:
+        if not result.had_git_repository:
+            console.print(
+                "[yellow]No Git repository was found; initial commit creation was skipped.[/yellow]",
+            )
+            return
+
         console.print(
             "[yellow]Git repository was preserved; existing origin was not changed.[/yellow]",
         )

@@ -6,7 +6,15 @@ import textwrap
 from pathlib import Path
 
 import pytest
-from management.setup_wizard.git import GitPlan, apply_git_plan, build_git_plan
+from management.setup_wizard import git
+from management.setup_wizard.git import (
+    FALLBACK_INIT_COMMAND,
+    PRIMARY_INIT_COMMAND,
+    GitPlan,
+    _run_git_init_command,
+    apply_git_plan,
+    build_git_plan,
+)
 from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
 
 
@@ -18,6 +26,7 @@ def test_git_plan_includes_reinitialize_origin_and_initial_commit(tmp_path: Path
 
     assert plan.actions[0].kind == "delete"
     assert plan.actions[0].target == ".git"
+    assert plan.had_git_repository is True
     assert _commands(plan=plan) == [
         ("git", "init", "--initial-branch=main"),
         ("git", "remote", "add", "origin", "https://github.com/acme/acme-api"),
@@ -134,6 +143,7 @@ def test_preserved_git_commit_keeps_origin_and_ignored_env(
     result = apply_git_plan(plan=plan)
 
     assert result.reinitialized is False
+    assert result.had_git_repository is True
     assert result.initial_commit_created is True
     assert _git(repo_root=tmp_path, args=("remote", "get-url", "origin")).stdout.strip() == (
         "https://github.com/acme/acme-api"
@@ -141,6 +151,66 @@ def test_preserved_git_commit_keeps_origin_and_ignored_env(
     tracked_files = _git(repo_root=tmp_path, args=("ls-files",)).stdout.splitlines()
     assert ".env" not in tracked_files
     assert ".env.example" in tracked_files
+
+
+def test_git_init_falls_back_for_older_git(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan = build_git_plan(repo_root=tmp_path, answers=_answers())
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run_git_command(
+        *,
+        command: tuple[str, ...],
+        plan: GitPlan,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        assert plan.repo_root == tmp_path
+        assert check is False
+        calls.append(command)
+        if command == PRIMARY_INIT_COMMAND:
+            return subprocess.CompletedProcess(
+                args=command,
+                returncode=129,
+                stderr="error: unknown option `initial-branch'",
+            )
+        return subprocess.CompletedProcess(args=command, returncode=0)
+
+    monkeypatch.setattr(git, "_run_git_command", fake_run_git_command)
+
+    _run_git_init_command(plan=plan)
+
+    assert calls == [PRIMARY_INIT_COMMAND, FALLBACK_INIT_COMMAND]
+
+
+def test_failed_git_init_mentions_both_variants(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan = build_git_plan(repo_root=tmp_path, answers=_answers())
+
+    def fake_run_git_command(
+        *,
+        command: tuple[str, ...],
+        plan: GitPlan,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        assert plan.repo_root == tmp_path
+        assert check is False
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=129,
+            stderr=f"error: unknown option `{command[-1]}'",
+        )
+
+    monkeypatch.setattr(git, "_run_git_command", fake_run_git_command)
+
+    with pytest.raises(RuntimeError) as error:
+        _run_git_init_command(plan=plan)
+
+    assert "git init --initial-branch=main" in str(error.value)
+    assert "git init -b main" in str(error.value)
 
 
 def _commands(*, plan: GitPlan) -> list[tuple[str, ...]]:
@@ -183,7 +253,7 @@ def _git(*, repo_root: Path, args: tuple[str, ...]) -> subprocess.CompletedProce
         msg = "git executable was not found."
         raise FileNotFoundError(msg)
 
-    return subprocess.run(  # noqa: S603
+    return subprocess.run(  # noqa: S603 - trusted git binary and tuple args in tests
         (git_path, *args),
         cwd=repo_root,
         capture_output=True,

@@ -263,8 +263,8 @@ def _ask_docs_site_url(*, keep_docs: bool) -> str | None:
 
 def _ask_repo_url() -> str | None:
     return _optional_text(
-        "Repository URL (optional; used for docs metadata and, if Git is reinitialized, as Git origin; blank removes template repository links)",
-        validate=_validate_optional_url,
+        "Repository URL (HTTP(S), optional; used for docs metadata and, if Git is reinitialized, as Git origin; blank removes template repository links)",
+        validate=_validate_optional_http_url,
     )
 
 
@@ -284,9 +284,12 @@ def _default_reinitialize_git_repository(*, repo_root: Path | None) -> bool:
     if repo_root is None:
         return True
 
+    if not (repo_root / ".git").exists():
+        return True
+
     origin_url = _current_origin_url(repo_root=repo_root)
     if origin_url is None:
-        return True
+        return False
 
     normalized_origin_url = origin_url.casefold().removesuffix(".git").rstrip("/")
     return normalized_origin_url in TEMPLATE_REPOSITORY_URLS
