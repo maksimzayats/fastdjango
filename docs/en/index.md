@@ -18,15 +18,13 @@ quickly without losing a clear application structure:
 ## Start with setup
 
 ```bash
-git clone https://github.com/MaksimZayats/fastdjango.git my-api
-cd my-api
-# Makefile
-make setup
+git clone https://github.com/MaksimZayats/fastdjango.git && cd fastdjango && make setup
 ```
 
-The wizard renames the project, writes `.env`, configures database, Redis,
-storage, docs, public origins, Logfire defaults, and optional Git reset choices,
-then prints the next commands for the choices you made.
+The wizard renames the checkout folder to the project slug, renames the project
+and Python package, writes `.env`, configures database, Redis, storage, docs,
+public origins, Logfire defaults, and optional Git reset choices, then prints
+the next commands for the choices you made.
 
 ## Key features
 

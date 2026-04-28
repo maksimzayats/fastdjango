@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from management.setup_wizard import cli
-from management.setup_wizard.cli import _render_git_result
+from management.setup_wizard.cli import _checkout_rename, _render_git_result
 from management.setup_wizard.file_operations import FilePlan
 from management.setup_wizard.git import GitSetupResult
 from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
@@ -53,6 +53,65 @@ def test_dry_run_renders_git_actions_without_applying(
     assert "git remote add origin" in output
     assert "https://github.com/acme/acme-api" in output
     assert git_config_path.read_text(encoding="utf-8") == ('[remote "origin"]\n\turl = template\n')
+
+
+def test_dry_run_renders_checkout_directory_rename(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    checkout_path = tmp_path / "fastdjango"
+    checkout_path.mkdir()
+    answers = _answers()
+
+    def fake_is_dirty_git_tree(*, repo_root: Path) -> bool:
+        return False
+
+    def fake_detect_current_package_name(*, repo_root: Path) -> str:
+        return "fastdjango"
+
+    def fake_prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
+        return answers
+
+    def fake_build_setup_plan(
+        *,
+        repo_root: Path,
+        answers: SetupAnswers,
+        current_package_name: str | None = None,
+    ) -> FilePlan:
+        return FilePlan(repo_root=repo_root)
+
+    monkeypatch.chdir(checkout_path)
+    monkeypatch.setattr(sys, "argv", ["setup", "--dry-run"])
+    monkeypatch.setattr(cli, "_is_dirty_git_tree", fake_is_dirty_git_tree)
+    monkeypatch.setattr(cli, "detect_current_package_name", fake_detect_current_package_name)
+    monkeypatch.setattr(cli, "prompt_for_answers", fake_prompt_for_answers)
+    monkeypatch.setattr(cli, "build_setup_plan", fake_build_setup_plan)
+
+    assert cli.main() == 0
+
+    output = capsys.readouterr().out
+    assert "fastdjango -> example-api" in output
+    assert checkout_path.exists()
+    assert not (tmp_path / "example-api").exists()
+
+
+def test_checkout_rename_uses_distribution_name(tmp_path: Path) -> None:
+    repo_root = tmp_path / "fastdjango"
+    repo_root.mkdir()
+
+    checkout_rename = _checkout_rename(repo_root=repo_root, answers=_answers())
+
+    assert checkout_rename is not None
+    assert checkout_rename.source_path == repo_root
+    assert checkout_rename.target_path == tmp_path / "example-api"
+
+
+def test_checkout_rename_is_skipped_when_directory_already_matches(tmp_path: Path) -> None:
+    repo_root = tmp_path / "example-api"
+    repo_root.mkdir()
+
+    assert _checkout_rename(repo_root=repo_root, answers=_answers()) is None
 
 
 def test_declined_git_reinitialization_prints_warning() -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import shutil
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 from rich.console import Console
@@ -61,25 +62,36 @@ def main() -> int:
         current_package_name=current_package_name,
     )
     git_plan = build_git_plan(repo_root=repo_root, answers=answers)
-    _render_plan_summary(console=console, plan=plan, git_plan=git_plan)
+    checkout_rename = _checkout_rename(repo_root=repo_root, answers=answers)
+    _render_plan_summary(
+        console=console,
+        plan=plan,
+        git_plan=git_plan,
+        checkout_rename=checkout_rename,
+    )
 
     if args.dry_run:
         console.print("[green]Dry run complete. No files were changed.[/green]")
         return 0
 
-    try:
-        if not confirm_plan():
-            console.print("[yellow]Setup cancelled.[/yellow]")
-            return 1
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Setup cancelled.[/yellow]")
-        return 130
+    if checkout_rename is not None and checkout_rename.target_path.exists():
+        console.print(
+            f"[red]Cannot rename checkout directory because "
+            f"{checkout_rename.target_path.as_posix()} already exists.[/red]",
+        )
+        return 1
+
+    confirmation_exit_code = _confirmation_exit_code(console=console)
+    if confirmation_exit_code is not None:
+        return confirmation_exit_code
 
     plan.apply()
     git_result = apply_git_plan(plan=git_plan)
+    if checkout_rename is not None:
+        checkout_rename.source_path.rename(checkout_rename.target_path)
     console.print("[green]Setup complete.[/green]")
     _render_git_result(console=console, answers=answers, result=git_result)
-    _render_next_steps(console=console, answers=answers)
+    _render_next_steps(console=console, answers=answers, checkout_rename=checkout_rename)
     return 0
 
 
@@ -112,7 +124,25 @@ def _is_dirty_git_tree(*, repo_root: Path) -> bool:
     return bool(result.stdout.strip())
 
 
-def _render_plan_summary(*, console: Console, plan: FilePlan, git_plan: GitPlan) -> None:
+def _confirmation_exit_code(*, console: Console) -> int | None:
+    try:
+        if confirm_plan():
+            return None
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Setup cancelled.[/yellow]")
+        return 130
+
+    console.print("[yellow]Setup cancelled.[/yellow]")
+    return 1
+
+
+def _render_plan_summary(
+    *,
+    console: Console,
+    plan: FilePlan,
+    git_plan: GitPlan,
+    checkout_rename: CheckoutRename | None,
+) -> None:
     table = Table(title="Planned changes")
     table.add_column("Action")
     table.add_column("Target")
@@ -130,6 +160,13 @@ def _render_plan_summary(*, console: Console, plan: FilePlan, git_plan: GitPlan)
             action.kind,
             _git_action_target(action=action),
             action.detail,
+        )
+
+    if checkout_rename is not None:
+        table.add_row(
+            "rename",
+            f"{checkout_rename.source_path.name} -> {checkout_rename.target_path.name}",
+            "Rename checkout directory",
         )
 
     console.print(table)
@@ -181,10 +218,26 @@ def _is_missing_git_identity(*, result: GitSetupResult) -> bool:
     return "Author identity unknown" in output or "unable to auto-detect email address" in output
 
 
-def _render_next_steps(*, console: Console, answers: SetupAnswers) -> None:
+def _checkout_rename(*, repo_root: Path, answers: SetupAnswers) -> CheckoutRename | None:
+    target_path = repo_root.parent / answers.distribution_name
+    if repo_root == target_path:
+        return None
+
+    return CheckoutRename(source_path=repo_root, target_path=target_path)
+
+
+def _render_next_steps(
+    *,
+    console: Console,
+    answers: SetupAnswers,
+    checkout_rename: CheckoutRename | None = None,
+) -> None:
     table = Table(title="Next steps")
     table.add_column("Step")
     table.add_column("Command")
+
+    if checkout_rename is not None:
+        table.add_row("Refresh shell directory", f"cd ../{checkout_rename.target_path.name}")
 
     table.add_row("Install dependencies", "uv sync --locked --all-groups")
 
@@ -214,3 +267,9 @@ def _docker_services(*, answers: SetupAnswers) -> list[str]:
     if answers.storage_mode == StorageMode.MINIO:
         services.append("minio")
     return services
+
+
+@dataclass(frozen=True, kw_only=True)
+class CheckoutRename:
+    source_path: Path
+    target_path: Path

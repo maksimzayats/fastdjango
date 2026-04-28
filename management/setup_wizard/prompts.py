@@ -75,7 +75,7 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
     )
     suggested_distribution_name = package_name.strip().replace("_", "-")
     distribution_name = _ask_text(
-        "Distribution name (pyproject package name; edit or press Enter)",
+        "Distribution name (pyproject package and checkout folder; edit or press Enter)",
         default=suggested_distribution_name,
         validate=_validate_distribution_name,
     )

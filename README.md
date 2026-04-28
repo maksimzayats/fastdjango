@@ -1,41 +1,33 @@
 # Fast Django
 
+[![CI](https://github.com/maksimzayats/fastdjango/actions/workflows/lint_test.yaml/badge.svg?branch=main)](https://github.com/maksimzayats/fastdjango/actions/workflows/lint_test.yaml)
+[![Docs](https://img.shields.io/badge/docs-fastdjango.zayats.dev-blue)](https://fastdjango.zayats.dev)
+[![Python 3.14+](https://img.shields.io/badge/python-3.14%2B-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+
 A FastAPI + Django + Celery project template for teams that want Django's ORM
 and admin, FastAPI's async delivery, and a clean application structure from the
 first commit.
 
-## Start Here
+## Start
 
-Fast Django is meant to be cloned and customized through the setup wizard.
-
-```bash
-git clone https://github.com/MaksimZayats/fastdjango.git my-api
-cd my-api
-make setup
-```
-
-The wizard renames the project and Python package, writes a generated `.env`,
-lets you choose database, Redis, storage, docs, public origins, and Logfire
-defaults, can reinitialize Git for the generated project, then prints the exact
-next commands for your choices.
-
-To preview the changes first:
+Clone the template and let the setup wizard turn it into your project:
 
 ```bash
-make setup ARGS="--dry-run"
+git clone https://github.com/maksimzayats/fastdjango.git && cd fastdjango && make setup
 ```
+
+The wizard renames the checkout folder to the project slug, renames the project
+and Python package, writes env files, configures database, Redis, storage, docs,
+public origins, and observability, and can reset Git history for the generated
+project.
 
 ## Run Locally
 
-Install dependencies after setup:
+For the default local PostgreSQL, Redis, and filesystem storage setup:
 
 ```bash
 uv sync --locked --all-groups
-```
-
-For local Docker PostgreSQL, local Docker Redis, and local filesystem storage:
-
-```bash
 docker compose up -d postgres redis
 make migrate
 make collectstatic
@@ -50,13 +42,12 @@ S3, follow the next-step summary printed by the wizard.
 
 ## What You Get
 
-- FastAPI HTTP delivery with Django mounted for admin and Django URLs.
-- Django ORM, migrations, admin, authentication model, and typed settings.
-- Celery worker and beat entrypoints using Redis.
-- Dependency injection with `diwire` and explicit base contracts.
+- FastAPI delivery with Django mounted for admin and Django URLs.
+- Django ORM, migrations, authentication, admin, and typed settings.
+- Celery worker and beat entrypoints backed by Redis.
+- Dependency injection with `diwire` and explicit application boundaries.
 - Local Docker Compose for PostgreSQL, PgBouncer, Redis, and optional MinIO.
-- Storage modes for local filesystem, local MinIO, or remote S3-compatible services.
-- Logfire/OpenTelemetry integration that is off by default until configured.
+- Storage choices for local files, local MinIO, or remote S3-compatible services.
 - Strict linting, typing, architecture guardrails, and pytest coverage.
 
 ## Architecture
@@ -74,33 +65,25 @@ Django models directly.
 
 The source layout follows that rule:
 
-- `src/fastdjango/core/` - domains, models, DTOs, use cases, services, and domain delivery.
+- `src/fastdjango/core/` - domains, models, DTOs, use cases, services, and delivery.
 - `src/fastdjango/foundation/` - shared base contracts.
 - `src/fastdjango/entrypoints/` - FastAPI, Django, and Celery composition roots.
 - `src/fastdjango/infrastructure/` - framework and external-system integration.
 - `src/fastdjango/ioc/` - dependency injection container setup.
-- `management/` - repository management commands, including `manage.py` and the setup wizard.
+- `management/` - repository management commands and the setup wizard.
 
 ## Documentation
 
-- [Quick Start](docs/en/getting-started/quick-start.md)
-- [Project Structure](docs/en/getting-started/project-structure.md)
-- [Development Environment](docs/en/getting-started/development-environment.md)
-- [Tutorial: Build a Todo List](docs/en/tutorial/index.md)
-- [Concepts](docs/en/concepts/index.md)
-- [Reference](docs/en/reference/index.md)
+Read the full documentation at [fastdjango.zayats.dev](https://fastdjango.zayats.dev),
+or browse it locally in [docs/en](docs/en).
 
-## Useful Commands
+## Common Commands
 
 | Command | Purpose |
 | --- | --- |
 | `make setup` | Run the one-time template setup wizard |
 | `make dev` | Run the FastAPI development server |
-| `make migrate` | Apply Django migrations |
-| `make collectstatic` | Collect Django static files |
 | `make celery-dev` | Run a Celery worker |
-| `make celery-beat-dev` | Run Celery beat |
-| `make update-dependencies` | Update uv lock, dependency bounds, CI pins, and container image pins |
 | `make format` | Format through `prek` hooks |
 | `make lint` | Run lint and type checks |
 | `make test` | Run the test suite |

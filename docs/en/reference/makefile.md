@@ -113,7 +113,7 @@ Runs:
 uv run --group setup python -m management.setup_wizard $(ARGS)
 ```
 
-- Renames the project/package
+- Renames the checkout folder to the project slug, then renames the project and Python package
 - Writes `.env` and updates committed environment examples
 - Configures SQLite, local Docker PostgreSQL, or remote PostgreSQL
 - Configures local Docker Redis or remote Redis
