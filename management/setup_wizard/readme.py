@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
+from management.setup_wizard.models import (
+    AuthenticationMode,
+    DatabaseMode,
+    RedisMode,
+    SetupAnswers,
+    StorageMode,
+)
 
 FASTDJANGO_TEMPLATE_URL = "https://github.com/maksimzayats/fastdjango"
 
@@ -73,6 +79,7 @@ def build_project_readme(*, answers: SetupAnswers) -> str:  # noqa: PLR0912
             f"- Database: {_database_label(answers=answers)}",
             f"- Redis: {_redis_label(answers=answers)}",
             f"- Storage: {_storage_label(answers=answers)}",
+            f"- Authentication: {_authentication_label(answers=answers)}",
             f"- Logfire: {'enabled' if answers.enable_logfire else 'disabled'}",
             "",
         ],
@@ -163,3 +170,13 @@ def _storage_label(*, answers: SetupAnswers) -> str:
         return f"local MinIO on ports {answers.minio_api_port} and {answers.minio_console_port}"
 
     return "remote S3-compatible storage"
+
+
+def _authentication_label(*, answers: SetupAnswers) -> str:
+    if answers.authentication_mode == AuthenticationMode.JWT_REFRESH_SESSION:
+        return "JWT access tokens with refresh sessions"
+
+    if answers.authentication_mode == AuthenticationMode.STATIC_API_KEYS:
+        return "static API keys from environment JSON"
+
+    return "custom implementation"

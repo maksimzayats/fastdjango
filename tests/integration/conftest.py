@@ -13,7 +13,10 @@ from tests.integration.factories import (
 
 
 @pytest.fixture(scope="function")
-def container() -> Container:
+def container(monkeypatch: pytest.MonkeyPatch) -> Container:
+    monkeypatch.setenv("AUTHENTICATION_MODE", "jwt-refresh-session")
+    monkeypatch.setenv("JWT_SECRET_KEY", "test-jwt-secret-key-with-at-least-32-bytes")
+
     container = get_container()
     container.add_instance(lambda: MemoryStore(), provides=AsyncThrottlerStoreFactory)  # noqa: PLW0108
 

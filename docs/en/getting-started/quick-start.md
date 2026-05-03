@@ -32,8 +32,8 @@ does not keep the template history or `origin`.
 
 The setup wizard renames the checkout folder to the project slug, renames the
 project and Python package, writes `.env`, rewrites the app README, and lets you
-choose database, Redis, storage, docs, public origins, Logfire defaults, and Git
-setup for the flow you chose.
+choose database, Redis, storage, authentication, docs, public origins, Logfire
+defaults, and Git setup for the flow you chose.
 
 ## Step 2: Install dependencies
 

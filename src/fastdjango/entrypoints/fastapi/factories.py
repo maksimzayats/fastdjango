@@ -13,6 +13,10 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.types import ASGIApp
 
+from fastdjango.core.authentication.delivery.fastapi.auth import (
+    AuthenticationMode,
+    AuthenticationSettings,
+)
 from fastdjango.core.authentication.delivery.fastapi.controllers import (
     AuthenticationTokenController,
 )
@@ -53,6 +57,7 @@ class Lifespan:
 @dataclass(kw_only=True)
 class FastAPIFactory(BaseFactory):
     _application_settings: Injected[ApplicationSettings]
+    _authentication_settings: Injected[AuthenticationSettings]
     _fastapi_settings: Injected[FastAPISettings]
     _cors_settings: Injected[CORSSettings]
 
@@ -129,9 +134,10 @@ class FastAPIFactory(BaseFactory):
         self._health_controller.register(health_router)
         app.include_router(health_router)
 
-        auth_router = APIRouter(tags=["auth", "token"])
-        self._authentication_token_controller.register(auth_router)
-        app.include_router(auth_router)
+        if self._authentication_settings.mode == AuthenticationMode.JWT_REFRESH_SESSION:
+            auth_router = APIRouter(tags=["auth", "token"])
+            self._authentication_token_controller.register(auth_router)
+            app.include_router(auth_router)
 
         user_router = APIRouter(tags=["user"])
         self._user_controller.register(user_router)

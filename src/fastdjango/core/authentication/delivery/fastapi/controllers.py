@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from http import HTTPStatus
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from diwire import Injected
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -21,6 +23,9 @@ from fastdjango.core.authentication.use_cases import TokenUseCase
 from fastdjango.core.shared.delivery.fastapi.request import RequestInfoService
 from fastdjango.core.shared.delivery.fastapi.throttling import IPThrottlerFactory
 from fastdjango.foundation.delivery.controllers import BaseAsyncController
+
+if TYPE_CHECKING:
+    from fastdjango.core.user.models import User
 
 
 @dataclass(kw_only=True)
@@ -101,7 +106,7 @@ class AuthenticationTokenController(BaseAsyncController):
     ) -> None:
         await self._token_use_case.revoke_token(
             data=body,
-            user=request.state.user,
+            user=cast("User", request.state.user),
         )
 
     async def handle_exception(self, exception: Exception) -> Any:

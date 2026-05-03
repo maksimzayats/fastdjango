@@ -118,6 +118,7 @@ uv run --group setup python -m management.setup_wizard $(ARGS)
 - Configures SQLite, local Docker PostgreSQL, or remote PostgreSQL
 - Configures local Docker Redis or remote Redis
 - Configures local filesystem, local MinIO, or remote S3-compatible storage
+- Configures built-in JWT refresh-session auth, static API keys, or a custom auth placeholder
 - Rewrites the README for the generated app
 - Sets optional public origins, repository metadata, ports, and Logfire defaults
 - Infers repository metadata from GitHub template checkouts and preserves their `origin`

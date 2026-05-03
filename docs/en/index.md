@@ -35,8 +35,8 @@ git clone https://github.com/maksimzayats/fastdjango.git && cd fastdjango && mak
 
 The wizard renames the checkout folder to the project slug, renames the project
 and Python package, writes `.env`, configures database, Redis, storage, docs,
-public origins, Logfire defaults, and Git setup for the flow you chose, then
-prints the next commands.
+authentication, public origins, Logfire defaults, and Git setup for the flow you
+chose, then prints the next commands.
 
 ## Key features
 

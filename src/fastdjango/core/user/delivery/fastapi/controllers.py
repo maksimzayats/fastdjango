@@ -6,8 +6,10 @@ from diwire import Injected
 from fastapi import APIRouter, Depends, HTTPException
 
 from fastdjango.core.authentication.delivery.fastapi.auth import (
+    AccessAuthFactory,
     AuthenticatedRequest,
-    JWTAuthFactory,
+    AuthenticationMode,
+    AuthenticationSettings,
 )
 from fastdjango.core.user.delivery.fastapi.schemas import (
     CreateUserRequestSchema,
@@ -19,12 +21,13 @@ from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 @dataclass(kw_only=True)
 class UserController(BaseAsyncController):
-    _jwt_auth_factory: Injected[JWTAuthFactory]
+    _access_auth_factory: Injected[AccessAuthFactory]
+    _authentication_settings: Injected[AuthenticationSettings]
     _user_use_case: Injected[UserUseCase]
 
     def __post_init__(self) -> None:
-        self._jwt_auth = self._jwt_auth_factory()
-        self._staff_jwt_auth = self._jwt_auth_factory(require_staff=True)
+        self._auth = self._access_auth_factory()
+        self._staff_auth = self._access_auth_factory(require_staff=True)
         super().__post_init__()
 
     def register(self, registry: APIRouter) -> None:
@@ -35,11 +38,14 @@ class UserController(BaseAsyncController):
             response_model=UserSchema,
         )
 
+        if self._authentication_settings.mode == AuthenticationMode.CUSTOM:
+            return
+
         registry.add_api_route(
             path="/v1/users/me",
             endpoint=self.get_current_user,
             methods=["GET"],
-            dependencies=[Depends(self._jwt_auth)],
+            dependencies=[Depends(self._auth)],
             response_model=UserSchema,
         )
 
@@ -47,7 +53,7 @@ class UserController(BaseAsyncController):
             path="/v1/users/{user_id}",
             endpoint=self.get_user_by_id,
             methods=["GET"],
-            dependencies=[Depends(self._staff_jwt_auth)],
+            dependencies=[Depends(self._staff_auth)],
             response_model=UserSchema,
         )
 

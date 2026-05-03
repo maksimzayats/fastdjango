@@ -23,6 +23,12 @@ class RedisMode(StrEnum):
     REMOTE_REDIS = "remote-redis"
 
 
+class AuthenticationMode(StrEnum):
+    JWT_REFRESH_SESSION = "jwt-refresh-session"
+    STATIC_API_KEYS = "static-api-keys"
+    CUSTOM = "custom"
+
+
 @dataclass(frozen=True, kw_only=True)
 class SetupAnswers:
     project_name: str
@@ -36,6 +42,7 @@ class SetupAnswers:
     delete_wizard: bool
     overwrite_env: bool
 
+    authentication_mode: AuthenticationMode = AuthenticationMode.JWT_REFRESH_SESSION
     repo_url: str | None = None
     reinitialize_git_repository: bool = True
     create_initial_commit: bool = True

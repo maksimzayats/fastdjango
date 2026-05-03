@@ -27,8 +27,9 @@ class FilePlan:
             ),
         )
 
-    def add_delete(self, path: Path, *, detail: str) -> None:
-        if not path.exists():
+    def add_delete(self, path: Path, *, detail: str, exists_path: Path | None = None) -> None:
+        check_path = exists_path or path
+        if not check_path.exists():
             return
 
         self.operations.append(

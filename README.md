@@ -32,7 +32,8 @@ not keep the template history or `origin`.
 
 The wizard renames the checkout folder to the project slug, renames the project
 and Python package, writes env files, configures database, Redis, storage, docs,
-public origins, observability, and Git setup for the flow you chose.
+authentication, public origins, observability, and Git setup for the flow you
+chose.
 
 ## Run Locally
 

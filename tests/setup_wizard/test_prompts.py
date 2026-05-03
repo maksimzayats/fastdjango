@@ -1,10 +1,13 @@
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
+import questionary
 from management.setup_wizard import prompts
-from management.setup_wizard.models import DatabaseMode, RedisMode, StorageMode
+from management.setup_wizard.models import AuthenticationMode, DatabaseMode, RedisMode, StorageMode
 from management.setup_wizard.prompts import (
+    _ask_authentication_mode,
     _ask_database_answers,
     _ask_docs_site_url,
     _ask_git_answers,
@@ -167,6 +170,36 @@ def test_minio_ports_are_asked_with_storage_details(monkeypatch: pytest.MonkeyPa
     assert calls == [
         ("MinIO API host port", 9000),
         ("MinIO console host port", 9001),
+    ]
+
+
+def test_authentication_mode_prompt_offers_static_api_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_choices: list[Any] = []
+
+    class FakePrompt:
+        def ask(self) -> AuthenticationMode:
+            return AuthenticationMode.STATIC_API_KEYS
+
+    def fake_select(
+        message: str,
+        *,
+        choices: list[Any],
+        default: AuthenticationMode,
+    ) -> FakePrompt:
+        assert message == "Authentication / authorization"
+        assert default == AuthenticationMode.JWT_REFRESH_SESSION
+        captured_choices.extend(choices)
+        return FakePrompt()
+
+    monkeypatch.setattr(questionary, "select", fake_select)
+
+    assert _ask_authentication_mode() == AuthenticationMode.STATIC_API_KEYS
+    assert [choice.value for choice in captured_choices] == [
+        AuthenticationMode.JWT_REFRESH_SESSION,
+        AuthenticationMode.STATIC_API_KEYS,
+        AuthenticationMode.CUSTOM,
     ]
 
 

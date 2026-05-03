@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import ast
 import textwrap
 import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
+from management.setup_wizard.models import (
+    AuthenticationMode,
+    DatabaseMode,
+    RedisMode,
+    SetupAnswers,
+    StorageMode,
+)
 from management.setup_wizard.planner import build_setup_plan
 
 
@@ -232,6 +239,7 @@ def test_generated_env_files_are_grouped_by_concern(tmp_path: Path) -> None:
             "# Compose\n",
             "\n# Application\n",
             "\n# Secrets\n",
+            "\n# Authentication\n",
             "\n# HTTP\n",
             "\n# Observability\n",
             "\n# Database\n",
@@ -245,6 +253,7 @@ def test_generated_env_files_are_grouped_by_concern(tmp_path: Path) -> None:
         markers=(
             "# Application\n",
             "\n# Secrets\n",
+            "\n# Authentication\n",
             "\n# Observability\n",
             "\n# Database\n",
             "\n# Redis\n",
@@ -253,6 +262,139 @@ def test_generated_env_files_are_grouped_by_concern(tmp_path: Path) -> None:
     )
     assert "\n\n# Database\n" in env_example_content
     assert "\n\n# Database\n" in test_env_example_content
+
+
+def test_static_api_key_authentication_writes_json_registry_without_jwt_secret(
+    tmp_path: Path,
+) -> None:
+    _create_mini_repo(repo_root=tmp_path)
+    answers = _answers(
+        authentication_mode=AuthenticationMode.STATIC_API_KEYS,
+        delete_wizard=False,
+    )
+
+    build_setup_plan(repo_root=tmp_path, answers=answers).apply(run_commands=False)
+
+    env_content = (tmp_path / ".env").read_text()
+    env_example_content = (tmp_path / ".env.example").read_text()
+    test_env_example_content = (tmp_path / ".env.test.example").read_text()
+    readme = (tmp_path / "README.md").read_text()
+
+    assert "AUTHENTICATION_MODE=static-api-keys" in env_content
+    assert "JWT_SECRET_KEY" not in env_content
+    assert '"local-api-key@example.com"' in env_content
+    assert "AUTHENTICATION_MODE=static-api-keys" in env_example_content
+    assert 'STATIC_API_KEYS={"example-static-api-key":' in env_example_content
+    assert "AUTHENTICATION_MODE=static-api-keys" in test_env_example_content
+    assert 'STATIC_API_KEYS={"test-static-api-key":' in test_env_example_content
+    assert "- Authentication: static API keys from environment JSON" in readme
+
+
+def test_static_api_key_authentication_prunes_refresh_session_code(tmp_path: Path) -> None:
+    _create_mini_repo(repo_root=tmp_path)
+    answers = _answers(
+        authentication_mode=AuthenticationMode.STATIC_API_KEYS,
+        delete_wizard=False,
+    )
+
+    build_setup_plan(repo_root=tmp_path, answers=answers).apply(run_commands=False)
+
+    package_root = tmp_path / "src" / "example_api"
+    auth_root = package_root / "core" / "authentication"
+    auth_dependency = (auth_root / "delivery" / "fastapi" / "auth.py").read_text()
+    settings = (package_root / "infrastructure" / "django" / "settings.py").read_text()
+    user_model = (package_root / "core" / "user" / "models.py").read_text()
+    fastapi_factory = (package_root / "entrypoints" / "fastapi" / "factories.py").read_text()
+    user_controller = (
+        package_root / "core" / "user" / "delivery" / "fastapi" / "controllers.py"
+    ).read_text()
+    test_factories = (tmp_path / "tests" / "integration" / "factories.py").read_text()
+
+    _assert_python_files_parse(root=package_root)
+    _assert_python_files_parse(root=tmp_path / "tests")
+
+    assert "StaticAPIKeyAuth" in auth_dependency
+    assert "JWTService" not in auth_dependency
+    assert "JWTAuthFactory" not in auth_dependency
+    assert "AuthenticationConfig" not in settings
+    assert "RefreshSession" not in user_model
+    assert "refresh_sessions" not in user_model
+    assert "AuthenticationTokenController" not in fastapi_factory
+    assert "StaticAPIKeyAuthFactory" in user_controller
+    assert "JWTAuthFactory" not in user_controller
+    assert "JWTService" not in test_factories
+    assert not (auth_root / "models.py").exists()
+    assert not (auth_root / "use_cases.py").exists()
+    assert not (auth_root / "services").exists()
+    assert not (auth_root / "migrations").exists()
+    assert not (auth_root / "delivery" / "fastapi" / "controllers.py").exists()
+    assert not (
+        tmp_path
+        / "tests"
+        / "integration"
+        / "core"
+        / "authentication"
+        / "delivery"
+        / "fastapi"
+        / "test_controllers.py"
+    ).exists()
+    assert not (tmp_path / "tests" / "unit" / "core" / "authentication" / "services").exists()
+
+
+def test_custom_authentication_skips_generated_auth_secrets(tmp_path: Path) -> None:
+    _create_mini_repo(repo_root=tmp_path)
+    answers = _answers(
+        authentication_mode=AuthenticationMode.CUSTOM,
+        delete_wizard=False,
+    )
+
+    build_setup_plan(repo_root=tmp_path, answers=answers).apply(run_commands=False)
+
+    env_content = (tmp_path / ".env").read_text()
+    test_env_example_content = (tmp_path / ".env.test.example").read_text()
+
+    assert "AUTHENTICATION_MODE=custom" in env_content
+    assert "AUTHENTICATION_MODE=custom" in test_env_example_content
+    assert "JWT_SECRET_KEY" not in env_content
+    assert "STATIC_API_KEYS" not in env_content
+
+
+def test_custom_authentication_prunes_built_in_authentication_code(tmp_path: Path) -> None:
+    _create_mini_repo(repo_root=tmp_path)
+    answers = _answers(
+        authentication_mode=AuthenticationMode.CUSTOM,
+        delete_wizard=False,
+    )
+
+    build_setup_plan(repo_root=tmp_path, answers=answers).apply(run_commands=False)
+
+    package_root = tmp_path / "src" / "example_api"
+    settings = (package_root / "infrastructure" / "django" / "settings.py").read_text()
+    fastapi_factory = (package_root / "entrypoints" / "fastapi" / "factories.py").read_text()
+    user_controller = (
+        package_root / "core" / "user" / "delivery" / "fastapi" / "controllers.py"
+    ).read_text()
+    user_controller_test = (
+        tmp_path
+        / "tests"
+        / "integration"
+        / "core"
+        / "user"
+        / "delivery"
+        / "fastapi"
+        / "test_controllers.py"
+    ).read_text()
+
+    _assert_python_files_parse(root=package_root)
+    _assert_python_files_parse(root=tmp_path / "tests")
+
+    assert not (package_root / "core" / "authentication").exists()
+    assert not (tmp_path / "tests" / "integration" / "core" / "authentication").exists()
+    assert not (tmp_path / "tests" / "unit" / "core" / "authentication").exists()
+    assert "AuthenticationConfig" not in settings
+    assert "authentication" not in fastapi_factory
+    assert "authentication" not in user_controller
+    assert "/v1/users/me" not in user_controller_test
 
 
 def test_docs_removal_deletes_docs_config_targets_and_links(tmp_path: Path) -> None:
@@ -288,6 +430,7 @@ def _answers(
     storage_mode: StorageMode = StorageMode.LOCAL,
     database_mode: DatabaseMode = DatabaseMode.DOCKER_POSTGRES,
     redis_mode: RedisMode = RedisMode.DOCKER_REDIS,
+    authentication_mode: AuthenticationMode = AuthenticationMode.JWT_REFRESH_SESSION,
     keep_docs: bool = True,
     delete_wizard: bool = True,
     repo_url: str | None = None,
@@ -316,6 +459,7 @@ def _answers(
         storage_mode=storage_mode,
         database_mode=database_mode,
         redis_mode=redis_mode,
+        authentication_mode=authentication_mode,
         keep_docs=keep_docs,
         delete_wizard=delete_wizard,
         overwrite_env=True,
@@ -358,6 +502,7 @@ def _create_mini_repo(*, repo_root: Path) -> None:
         repo_root / "tests" / "sample_test.py",
         "from fastdjango.core.sample import SampleService\n",
     )
+    _create_authentication_files(repo_root=repo_root)
     _write(repo_root / "management" / "setup_wizard" / "__init__.py", "")
     _write(repo_root / "tests" / "setup_wizard" / "test_old.py", "")
     _write(
@@ -382,6 +527,210 @@ def _create_mini_repo(*, repo_root: Path) -> None:
     _write(repo_root / "docker" / "docker-compose.yaml", _compose_content())
     _write(repo_root / "docker" / "docker-compose.local.yaml", _compose_overlay_content())
     _write(repo_root / "docker" / "docker-compose.test.yaml", _compose_overlay_content())
+
+
+def _create_authentication_files(*, repo_root: Path) -> None:
+    _write(
+        repo_root / "src" / "fastdjango" / "infrastructure" / "django" / "settings.py",
+        """
+        INSTALLED_APPS = [
+            "fastdjango.core.authentication.apps.AuthenticationConfig",
+            "fastdjango.core.user.apps.UserConfig",
+        ]
+        """,
+    )
+    _write(
+        repo_root / "src" / "fastdjango" / "core" / "user" / "models.py",
+        """
+        from __future__ import annotations
+
+        from typing import TYPE_CHECKING
+
+        from django.contrib.auth.models import AbstractUser
+        from django.db import models
+
+        if TYPE_CHECKING:
+            from fastdjango.core.authentication.models import RefreshSession
+
+
+        class User(AbstractUser):
+            refresh_sessions: "models.Manager[RefreshSession]"  # noqa: UP037
+
+            email = models.EmailField(verbose_name="email address", unique=True)
+
+            def __str__(self) -> str:
+                return f"User(id={self.pk}, username={self.username})"
+        """,
+    )
+    _write(
+        repo_root
+        / "src"
+        / "fastdjango"
+        / "core"
+        / "user"
+        / "delivery"
+        / "fastapi"
+        / "controllers.py",
+        """
+        from dataclasses import dataclass
+
+        from diwire import Injected
+        from fastapi import APIRouter, Depends
+
+        from fastdjango.core.authentication.delivery.fastapi.auth import (
+            AuthenticatedRequest,
+            JWTAuthFactory,
+        )
+        from fastdjango.core.user.delivery.fastapi.schemas import UserSchema
+        from fastdjango.foundation.delivery.controllers import BaseAsyncController
+
+
+        @dataclass(kw_only=True)
+        class UserController(BaseAsyncController):
+            _jwt_auth_factory: Injected[JWTAuthFactory]
+
+            def register(self, registry: APIRouter) -> None:
+                registry.add_api_route(
+                    path="/v1/users/me",
+                    endpoint=self.get_current_user,
+                    methods=["GET"],
+                    dependencies=[Depends(self._jwt_auth_factory())],
+                    response_model=UserSchema,
+                )
+
+            async def get_current_user(self, request: AuthenticatedRequest) -> UserSchema:
+                return UserSchema.model_validate(request.state.user, from_attributes=True)
+        """,
+    )
+    _write(
+        repo_root / "src" / "fastdjango" / "entrypoints" / "fastapi" / "factories.py",
+        """
+        from dataclasses import dataclass
+
+        from diwire import Injected
+        from fastapi import APIRouter, FastAPI
+
+        from fastdjango.core.authentication.delivery.fastapi.controllers import (
+            AuthenticationTokenController,
+        )
+        from fastdjango.core.user.delivery.fastapi.controllers import UserController
+        from fastdjango.foundation.factories import BaseFactory
+
+
+        @dataclass(kw_only=True)
+        class FastAPIFactory(BaseFactory):
+            _authentication_token_controller: Injected[AuthenticationTokenController]
+            _user_controller: Injected[UserController]
+
+            def __call__(self) -> FastAPI:
+                app = FastAPI()
+                auth_router = APIRouter(tags=["authentication"])
+                self._authentication_token_controller.register(auth_router)
+                app.include_router(auth_router)
+                user_router = APIRouter(tags=["user"])
+                self._user_controller.register(user_router)
+                app.include_router(user_router)
+                return app
+        """,
+    )
+    _write_authentication_domain_files(repo_root=repo_root)
+    _write_authentication_test_files(repo_root=repo_root)
+
+
+def _write_authentication_domain_files(*, repo_root: Path) -> None:
+    files = {
+        "apps.py": 'from django.apps import AppConfig\n\n\nclass AuthenticationConfig(AppConfig):\n    name = "fastdjango.core.authentication"\n',
+        "dtos.py": "from fastdjango.foundation.dtos import BaseDTO\n\n\nclass TokenDTO(BaseDTO):\n    access_token: str\n",
+        "exceptions.py": "class AuthenticationError(Exception):\n    pass\n",
+        "models.py": 'from django.db import models\n\n\nclass RefreshSession(models.Model):\n    token = models.CharField(verbose_name="token", max_length=255)\n',
+        "use_cases.py": "from fastdjango.foundation.use_cases import BaseUseCase\n\n\nclass AuthenticationUseCase(BaseUseCase):\n    pass\n",
+        "delivery/django/admin.py": "from django.contrib import admin\n\nfrom fastdjango.core.authentication.models import RefreshSession\n\nadmin.site.register(RefreshSession)\n",
+        "delivery/fastapi/auth.py": "from fastdjango.core.authentication.services.jwt import JWTService\n\n\nclass JWTAuthFactory:\n    pass\n",
+        "delivery/fastapi/controllers.py": "class AuthenticationTokenController:\n    pass\n",
+        "delivery/fastapi/schemas.py": "class TokenRequestSchema:\n    pass\n",
+        "delivery/fastapi/throttling.py": "class UserThrottlerFactory:\n    pass\n",
+        "migrations/__init__.py": "",
+        "migrations/0001_initial.py": "# refresh session migration\n",
+        "services/__init__.py": "",
+        "services/jwt.py": "class JWTService:\n    pass\n",
+        "services/refresh_session.py": "class RefreshSessionService:\n    pass\n",
+    }
+    for relative_path, content in files.items():
+        _write(
+            repo_root / "src" / "fastdjango" / "core" / "authentication" / relative_path,
+            content,
+        )
+
+
+def _write_authentication_test_files(*, repo_root: Path) -> None:
+    _write(
+        repo_root / "tests" / "integration" / "conftest.py",
+        """
+        import pytest
+
+
+        @pytest.fixture(scope="function")
+        def container(monkeypatch: pytest.MonkeyPatch) -> object:
+            monkeypatch.setenv("AUTHENTICATION_MODE", "jwt-refresh-session")
+            monkeypatch.setenv("JWT_SECRET_KEY", "test-secret-key")
+            return object()
+        """,
+    )
+    _write(
+        repo_root / "tests" / "integration" / "factories.py",
+        """
+        from fastdjango.core.authentication.services.jwt import JWTService
+
+
+        class TestClientFactory:
+            def __call__(self, *, auth_for_user: object | None = None) -> object:
+                return JWTService()
+        """,
+    )
+    _write(
+        repo_root
+        / "tests"
+        / "integration"
+        / "core"
+        / "authentication"
+        / "delivery"
+        / "fastapi"
+        / "test_controllers.py",
+        "def test_token_controller() -> None:\n    assert True\n",
+    )
+    _write(
+        repo_root
+        / "tests"
+        / "integration"
+        / "core"
+        / "user"
+        / "delivery"
+        / "fastapi"
+        / "test_controllers.py",
+        """
+        def test_get_current_user(test_client_factory: object, user: object) -> None:
+            test_client_factory(auth_for_user=user)
+            assert "/v1/users/me"
+        """,
+    )
+    _write(
+        repo_root / "tests" / "unit" / "core" / "authentication" / "services" / "test_jwt.py",
+        "def test_jwt_service() -> None:\n    assert True\n",
+    )
+    _write(
+        repo_root
+        / "tests"
+        / "unit"
+        / "core"
+        / "authentication"
+        / "services"
+        / "test_refresh_session.py",
+        "def test_refresh_session_service() -> None:\n    assert True\n",
+    )
+    _write(
+        repo_root / "tests" / "unit" / "core" / "authentication" / "test_use_cases.py",
+        "def test_authentication_use_case() -> None:\n    assert True\n",
+    )
 
 
 def _pyproject_content() -> str:
@@ -574,6 +923,11 @@ def _assert_markers_in_order(*, content: str, markers: tuple[str, ...]) -> None:
         marker_position = content.find(marker)
         assert marker_position > previous_position
         previous_position = marker_position
+
+
+def _assert_python_files_parse(*, root: Path) -> None:
+    for path in root.rglob("*.py"):
+        ast.parse(path.read_text(encoding="utf-8"), filename=path.as_posix())
 
 
 def _env_values(*, content: str) -> dict[str, str]:

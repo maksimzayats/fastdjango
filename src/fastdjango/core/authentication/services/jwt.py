@@ -13,7 +13,7 @@ from fastdjango.foundation.services import BaseService
 class JWTServiceSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="JWT_")
 
-    secret_key: SecretStr
+    secret_key: SecretStr | None = None
     algorithm: str = "HS256"
     typ: str = "at+jwt"
     access_token_expire_minutes: int = 15
@@ -27,6 +27,7 @@ class JWTServiceSettings(BaseSettings):
 class JWTService(BaseService):
     EXPIRED_SIGNATURE_ERROR: ClassVar = jwt.ExpiredSignatureError
     INVALID_TOKEN_ERROR: ClassVar = jwt.InvalidTokenError
+    MISSING_SECRET_KEY_ERROR: ClassVar = ValueError
 
     _settings: Injected[JWTServiceSettings]
 
@@ -47,13 +48,21 @@ class JWTService(BaseService):
 
         return jwt.encode(
             payload=payload,
-            key=self._settings.secret_key.get_secret_value(),
+            key=self._secret_key,
             algorithm=self._settings.algorithm,
         )
 
     def decode_token(self, *, token: str) -> dict[str, Any]:
         return jwt.decode(
             jwt=token,
-            key=self._settings.secret_key.get_secret_value(),
+            key=self._secret_key,
             algorithms=[self._settings.algorithm],
         )
+
+    @property
+    def _secret_key(self) -> str:
+        if self._settings.secret_key is None:
+            msg = "JWT_SECRET_KEY is required when AUTHENTICATION_MODE=jwt-refresh-session."
+            raise self.MISSING_SECRET_KEY_ERROR(msg)
+
+        return self._settings.secret_key.get_secret_value()

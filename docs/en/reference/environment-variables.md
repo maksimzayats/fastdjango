@@ -69,19 +69,33 @@ ALLOWED_HOSTS=["localhost","127.0.0.1","example.com"]
 CSRF_TRUSTED_ORIGINS=["https://example.com"]
 ```
 
+## Authentication Settings
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `AUTHENTICATION_MODE` | No | `jwt-refresh-session` | `jwt-refresh-session` for built-in JWT access tokens and refresh sessions, `static-api-keys` for `X-API-Key` authentication from JSON, or `custom` to skip built-in protected routes while you add your own auth |
+| `STATIC_API_KEYS` | Yes* | `{}` | JSON object mapping API keys to static principals. Required when `AUTHENTICATION_MODE=static-api-keys` |
+
+Static API key example:
+```bash
+AUTHENTICATION_MODE=static-api-keys
+STATIC_API_KEYS={"local-dev-key":{"id":1,"username":"local-api-key","email":"local-api-key@example.com","first_name":"Local","last_name":"API Key","is_staff":true,"is_superuser":false}}
+```
+
 ## JWT Settings
 
 Prefix: `JWT_`
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `JWT_SECRET_KEY` | Yes | - | Secret key for signing tokens |
+| `JWT_SECRET_KEY` | Yes* | - | Secret key for signing tokens. Required when `AUTHENTICATION_MODE=jwt-refresh-session` |
 | `JWT_ALGORITHM` | No | `HS256` | JWT signing algorithm |
 | `JWT_TYP` | No | `at+jwt` | JWT `typ` claim for access tokens |
 | `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | No | `15` | Access token expiration in minutes |
 
 Example:
 ```bash
+AUTHENTICATION_MODE=jwt-refresh-session
 JWT_SECRET_KEY=your-super-secret-jwt-key-with-at-least-32-bytes
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
@@ -251,6 +265,9 @@ LOGGING_LEVEL=DEBUG
 
 # Secrets
 DJANGO_SECRET_KEY=example-django-secret-key
+
+# Authentication
+AUTHENTICATION_MODE=jwt-refresh-session
 JWT_SECRET_KEY=example-jwt-secret-key-with-at-least-32-bytes
 
 # HTTP

@@ -11,7 +11,13 @@ from urllib.parse import urlsplit
 
 import questionary
 
-from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
+from management.setup_wizard.models import (
+    AuthenticationMode,
+    DatabaseMode,
+    RedisMode,
+    SetupAnswers,
+    StorageMode,
+)
 
 PACKAGE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 DISTRIBUTION_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*[a-z0-9]$")
@@ -102,6 +108,7 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
     database_answers = _ask_database_answers(database_mode=database_mode)
     redis_mode = _ask_redis_mode()
     redis_answers = _ask_redis_answers(redis_mode=redis_mode)
+    authentication_mode = _ask_authentication_mode()
     public_origin_answers = _ask_public_origin_answers()
     logfire_answers = _ask_logfire_answers()
     delete_wizard = _ask_confirm("Delete setup wizard after setup?", default=True)
@@ -115,6 +122,7 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
         storage_mode=storage_mode,
         database_mode=database_mode,
         redis_mode=redis_mode,
+        authentication_mode=authentication_mode,
         keep_docs=keep_docs,
         delete_wizard=delete_wizard,
         overwrite_env=overwrite_env,
@@ -222,6 +230,31 @@ def _ask_redis_answers(*, redis_mode: RedisMode) -> RedisPromptAnswers:
     return RedisPromptAnswers(
         redis_port=_ask_int("Redis host port", default=6379),
     )
+
+
+def _ask_authentication_mode() -> AuthenticationMode:
+    value = questionary.select(
+        "Authentication / authorization",
+        choices=[
+            questionary.Choice(
+                "JWT access tokens with refresh sessions",
+                AuthenticationMode.JWT_REFRESH_SESSION,
+            ),
+            questionary.Choice(
+                "Static API keys from environment JSON",
+                AuthenticationMode.STATIC_API_KEYS,
+            ),
+            questionary.Choice(
+                "Custom implementation later",
+                AuthenticationMode.CUSTOM,
+            ),
+        ],
+        default=AuthenticationMode.JWT_REFRESH_SESSION,
+    ).ask()
+    if value is None:
+        raise KeyboardInterrupt
+
+    return cast(AuthenticationMode, value)
 
 
 def _ask_storage_answers(*, storage_mode: StorageMode) -> StoragePromptAnswers:

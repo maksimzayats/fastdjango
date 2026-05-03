@@ -5,13 +5,20 @@ from dataclasses import dataclass
 from json import dumps
 from urllib.parse import urlsplit
 
-from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
+from management.setup_wizard.models import (
+    AuthenticationMode,
+    DatabaseMode,
+    RedisMode,
+    SetupAnswers,
+    StorageMode,
+)
 
 
 @dataclass(frozen=True, kw_only=True)
 class EnvCredentials:
     django_key: str
     jwt_key: str
+    static_api_key: str
     postgres_key: str
     redis_key: str
 
@@ -22,6 +29,7 @@ def build_env_content(*, answers: SetupAnswers) -> str:
         credentials=EnvCredentials(
             django_key=secrets.token_urlsafe(48),
             jwt_key=secrets.token_urlsafe(48),
+            static_api_key=secrets.token_urlsafe(32),
             postgres_key=secrets.token_urlsafe(32),
             redis_key=secrets.token_urlsafe(32),
         ),
@@ -37,6 +45,7 @@ def build_env_example_content(*, answers: SetupAnswers) -> str:
         credentials=EnvCredentials(
             django_key="example-django-key",
             jwt_key="example-jwt-key-with-at-least-32-bytes",
+            static_api_key="example-static-api-key",
             postgres_key="example-postgres-key",
             redis_key="example-redis-key",
         ),
@@ -46,7 +55,16 @@ def build_env_example_content(*, answers: SetupAnswers) -> str:
     return _join_env_lines(lines=lines)
 
 
-def build_test_env_example_content() -> str:
+def build_test_env_example_content(
+    *,
+    answers: SetupAnswers | None = None,
+) -> str:
+    authentication_mode = (
+        answers.authentication_mode
+        if answers is not None
+        else AuthenticationMode.JWT_REFRESH_SESSION
+    )
+
     return _join_env_lines(
         lines=[
             "# Application",
@@ -56,7 +74,13 @@ def build_test_env_example_content() -> str:
             "",
             "# Secrets",
             "DJANGO_SECRET_KEY=test-django-secret-key",
-            "JWT_SECRET_KEY=test-jwt-secret-key-with-at-least-32-bytes",
+            "",
+            "# Authentication",
+            *_build_authentication_lines(
+                authentication_mode=authentication_mode,
+                jwt_key="test-jwt-secret-key-with-at-least-32-bytes",
+                static_api_key="test-static-api-key",
+            ),
             "",
             "# Observability",
             "LOGFIRE_ENABLED=false",
@@ -92,7 +116,15 @@ def _build_base_env_lines(
         "",
         "# Secrets",
         f"DJANGO_SECRET_KEY={credentials.django_key}",
-        f"JWT_SECRET_KEY={credentials.jwt_key}",
+        "",
+        "# Authentication",
+        *(
+            _build_authentication_lines(
+                authentication_mode=answers.authentication_mode,
+                jwt_key=credentials.jwt_key,
+                static_api_key=credentials.static_api_key,
+            )
+        ),
         "",
         "# HTTP",
         *(_build_http_lines(answers=answers)),
@@ -130,6 +162,42 @@ def _build_base_env_lines(
         ],
     )
     return lines
+
+
+def _build_authentication_lines(
+    *,
+    authentication_mode: AuthenticationMode,
+    jwt_key: str,
+    static_api_key: str,
+) -> list[str]:
+    lines = [f"AUTHENTICATION_MODE={authentication_mode.value}"]
+    if authentication_mode == AuthenticationMode.JWT_REFRESH_SESSION:
+        lines.append(f"JWT_SECRET_KEY={jwt_key}")
+        return lines
+
+    if authentication_mode == AuthenticationMode.STATIC_API_KEYS:
+        lines.append(
+            f"STATIC_API_KEYS={_static_api_keys_env_value(api_key=static_api_key)}",
+        )
+
+    return lines
+
+
+def _static_api_keys_env_value(*, api_key: str) -> str:
+    return dumps(
+        {
+            api_key: {
+                "id": 1,
+                "username": "local-api-key",
+                "email": "local-api-key@example.com",
+                "first_name": "Local",
+                "last_name": "API Key",
+                "is_staff": True,
+                "is_superuser": False,
+            },
+        },
+        separators=(",", ":"),
+    )
 
 
 def _build_http_lines(*, answers: SetupAnswers) -> list[str]:
