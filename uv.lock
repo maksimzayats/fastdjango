@@ -575,7 +575,7 @@ requires-dist = [
     { name = "pyjwt", specifier = ">=2.12.1" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "redis", specifier = ">=7.4.0" },
-    { name = "throttled-py", specifier = ">=3.3.0" },
+    { name = "throttled-py", specifier = ">=3.3.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.47.0" },
     { name = "watchdog", extras = ["watchmedo"], specifier = ">=6.0.0" },
     { name = "whitenoise", specifier = ">=6.12.0" },
@@ -1773,11 +1773,11 @@ wheels = [
 
 [[package]]
 name = "throttled-py"
-version = "3.3.0"
+version = "3.3.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/09/e7/c84a893706b956d39ba3cba5c471d3e56b54032a1b9cc92405198c109752/throttled_py-3.3.0.tar.gz", hash = "sha256:f618fb1810de67240e608fc21dfd6e82dc68d96512bf33aedec117d89573f1e4", size = 868055, upload-time = "2026-05-01T15:32:09.936Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/67/4c/7fca992447a23f30385f9574b5a10a8724537498c447bf23c434c1c199a8/throttled_py-3.3.1.tar.gz", hash = "sha256:892019770bfa92d6eea695b6445be49a7d32cb19f9c4d254d9000d95d146addf", size = 870672, upload-time = "2026-05-17T15:20:48.38Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/59/c0/d960724442e31cd66dfbe2cebc6c6935a4d9a873e8761601aa729f404fe4/throttled_py-3.3.0-py3-none-any.whl", hash = "sha256:d374e699e127bb50a28d57893a215e1a635518c5ddf3e72b1f682d869e0a8135", size = 71900, upload-time = "2026-05-01T15:32:08.284Z" },
+    { url = "https://files.pythonhosted.org/packages/cf/d8/caa700a780cdd6b747e1a977c2471f7097e941abad84a480f6590a65e686/throttled_py-3.3.1-py3-none-any.whl", hash = "sha256:d297fb3018f945249fbc3037902105ce319587feaa8c66fbe010438947ee40b3", size = 74050, upload-time = "2026-05-17T15:20:45.632Z" },
 ]
 
 [[package]]
