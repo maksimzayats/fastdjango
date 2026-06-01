@@ -366,11 +366,11 @@ wheels = [
 
 [[package]]
 name = "diwire"
-version = "1.4.0"
+version = "1.4.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e8/58/228b3c58523b5470016d3fca198937faa6b03c9f8a5ba0c0030c136ac794/diwire-1.4.0.tar.gz", hash = "sha256:962f3cb4472b38efd2eab886f590f65c719bba2b9f43ca0779843d16e3b074b5", size = 473434, upload-time = "2026-04-27T05:12:43.25Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d6/8c/e75e4ce4b0831c40c1e86fa00304cf63ff6c742f41759101dd2267c429bb/diwire-1.4.1.tar.gz", hash = "sha256:bd3019548125524d752d2f51cf67512a5873095d9e495301c52e0c8678bb97c4", size = 484778, upload-time = "2026-06-01T19:18:24.855Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7d/06/083feb88028b4f859685f85d9ca8c016723ed360139096c02daaba09c3e8/diwire-1.4.0-py3-none-any.whl", hash = "sha256:ad2ef60e0f0e08610285988149942567d88f1c4a7f20b40979fe18c7cef3e1f9", size = 100346, upload-time = "2026-04-27T05:12:41.727Z" },
+    { url = "https://files.pythonhosted.org/packages/44/1d/a08079a38e1ca60b564df0bc10b211bf45d74a8eef40181417b7d7fdf8d3/diwire-1.4.1-py3-none-any.whl", hash = "sha256:e3d790d7abdbc09b03aa4822f37613ec47c10b47e640a1402a97d7a86467f770", size = 100458, upload-time = "2026-06-01T19:18:23.486Z" },
 ]
 
 [[package]]
@@ -560,7 +560,7 @@ requires-dist = [
     { name = "celery", specifier = ">=5.6.3" },
     { name = "celery-types", specifier = ">=0.26.0" },
     { name = "colorlog", specifier = ">=6.10.1" },
-    { name = "diwire", specifier = ">=1.4.0" },
+    { name = "diwire", specifier = ">=1.4.1" },
     { name = "dj-database-url", specifier = ">=3.1.2" },
     { name = "django", specifier = ">=6.0.5" },
     { name = "django-storages", extras = ["s3"], specifier = ">=1.14.6" },
