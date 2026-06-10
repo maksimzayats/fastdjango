@@ -568,7 +568,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.136.3" },
     { name = "gunicorn", specifier = ">=26.0.0" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "logfire", extras = ["fastapi", "django", "celery", "requests", "psycopg", "httpx", "redis"], specifier = ">=4.35.0" },
+    { name = "logfire", extras = ["fastapi", "django", "celery", "requests", "psycopg", "httpx", "redis"], specifier = ">=4.36.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.13.4" },
     { name = "pydantic-settings", specifier = ">=2.14.1" },
@@ -827,7 +827,7 @@ wheels = [
 
 [[package]]
 name = "logfire"
-version = "4.35.0"
+version = "4.36.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "executing" },
@@ -838,9 +838,9 @@ dependencies = [
     { name = "rich" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7c/20/9508c92ad4ec2ed4ad63a20d72f08427c24117273541ec97c630332855c3/logfire-4.35.0.tar.gz", hash = "sha256:6542aa4ac5e2d2369587deab57a0d1bb9cf6da49634c8cd9c5dbd7c7581f3d51", size = 1148150, upload-time = "2026-06-02T14:55:56.792Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/00/7d/44b1f8e9c8d3000b613fbd4b5afdab2749bb7e86a4c8a8de99ad03a860de/logfire-4.36.0.tar.gz", hash = "sha256:a29db1ad6a8ab90e20ac53db75118e3b59c75210c6b9e5c124754eed2845bb84", size = 1209786, upload-time = "2026-06-09T19:16:00.872Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/77/37/a3631d0b7e4fcb19df4705c7c7e17164c5446e144f034723cf6277749973/logfire-4.35.0-py3-none-any.whl", hash = "sha256:9ae5c3f2dd81144ccf1ec6dba1a5de84aff5b2e2b8dd2190e53e87e47bc63711", size = 347012, upload-time = "2026-06-02T14:55:53.244Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/e1/a008ba3fcf1afdce09f3afb85124b25906e9e06b45c853315b5a0bb323e7/logfire-4.36.0-py3-none-any.whl", hash = "sha256:8ccb2f276fe46888d7ef90aa7ba7ade0c053946666b9218c5115688316bf6d04", size = 378474, upload-time = "2026-06-09T19:15:57.96Z" },
 ]
 
 [package.optional-dependencies]
