@@ -1,17 +1,19 @@
 # modern-python-template Project Creation Prompt
 
-Use this after creating your own repository from the modern-python-template
-template and opening that new repository in an LLM coding agent.
+Use this after creating an empty repository for your project and opening that
+repository in an LLM coding agent.
 
 Before pasting the prompt below into the agent, replace the bracketed values and
 remove any removable capability bullets you do not want. The edited prompt is
-the setup input for your generated project.
+the setup input for your generated project, and it points the agent at the
+modern-python-template GitHub repository to use as the source template.
 
 ```text
-You are an LLM coding agent working in a newly created repository that was
-created from the modern-python-template template.
+You are an LLM coding agent working in an empty repository for my generated
+project.
 
-Repository: [absolute path to my new repository]
+Repository: [absolute path to my empty repository]
+Template source: https://github.com/maksimzayats/modern-python-template
 
 Generated project identity:
 - Project name: [Human-readable project name]
@@ -23,10 +25,10 @@ Generated project identity:
 - Local browser origins: [http://localhost:3000, http://localhost:8000, ...]
 
 Goal:
-Create the generated project in this repository. Treat my edited prompt as the
-setup source of truth. Do not use a separate interactive setup flow. Keep every
-capability explicitly listed below and delete every removable capability that is
-not listed.
+Create the generated project in this repository by using the template source
+above as the starting codebase. Treat my edited prompt as the setup source of
+truth. Do not use a separate interactive setup flow. Keep every capability
+explicitly listed below and delete every removable capability that is not listed.
 
 Mandatory modern-python-template Base:
 - Keep FastAPI delivery.
@@ -48,6 +50,10 @@ Removable capabilities to keep:
 
 Implementation rules:
 - Start with `git status --short` and preserve existing user changes.
+- Bring the modern-python-template code from the template source into this
+  repository before customizing it. Preserve this repository's Git history and
+  configured `origin`; do not replace them with the template repository's Git
+  metadata.
 - Rename the project metadata, package imports, Docker/Compose names, settings,
   docs, tests, and examples to match the generated project identity.
 - Write development `.env` values from the kept capabilities. Keep committed

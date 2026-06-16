@@ -11,29 +11,23 @@ first commit.
 
 ## Start
 
-Recommended: create your own repository from this template on GitHub, clone it,
-then use the top-level [PROMPT_TEMPLATE.md](PROMPT_TEMPLATE.md) as the setup
-interface:
+Recommended: create an empty repository for your project on GitHub, clone it,
+then use the top-level [PROMPT_TEMPLATE.md](PROMPT_TEMPLATE.md) from this
+repository as the setup interface. The prompt points your agent at the template
+source: <https://github.com/maksimzayats/modern-python-template>.
 
-1. Replace the bracketed values in the prompt template.
-2. Remove any removable capability bullets you do not want.
-3. Open the new repository in an LLM coding agent and paste the edited prompt.
+1. Create and clone your empty project repository.
+2. Replace the bracketed values in the prompt template.
+3. Remove any removable capability bullets you do not want.
+4. Open your empty project repository in an LLM coding agent and paste the
+   edited prompt.
 
-The agent should rename the project and Python package, write environment files,
-update docs and examples, remove omitted capabilities, refresh the lockfile, and
-run validation checks. Keep the modern-python-template Base in the prompt:
-FastAPI, Django ORM/admin, dependency injection, architecture guardrails, tests,
-linting, and typing are the template's mandatory foundation.
-
-If you clone the original template directly instead, use:
-
-```bash
-git clone https://github.com/maksimzayats/modern-python-template.git your-project
-cd your-project
-```
-
-In that flow, tell the agent whether to reinitialize Git and which `origin` URL
-to set for the generated project.
+The agent should bring in the template source, preserve your project repo's Git
+history and `origin`, rename the project and Python package, write environment
+files, update docs and examples, remove omitted capabilities, refresh the
+lockfile, and run validation checks. Keep the modern-python-template Base in the
+prompt: FastAPI, Django ORM/admin, dependency injection, architecture guardrails,
+tests, linting, and typing are the template's mandatory foundation.
 
 ## Run Locally
 

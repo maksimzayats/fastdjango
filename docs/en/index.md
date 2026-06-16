@@ -17,11 +17,15 @@ LLM coding agent without losing a clear application structure:
 
 ## Start with the prompt template
 
-Recommended: create your own repository from this template on GitHub, clone it,
-then open the top-level `PROMPT_TEMPLATE.md` file.
+Recommended: create an empty repository for your project on GitHub, clone it,
+then copy the prompt from
+[`PROMPT_TEMPLATE.md`](https://github.com/maksimzayats/modern-python-template/blob/main/PROMPT_TEMPLATE.md).
+The prompt points your agent at
+`https://github.com/maksimzayats/modern-python-template` as the source template.
 
 Replace the bracketed values, remove any removable capabilities you do not want,
-then open the new repository in an LLM coding agent and paste the edited prompt.
+then open your empty project repository in an LLM coding agent and paste the
+edited prompt.
 The prompt is the setup source of truth: capabilities removed from the prompt
 should be deleted from the generated project, not left dormant.
 

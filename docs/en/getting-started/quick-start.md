@@ -8,27 +8,26 @@ Get the project running in minutes.
 - uv ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
 - Docker and Docker Compose for local infrastructure choices
 
-## Step 1: Create your repository
+## Step 1: Create an empty repository
 
-The cleanest flow is to create your own repository from the template on GitHub,
-then clone that new repository. Your `origin` already points at your generated
-project repository in this flow.
-
-If you cloned the original template directly instead, run:
+Create an empty repository on GitHub for your generated project, then clone it.
+Your `origin` should point at your project repository, not at
+modern-python-template.
 
 ```bash
-git clone https://github.com/maksimzayats/modern-python-template.git your-project
-cd your-project
+git clone https://github.com/[org]/[repo].git
+cd [repo]
 ```
 
-For a direct clone, tell the LLM coding agent whether to reinitialize Git and
-which `origin` URL to set for the generated project.
+The edited prompt will point the agent at
+`https://github.com/maksimzayats/modern-python-template` as the source template.
 
 ## Step 2: Customize the prompt template
 
-Open the top-level `PROMPT_TEMPLATE.md` file in your new repository. Replace the
-bracketed project values, then remove any removable capability bullets you do
-not want.
+Copy the prompt from
+[`PROMPT_TEMPLATE.md`](https://github.com/maksimzayats/modern-python-template/blob/main/PROMPT_TEMPLATE.md).
+Replace the bracketed project values, then remove any removable capability
+bullets you do not want.
 
 Keep the modern-python-template Base intact. FastAPI delivery, Django ORM and
 admin, dependency injection, architecture guardrails, tests, linting, and typing
@@ -36,9 +35,11 @@ are mandatory for every generated project.
 
 ## Step 3: Run agent-led setup
 
-Open the new repository in an LLM coding agent and paste the edited prompt.
-The agent should rename the project and Python package, write `.env`, update the
-app README, remove omitted capabilities, refresh the lockfile, and run checks.
+Open your empty project repository in an LLM coding agent and paste the edited
+prompt. The agent should bring in the template source, preserve your project
+repo's Git history and `origin`, rename the project and Python package, write
+`.env`, update the app README, remove omitted capabilities, refresh the
+lockfile, and run checks.
 
 Review the resulting diff and `.env` before starting the application. If the
 generated project keeps a capability, its code, tests, dependencies, settings,
