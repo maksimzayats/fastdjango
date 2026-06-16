@@ -34,7 +34,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "mypy>=2.1.0",
-    "prek>=0.4.4",
+    "prek>=0.4.5",
     "pytest>=9.1.0",
     "pytest-cov>=7.1.0",
     "pytest-django>=4.12.0",
