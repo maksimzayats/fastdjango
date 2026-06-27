@@ -44,7 +44,7 @@ randomness, network clients, framework resources, and slow persistence.
 from dataclasses import dataclass
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class FakeUserStore(UserStore):
     created_email: str | None = None
 
@@ -100,30 +100,44 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = PROJECT_ROOT / "src" / "example"
 
 
-def _imports(path: Path) -> set[str]:
+def _import_info(path: Path) -> tuple[set[str], set[str], dict[str, set[str]]]:
     tree = ast.parse(path.read_text())
-    names: set[str] = set()
+    direct_imports: set[str] = set()
+    imported_modules: set[str] = set()
+    from_imports: dict[str, set[str]] = {}
+
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            names.update(alias.name for alias in node.names)
+            direct_imports.update(alias.name for alias in node.names)
+            imported_modules.update(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module:
-            names.add(node.module)
-    return names
+            imported_modules.add(node.module)
+            from_imports.setdefault(node.module, set()).update(
+                alias.name for alias in node.names
+            )
+
+    return direct_imports, imported_modules, from_imports
 
 
 def test_core_does_not_import_delivery_or_container() -> None:
     for path in (SRC_ROOT / "core").rglob("*.py"):
-        imported = _imports(path)
+        direct_imports, imported_modules, from_imports = _import_info(path)
 
-        assert not any(".delivery." in name for name in imported), path
+        assert not any(".delivery." in name for name in imported_modules), path
         assert not any(
             name == "diwire" or name.startswith("diwire.")
-            for name in imported
+            for name in direct_imports
+        ), path
+        assert not any(name.startswith("diwire.") for name in from_imports), path
+        assert not (
+            from_imports.get("diwire", set()) & {"Container", "resolver_context"}
         ), path
 ```
 
 Replace `example` with the repo's package name. Prefer a tiny helper over a
-large custom architecture framework unless the repo already has one.
+large custom architecture framework unless the repo already has one. This
+example intentionally allows `from diwire import Injected` in `core`, but keeps
+containers and resolver-context injection out of use cases and services.
 
 ## Fixture Boundaries
 

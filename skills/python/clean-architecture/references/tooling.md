@@ -16,6 +16,7 @@ formatting, type-checking, dependency commands, or local check workflows.
 ## Principles
 
 - Preserve the repo's existing toolchain when it already works.
+- Default to Python 3.14 for new repos unless the user asks for another version.
 - Prefer `uv` for dependency and command execution when starting from scratch.
 - Prefer `ruff` for linting and formatting unless the repo has a strong existing
   formatter/linter convention.
@@ -29,6 +30,8 @@ formatting, type-checking, dependency commands, or local check workflows.
 Use existing commands first. For a new repo, these are good defaults:
 
 ```bash
+uv add diwire pydantic-settings
+uv add --dev pytest ruff mypy
 uv sync
 uv run pytest
 uv run ruff check .
@@ -51,7 +54,18 @@ For new repos, keep config small and explicit:
 
 ```toml
 [project]
-requires-python = ">=3.12"
+requires-python = ">=3.14"
+dependencies = [
+  "diwire",
+  "pydantic-settings",
+]
+
+[dependency-groups]
+dev = [
+  "mypy",
+  "pytest",
+  "ruff",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -59,7 +73,7 @@ pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py314"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -73,13 +87,14 @@ select = [
 ]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 mypy_path = "src"
 packages = ["example"]
 ```
 
-Replace `example` with the repo's package name. Tighten `mypy` per package once
-the current code is clean enough for stricter checks.
+Replace `example` with the repo's package name. Preserve an existing repo's
+configured Python version unless the user asks to change it. Tighten `mypy` per
+package once the current code is clean enough for stricter checks.
 
 ## Ruff
 
@@ -104,7 +119,7 @@ repos, prefer scoped strictness over one large failing switch:
 
 ```toml
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 mypy_path = "src"
 packages = ["example"]
 warn_unused_ignores = true

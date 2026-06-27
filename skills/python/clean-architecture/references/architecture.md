@@ -33,8 +33,8 @@ Use the folders when they clarify real boundaries:
 | --- | --- |
 | `core/` | Application behavior, domain models, DTOs, use cases, and focused services. |
 | `foundation/` | Tiny stable primitives, marker bases, common exceptions, or justified ABCs. |
-| `infrastructure/` | External libraries, framework integration, persistence, clients, and adapters. |
-| `entrypoints/` | Application bootstrapping, top-level app objects, CLI mains, worker startup, or other composition edges. |
+| `infrastructure/` | Technical building blocks only: external libraries, framework integration, persistence adapters, clients, and IO implementations. |
+| `entrypoints/` | Application bootstrapping, top-level app objects, HTTP controllers, CLI mains, worker startup, or other delivery/composition edges. |
 | `ioc/` | `diwire.Container` creation and explicit dependency registration. |
 
 For small repos, do not create empty folders just to match the shape. Introduce
@@ -52,16 +52,17 @@ src/<package_name>/
   core/users/register_user.py
   core/users/password_hasher.py
   core/notifications/email_sender.py
-  core/users/delivery/<framework>/controller.py
   infrastructure/notifications/smtp_email_sender.py
+  entrypoints/api/users_controller.py
   entrypoints/cli.py
   ioc/container.py
 ```
 
-Delivery adapters may live in a domain-owned delivery folder such as
-`core/<domain>/delivery/<framework>/`, or in an outer adapter package, depending
-on the repo's existing convention. Even when delivery lives under `core/`, use
-cases and services must not import delivery concerns.
+For new repos, put delivery adapters outside `core/`, usually in `entrypoints/`
+or an existing framework adapter package. If an existing repo already keeps
+domain-owned delivery under `core/<domain>/delivery/`, treat that folder as a
+delivery island during migration: do not add business/application logic there,
+and do not let use cases or services import delivery concerns.
 
 ## Dependency Rules
 
@@ -71,7 +72,15 @@ Use these rules unless the repo already has a stronger local convention:
   focused services are acceptable only for very small workflows.
 - Use cases coordinate externally meaningful application actions.
 - Services encapsulate focused reusable behavior.
-- Infrastructure code may depend on external libraries and framework APIs.
+- All business/application logic belongs in `core/`.
+- Infrastructure code may depend on external libraries and framework APIs, but
+  it must not contain business/application logic.
+- Infrastructure is for technical building blocks: clients, persistence
+  adapters, framework adapters, serializers, IO implementations, and other
+  integration code needed by the edge.
+- Delivery adapters should live outside `core/` for new repos. Existing repos
+  with delivery folders under `core/` may keep them temporarily during
+  incremental migration, but those folders remain delivery code.
 - Composition code in `entrypoints/` and `ioc/` may import across layers to wire
   objects together, but it should not contain application logic.
 - Tests may cross runtime boundaries when testing integration behavior or
@@ -116,9 +125,9 @@ domain nouns.
 
 If the repo uses an ORM, do not hide that fact with unnecessary abstractions.
 Keep ORM access out of delivery code and place it behind use cases, services, or
-justified persistence adapters. Move persistence-heavy or framework-bound
-queries into focused persistence services/adapters once they grow beyond simple
-project-owned behavior.
+justified persistence adapters. Persistence adapters may build and execute
+technical queries, but business decisions about which data matters and what to
+do with it belong in `core/`.
 
 ## Abstractions
 
@@ -156,7 +165,7 @@ from dataclasses import dataclass
 from example.core.notifications.email_sender import EmailSender
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class SmtpEmailSender(EmailSender):
     def send_welcome_email(self, *, email: str) -> None:
         # External SMTP integration belongs in infrastructure.
@@ -173,7 +182,11 @@ Check:
   objects, request/response schemas, or `diwire.Container`.
 - External IO and framework-bound dependencies are at the edge or behind a
   justified adapter.
+- `infrastructure/` contains only technical building blocks/adapters, not
+  business/application logic.
 - `foundation/` contains only stable cross-layer primitives.
+- New delivery adapters are outside `core/` unless the existing repo has a
+  stronger local convention.
 - Explicit container registrations are limited to abstractions, factories,
   existing instances, or external adapter bindings.
 - No abstractions were added only for ceremony.
