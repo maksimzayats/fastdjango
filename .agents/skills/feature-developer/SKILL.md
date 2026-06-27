@@ -22,19 +22,19 @@ Controller -> Use Case / Service -> Model
 
 | Component | Location |
 |-----------|----------|
-| Domain app | `src/fastdjango/core/<domain>/` |
-| Model | `src/fastdjango/core/<domain>/models.py` |
-| DTOs | `src/fastdjango/core/<domain>/dtos.py` |
-| Use case/service | `src/fastdjango/core/<domain>/use_cases.py` or `services.py` |
-| FastAPI delivery | `src/fastdjango/core/<domain>/delivery/fastapi/` |
-| Django admin delivery | `src/fastdjango/core/<domain>/delivery/django/admin.py` |
-| Celery delivery | `src/fastdjango/core/<domain>/delivery/celery/` |
-| FastAPI composition | `src/fastdjango/entrypoints/fastapi/factories.py` |
-| Celery composition | `src/fastdjango/entrypoints/celery/` |
+| Domain app | `src/modern_python_template/core/<domain>/` |
+| Model | `src/modern_python_template/core/<domain>/models.py` |
+| DTOs | `src/modern_python_template/core/<domain>/dtos.py` |
+| Use case/service | `src/modern_python_template/core/<domain>/use_cases.py` or `services.py` |
+| FastAPI delivery | `src/modern_python_template/core/<domain>/delivery/fastapi/` |
+| Django admin delivery | `src/modern_python_template/core/<domain>/delivery/django/admin.py` |
+| Celery delivery | `src/modern_python_template/core/<domain>/delivery/celery/` |
+| FastAPI composition | `src/modern_python_template/entrypoints/fastapi/factories.py` |
+| Celery composition | `src/modern_python_template/entrypoints/celery/` |
 
 ## Workflow
 
-1. Create or update the domain in `src/fastdjango/core/<domain>/`.
+1. Create or update the domain in `src/modern_python_template/core/<domain>/`.
 2. Put ORM logic in a use case or service inheriting from `BaseUseCase` or `BaseService`.
 3. Put request/response schemas in the relevant delivery folder.
 4. Add FastAPI or Celery controllers in the domain-owned delivery folder.

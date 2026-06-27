@@ -124,10 +124,10 @@ print(settings)  # secret_key='**********'
 The project loads `.env` files via `python-dotenv`:
 
 ```python
-# src/fastdjango/infrastructure/django/configurator.py
+# src/modern_python_template/infrastructure/django/configurator.py
 from dotenv import load_dotenv
 
-from fastdjango.foundation.configurators import BaseConfigurator
+from modern_python_template.foundation.configurators import BaseConfigurator
 
 
 class DjangoConfigurator(BaseConfigurator):
@@ -155,7 +155,7 @@ else:
 Inject settings into services:
 
 ```python
-from fastdjango.foundation.services import BaseService
+from modern_python_template.foundation.services import BaseService
 
 @dataclass(kw_only=True)
 class JWTService(BaseService):
@@ -181,7 +181,7 @@ The IoC container resolves settings automatically.
 Django settings are adapted from Pydantic using `PydanticSettingsAdapter`:
 
 ```python
-# src/fastdjango/infrastructure/django/settings.py
+# src/modern_python_template/infrastructure/django/settings.py
 class DjangoSecuritySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DJANGO_")
 

@@ -50,17 +50,17 @@ The project automatically instruments these libraries:
 | HTTPX | Outbound HTTP calls |
 | Pydantic | Validation |
 
-This is configured in `src/fastdjango/infrastructure/logfire/instrumentor.py`.
+This is configured in `src/modern_python_template/infrastructure/logfire/instrumentor.py`.
 
 ## Step 3: Add Custom Logging
 
 Use structured logging in your services:
 
 ```python
-# src/fastdjango/core/todo/services.py
+# src/modern_python_template/core/todo/services.py
 import logfire
 
-from fastdjango.foundation.services import BaseService
+from modern_python_template.foundation.services import BaseService
 
 
 @dataclass(kw_only=True)
@@ -108,10 +108,10 @@ class TodoService(BaseService):
 Create spans for complex operations:
 
 ```python
-# src/fastdjango/core/todo/services.py
+# src/modern_python_template/core/todo/services.py
 import logfire
 
-from fastdjango.foundation.services import BaseService
+from modern_python_template.foundation.services import BaseService
 
 
 @dataclass(kw_only=True)
@@ -164,7 +164,7 @@ Every explicit transaction gets:
 The project includes a health check endpoint at `GET /v1/health`:
 
 ```python
-# src/fastdjango/core/health/delivery/fastapi/controllers.py
+# src/modern_python_template/core/health/delivery/fastapi/controllers.py
 @dataclass(kw_only=True)
 class HealthController(BaseAsyncController):
     _system_health_use_case: Injected[SystemHealthUseCase]
@@ -184,8 +184,8 @@ class HealthController(BaseAsyncController):
 The `SystemHealthUseCase` checks database connectivity:
 
 ```python
-# src/fastdjango/core/health/use_cases.py
-from fastdjango.foundation.use_cases import BaseUseCase
+# src/modern_python_template/core/health/use_cases.py
+from modern_python_template.foundation.use_cases import BaseUseCase
 
 
 class SystemHealthUseCase(BaseUseCase):
@@ -274,7 +274,7 @@ logfire.error("Failed to process", error=e)    # Needs attention
 Logfire is configured to scrub sensitive fields:
 
 ```python
-# src/fastdjango/infrastructure/logfire/configurator.py
+# src/modern_python_template/infrastructure/logfire/configurator.py
 logfire.configure(
     scrubbing=logfire.ScrubbingOptions(
         extra_patterns=["access_token", "refresh_token"],

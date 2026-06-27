@@ -6,11 +6,11 @@ from celery.contrib.testing import worker
 from celery.worker import WorkController
 from fastapi.testclient import TestClient
 
-from fastdjango.core.authentication.services.jwt import JWTService
-from fastdjango.core.user.models import User
-from fastdjango.entrypoints.celery.factories import CeleryAppFactory
-from fastdjango.entrypoints.celery.registry import TasksRegistry
-from fastdjango.entrypoints.fastapi.factories import FastAPIFactory
+from modern_python_template.core.authentication.services.jwt import JWTService
+from modern_python_template.core.user.models import User
+from modern_python_template.entrypoints.celery.factories import CeleryAppFactory
+from modern_python_template.entrypoints.celery.registry import TasksRegistry
+from modern_python_template.entrypoints.fastapi.factories import FastAPIFactory
 from tests.foundation.factories import ContainerBasedFactory
 
 

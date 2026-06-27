@@ -2,11 +2,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from fastdjango.core.authentication.dtos import IssueTokenDTO, TokenRequestContextDTO
-from fastdjango.core.authentication.services.jwt import JWTService
-from fastdjango.core.authentication.services.refresh_session import RefreshSessionService
-from fastdjango.core.authentication.use_cases import TokenUseCase
-from fastdjango.core.user.use_cases import UserUseCase
+from modern_python_template.core.authentication.dtos import IssueTokenDTO, TokenRequestContextDTO
+from modern_python_template.core.authentication.services.jwt import JWTService
+from modern_python_template.core.authentication.services.refresh_session import (
+    RefreshSessionService,
+)
+from modern_python_template.core.authentication.use_cases import TokenUseCase
+from modern_python_template.core.user.use_cases import UserUseCase
 
 _INVALID_PASSWORD = "invalid-password"  # noqa: S105
 

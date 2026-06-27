@@ -65,7 +65,6 @@ Makefile
 build/
 dist/
 management/dependency_updater.py
-management/setup_wizard/
 
 # Static files (collected during build)
 staticfiles/

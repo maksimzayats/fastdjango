@@ -1,4 +1,4 @@
-# FastDjango Agent Rules
+# modern-python-template Agent Rules
 
 ## Work Rules
 

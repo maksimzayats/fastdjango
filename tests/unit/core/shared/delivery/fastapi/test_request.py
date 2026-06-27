@@ -5,11 +5,11 @@ from starlette.requests import Request
 from starlette.types import Scope
 from throttled.asyncio import Throttled
 
-from fastdjango.core.shared.delivery.fastapi.request import (
+from modern_python_template.core.shared.delivery.fastapi.request import (
     RequestInfoService,
     RequestInfoServiceSettings,
 )
-from fastdjango.core.shared.delivery.fastapi.throttling import IPThrottler
+from modern_python_template.core.shared.delivery.fastapi.throttling import IPThrottler
 
 
 @pytest.fixture()

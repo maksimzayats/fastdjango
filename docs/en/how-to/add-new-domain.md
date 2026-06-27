@@ -31,11 +31,11 @@ Add a new domain (e.g., `product`, `order`, `comment`) with all required compone
 ### 1. Create the Domain Directory
 
 ```bash
-mkdir -p src/fastdjango/core/product
-touch src/fastdjango/core/product/__init__.py
+mkdir -p src/modern_python_template/core/product
+touch src/modern_python_template/core/product/__init__.py
 ```
 
-Create `src/fastdjango/core/product/apps.py`:
+Create `src/modern_python_template/core/product/apps.py`:
 
 ```python
 from django.apps import AppConfig
@@ -43,28 +43,28 @@ from django.apps import AppConfig
 
 class ProductConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "fastdjango.core.product"
+    name = "modern_python_template.core.product"
     label = "product"
 ```
 
 ### 2. Register with Django
 
-Edit `src/fastdjango/infrastructure/django/settings.py`:
+Edit `src/modern_python_template/infrastructure/django/settings.py`:
 
 ```python
 class DjangoSettings(BaseSettings):
     installed_apps: tuple[str, ...] = (
         # ... existing apps ...
-        "fastdjango.core.product.apps.ProductConfig",  # Add new domain
+        "modern_python_template.core.product.apps.ProductConfig",  # Add new domain
     )
 ```
 
 ### 3. Create the Model
 
-Create `src/fastdjango/core/product/models.py`:
+Create `src/modern_python_template/core/product/models.py`:
 
 ```python
-# src/fastdjango/core/product/models.py
+# src/modern_python_template/core/product/models.py
 from django.db import models
 
 
@@ -87,11 +87,11 @@ class Product(models.Model):
 
 ### 4. Create Domain Exceptions
 
-Create `src/fastdjango/core/product/exceptions.py`:
+Create `src/modern_python_template/core/product/exceptions.py`:
 
 ```python
-# src/fastdjango/core/product/exceptions.py
-from fastdjango.core.exceptions import ApplicationError
+# src/modern_python_template/core/product/exceptions.py
+from modern_python_template.core.exceptions import ApplicationError
 
 
 class ProductNotFoundError(ApplicationError):
@@ -100,20 +100,20 @@ class ProductNotFoundError(ApplicationError):
 
 ### 5. Create the Service
 
-Create `src/fastdjango/core/product/services.py`:
+Create `src/modern_python_template/core/product/services.py`:
 
 ```python
-# src/fastdjango/core/product/services.py
+# src/modern_python_template/core/product/services.py
 from dataclasses import dataclass
 from decimal import Decimal
 
 from asgiref.sync import sync_to_async
 from diwire import Injected
 
-from fastdjango.core.product.exceptions import ProductNotFoundError
-from fastdjango.foundation.services import BaseService
-from fastdjango.foundation.transactions import TransactionFactory
-from fastdjango.core.product.models import Product
+from modern_python_template.core.product.exceptions import ProductNotFoundError
+from modern_python_template.foundation.services import BaseService
+from modern_python_template.foundation.transactions import TransactionFactory
+from modern_python_template.core.product.models import Product
 
 
 @dataclass(kw_only=True)
@@ -162,24 +162,24 @@ class ProductService(BaseService):
 ### 6. Create Delivery Directories
 
 ```bash
-mkdir -p src/fastdjango/core/product/delivery/fastapi
-touch src/fastdjango/core/product/delivery/fastapi/__init__.py
-mkdir -p src/fastdjango/core/product/delivery/django
-touch src/fastdjango/core/product/delivery/django/__init__.py
+mkdir -p src/modern_python_template/core/product/delivery/fastapi
+touch src/modern_python_template/core/product/delivery/fastapi/__init__.py
+mkdir -p src/modern_python_template/core/product/delivery/django
+touch src/modern_python_template/core/product/delivery/django/__init__.py
 ```
 
 ### 7. Create Schemas
 
-Create `src/fastdjango/core/product/delivery/fastapi/schemas.py`:
+Create `src/modern_python_template/core/product/delivery/fastapi/schemas.py`:
 
 ```python
-# src/fastdjango/core/product/delivery/fastapi/schemas.py
+# src/modern_python_template/core/product/delivery/fastapi/schemas.py
 from datetime import datetime
 from decimal import Decimal
 
 from pydantic import Field
 
-from fastdjango.foundation.delivery.fastapi.schemas import BaseFastAPISchema
+from modern_python_template.foundation.delivery.fastapi.schemas import BaseFastAPISchema
 
 
 class CreateProductRequestSchema(BaseFastAPISchema):
@@ -200,24 +200,24 @@ class ProductSchema(BaseFastAPISchema):
 
 ### 8. Create the Controller
 
-Create `src/fastdjango/core/product/delivery/fastapi/controllers.py`:
+Create `src/modern_python_template/core/product/delivery/fastapi/controllers.py`:
 
 ```python
-# src/fastdjango/core/product/delivery/fastapi/controllers.py
+# src/modern_python_template/core/product/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from typing import Any
 
 from diwire import Injected
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from fastdjango.core.product.exceptions import ProductNotFoundError
-from fastdjango.core.product.services import ProductService
-from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuthFactory
-from fastdjango.core.product.delivery.fastapi.schemas import (
+from modern_python_template.core.product.exceptions import ProductNotFoundError
+from modern_python_template.core.product.services import ProductService
+from modern_python_template.core.authentication.delivery.fastapi.auth import JWTAuthFactory
+from modern_python_template.core.product.delivery.fastapi.schemas import (
     CreateProductRequestSchema,
     ProductSchema,
 )
-from fastdjango.foundation.delivery.controllers import BaseAsyncController
+from modern_python_template.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
@@ -281,11 +281,11 @@ class ProductController(BaseAsyncController):
 
 ### 9. Register the Controller
 
-Edit `src/fastdjango/entrypoints/fastapi/factories.py`:
+Edit `src/modern_python_template/entrypoints/fastapi/factories.py`:
 
 ```python
 # Add import at the top
-from fastdjango.core.product.delivery.fastapi.controllers import ProductController
+from modern_python_template.core.product.delivery.fastapi.controllers import ProductController
 
 
 @dataclass(kw_only=True)
@@ -306,13 +306,13 @@ The controller is declared as a dataclass field and auto-resolved by the IoC con
 
 ### 10. Create Admin
 
-Create `src/fastdjango/core/product/delivery/django/admin.py`:
+Create `src/modern_python_template/core/product/delivery/django/admin.py`:
 
 ```python
-# src/fastdjango/core/product/delivery/django/admin.py
+# src/modern_python_template/core/product/delivery/django/admin.py
 from django.contrib import admin
 
-from fastdjango.core.product.models import Product
+from modern_python_template.core.product.models import Product
 
 
 @admin.register(Product)
@@ -327,7 +327,7 @@ Import the admin module from the domain app config so Django registers it:
 
 ```python
 def ready(self) -> None:
-    from fastdjango.core.product.delivery.django import admin as _product_admin  # noqa: F401, PLC0415
+    from modern_python_template.core.product.delivery.django import admin as _product_admin  # noqa: F401, PLC0415
 ```
 
 ### 11. Run Migrations
@@ -348,8 +348,8 @@ from http import HTTPStatus
 
 import pytest
 
-from fastdjango.core.product.models import Product
-from fastdjango.core.user.models import User
+from modern_python_template.core.product.models import Product
+from modern_python_template.core.user.models import User
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
 
@@ -397,19 +397,19 @@ class TestProductController:
 
 | Action | File |
 |--------|------|
-| Create | `src/fastdjango/core/product/__init__.py` |
-| Create | `src/fastdjango/core/product/apps.py` |
-| Create | `src/fastdjango/core/product/models.py` |
-| Create | `src/fastdjango/core/product/exceptions.py` |
-| Create | `src/fastdjango/core/product/services.py` |
-| Create | `src/fastdjango/core/product/delivery/django/__init__.py` |
-| Create | `src/fastdjango/core/product/delivery/django/admin.py` |
-| Create | `src/fastdjango/core/product/delivery/fastapi/__init__.py` |
-| Create | `src/fastdjango/core/product/delivery/fastapi/schemas.py` |
-| Create | `src/fastdjango/core/product/delivery/fastapi/controllers.py` |
-| Modify | `src/fastdjango/infrastructure/django/settings.py` |
-| Modify | `src/fastdjango/core/product/apps.py` |
-| Modify | `src/fastdjango/entrypoints/fastapi/factories.py` |
+| Create | `src/modern_python_template/core/product/__init__.py` |
+| Create | `src/modern_python_template/core/product/apps.py` |
+| Create | `src/modern_python_template/core/product/models.py` |
+| Create | `src/modern_python_template/core/product/exceptions.py` |
+| Create | `src/modern_python_template/core/product/services.py` |
+| Create | `src/modern_python_template/core/product/delivery/django/__init__.py` |
+| Create | `src/modern_python_template/core/product/delivery/django/admin.py` |
+| Create | `src/modern_python_template/core/product/delivery/fastapi/__init__.py` |
+| Create | `src/modern_python_template/core/product/delivery/fastapi/schemas.py` |
+| Create | `src/modern_python_template/core/product/delivery/fastapi/controllers.py` |
+| Modify | `src/modern_python_template/infrastructure/django/settings.py` |
+| Modify | `src/modern_python_template/core/product/apps.py` |
+| Modify | `src/modern_python_template/entrypoints/fastapi/factories.py` |
 | Create | `tests/integration/core/product/delivery/fastapi/test_controllers.py` |
 
 ## Verification

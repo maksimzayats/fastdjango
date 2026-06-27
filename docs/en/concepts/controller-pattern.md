@@ -142,15 +142,15 @@ class UserUseCase(BaseUseCase):
 ## HTTP Controller Example
 
 ```python
-# src/fastdjango/core/user/delivery/fastapi/controllers.py
+# src/modern_python_template/core/user/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from fastdjango.core.user.use_cases import UserUseCase
-from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuthFactory
-from fastdjango.foundation.delivery.controllers import BaseAsyncController
+from modern_python_template.core.user.use_cases import UserUseCase
+from modern_python_template.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuthFactory
+from modern_python_template.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
@@ -196,11 +196,11 @@ class UserController(BaseAsyncController):
 ## Celery Task Controller Example
 
 ```python
-# src/fastdjango/core/health/delivery/celery/tasks.py
+# src/modern_python_template/core/health/delivery/celery/tasks.py
 from celery import Celery
 
-from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
-from fastdjango.infrastructure.celery.controllers import BaseCeleryTaskController
+from modern_python_template.core.health.delivery.celery.schemas import PingResultSchema
+from modern_python_template.infrastructure.celery.controllers import BaseCeleryTaskController
 
 PING_TASK_NAME = "ping"
 
@@ -247,7 +247,7 @@ async def create_user(self, *, data: CreateUserDTO) -> User:
 Controllers are injected as fields into the factory and registered with tagged routers:
 
 ```python
-# src/fastdjango/entrypoints/fastapi/factories.py
+# src/modern_python_template/entrypoints/fastapi/factories.py
 @dataclass(kw_only=True)
 class FastAPIFactory(BaseFactory):
     # Controllers are injected as fields (auto-resolved by IoC)

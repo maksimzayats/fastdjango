@@ -12,12 +12,12 @@ Create the Todo domain model and service layer.
 
 | Action | File Path |
 |--------|-----------|
-| Create | `src/fastdjango/core/todo/__init__.py` |
-| Create | `src/fastdjango/core/todo/apps.py` |
-| Create | `src/fastdjango/core/todo/models.py` |
-| Create | `src/fastdjango/core/todo/exceptions.py` |
-| Create | `src/fastdjango/core/todo/services.py` |
-| Modify | `src/fastdjango/infrastructure/django/settings.py` |
+| Create | `src/modern_python_template/core/todo/__init__.py` |
+| Create | `src/modern_python_template/core/todo/apps.py` |
+| Create | `src/modern_python_template/core/todo/models.py` |
+| Create | `src/modern_python_template/core/todo/exceptions.py` |
+| Create | `src/modern_python_template/core/todo/services.py` |
+| Modify | `src/modern_python_template/infrastructure/django/settings.py` |
 
 ## Concept Reference
 
@@ -28,11 +28,11 @@ Create the Todo domain model and service layer.
 Create the directory structure for the todo domain:
 
 ```bash
-mkdir -p src/fastdjango/core/todo
-touch src/fastdjango/core/todo/__init__.py
+mkdir -p src/modern_python_template/core/todo
+touch src/modern_python_template/core/todo/__init__.py
 ```
 
-Create `src/fastdjango/core/todo/apps.py`:
+Create `src/modern_python_template/core/todo/apps.py`:
 
 ```python
 from django.apps import AppConfig
@@ -40,19 +40,19 @@ from django.apps import AppConfig
 
 class TodoConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "fastdjango.core.todo"
+    name = "modern_python_template.core.todo"
     label = "todo"
 ```
 
 ## Step 2: Define the Todo Model
 
-Create the Django model in `src/fastdjango/core/todo/models.py`:
+Create the Django model in `src/modern_python_template/core/todo/models.py`:
 
 ```python
-# src/fastdjango/core/todo/models.py
+# src/modern_python_template/core/todo/models.py
 from django.db import models
 
-from fastdjango.core.user.models import User
+from modern_python_template.core.user.models import User
 
 
 class Todo(models.Model):
@@ -96,10 +96,10 @@ Key points:
 
 ## Step 3: Register the App
 
-Add the todo app to Django's installed apps. Edit `src/fastdjango/infrastructure/django/settings.py`:
+Add the todo app to Django's installed apps. Edit `src/modern_python_template/infrastructure/django/settings.py`:
 
 ```python
-# src/fastdjango/infrastructure/django/settings.py
+# src/modern_python_template/infrastructure/django/settings.py
 # Find the DjangoSettings class and add TodoConfig to installed_apps
 
 class DjangoSettings(BaseSettings):
@@ -114,8 +114,8 @@ class DjangoSettings(BaseSettings):
         "django.contrib.messages",
         "django.contrib.staticfiles",
         # Core apps
-        "fastdjango.core.user.apps.UserConfig",
-        "fastdjango.core.todo.apps.TodoConfig",  # Add this line
+        "modern_python_template.core.user.apps.UserConfig",
+        "modern_python_template.core.todo.apps.TodoConfig",  # Add this line
     )
 ```
 
@@ -131,7 +131,7 @@ You should see output like:
 
 ```
 Migrations for 'todo':
-  src/fastdjango/core/todo/migrations/0001_initial.py
+  src/modern_python_template/core/todo/migrations/0001_initial.py
     - Create model Todo
 ```
 
@@ -143,11 +143,11 @@ make migrate
 
 ## Step 5: Create Domain Exceptions
 
-Domain exceptions communicate specific errors. Create `src/fastdjango/core/todo/exceptions.py`:
+Domain exceptions communicate specific errors. Create `src/modern_python_template/core/todo/exceptions.py`:
 
 ```python
-# src/fastdjango/core/todo/exceptions.py
-from fastdjango.core.exceptions import ApplicationError
+# src/modern_python_template/core/todo/exceptions.py
+from modern_python_template.core.exceptions import ApplicationError
 
 
 class TodoNotFoundError(ApplicationError):
@@ -160,20 +160,20 @@ class TodoAccessDeniedError(ApplicationError):
 
 ## Step 6: Create the Todo Service
 
-Create `src/fastdjango/core/todo/services.py`:
+Create `src/modern_python_template/core/todo/services.py`:
 
 ```python
-# src/fastdjango/core/todo/services.py
+# src/modern_python_template/core/todo/services.py
 from dataclasses import dataclass
 
 from asgiref.sync import sync_to_async
 from diwire import Injected
 
-from fastdjango.core.todo.exceptions import TodoAccessDeniedError, TodoNotFoundError
-from fastdjango.foundation.services import BaseService
-from fastdjango.foundation.transactions import TransactionFactory
-from fastdjango.core.todo.models import Todo
-from fastdjango.core.user.models import User
+from modern_python_template.core.todo.exceptions import TodoAccessDeniedError, TodoNotFoundError
+from modern_python_template.foundation.services import BaseService
+from modern_python_template.foundation.transactions import TransactionFactory
+from modern_python_template.core.todo.models import Todo
+from modern_python_template.core.user.models import User
 
 
 @dataclass(kw_only=True)
@@ -443,9 +443,9 @@ import asyncio
 
 from asgiref.sync import sync_to_async
 
-from fastdjango.core.user.models import User
-from fastdjango.core.todo.services import TodoService
-from fastdjango.infrastructure.django.transactions import DjangoTransactionFactory
+from modern_python_template.core.user.models import User
+from modern_python_template.core.todo.services import TodoService
+from modern_python_template.infrastructure.django.transactions import DjangoTransactionFactory
 
 
 async def main() -> None:
@@ -464,7 +464,7 @@ async def main() -> None:
     # Create a todo
     todo = await service.create_todo(
         user=user,
-        title="Learn Fast Django",
+        title="Learn modern-python-template",
         description="Complete the tutorial",
     )
     print(f"Created: {todo.title}")

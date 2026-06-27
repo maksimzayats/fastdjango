@@ -38,7 +38,7 @@ docs/en/
 ## Code Layout The Docs Describe
 
 ```
-src/fastdjango/
+src/modern_python_template/
 ├── core/                 # Domain apps, models, use cases, services, delivery
 ├── foundation/           # Base classes and shared contracts
 ├── infrastructure/       # Django, logging, telemetry, throttling

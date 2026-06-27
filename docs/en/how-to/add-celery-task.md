@@ -23,19 +23,19 @@ Add a new Celery task for background processing.
 
 ### 1. Create Task Controller
 
-Create `src/fastdjango/core/email/delivery/celery/send_email.py`:
+Create `src/modern_python_template/core/email/delivery/celery/send_email.py`:
 
 ```python
-# src/fastdjango/core/email/delivery/celery/send_email.py
+# src/modern_python_template/core/email/delivery/celery/send_email.py
 from dataclasses import dataclass
 
 from celery import Celery
 from diwire import Injected
 
-from fastdjango.core.email.services import EmailService
-from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
-from fastdjango.core.user.use_cases import UserUseCase
-from fastdjango.infrastructure.celery.controllers import BaseCeleryTaskController
+from modern_python_template.core.email.services import EmailService
+from modern_python_template.foundation.delivery.celery.schemas import BaseCelerySchema
+from modern_python_template.core.user.use_cases import UserUseCase
+from modern_python_template.infrastructure.celery.controllers import BaseCeleryTaskController
 
 SEND_EMAIL_TASK_NAME = "email.send"
 
@@ -86,14 +86,14 @@ class SendEmailTaskController(BaseCeleryTaskController):
 
 ### 2. Add Task Name to the Registry
 
-Edit `src/fastdjango/entrypoints/celery/registry.py`:
+Edit `src/modern_python_template/entrypoints/celery/registry.py`:
 
 ```python
-# src/fastdjango/entrypoints/celery/registry.py
+# src/modern_python_template/entrypoints/celery/registry.py
 from enum import StrEnum
 
-from fastdjango.core.email.delivery.celery.send_email import SEND_EMAIL_TASK_NAME
-from fastdjango.core.health.delivery.celery.tasks import PING_TASK_NAME
+from modern_python_template.core.email.delivery.celery.send_email import SEND_EMAIL_TASK_NAME
+from modern_python_template.core.health.delivery.celery.tasks import PING_TASK_NAME
 
 
 class TaskName(StrEnum):
@@ -105,12 +105,12 @@ This keeps domain task modules independent from the entrypoint registry.
 
 ### 3. Register Task Controller
 
-Edit `src/fastdjango/entrypoints/celery/factories.py`:
+Edit `src/modern_python_template/entrypoints/celery/factories.py`:
 
 ```python
-# src/fastdjango/entrypoints/celery/factories.py
+# src/modern_python_template/entrypoints/celery/factories.py
 # Add import
-from fastdjango.core.email.delivery.celery.send_email import SendEmailTaskController
+from modern_python_template.core.email.delivery.celery.send_email import SendEmailTaskController
 
 
 @dataclass(kw_only=True)
@@ -141,8 +141,8 @@ Controllers are declared as dataclass fields and auto-resolved by the IoC contai
 For type-safe task access, add to `TasksRegistry`:
 
 ```python
-# src/fastdjango/entrypoints/celery/registry.py
-from fastdjango.infrastructure.celery.registry import BaseTasksRegistry, CeleryTask
+# src/modern_python_template/entrypoints/celery/registry.py
+from modern_python_template.infrastructure.celery.registry import BaseTasksRegistry, CeleryTask
 
 
 class TasksRegistry(BaseTasksRegistry):
@@ -180,7 +180,7 @@ class UserUseCase(BaseUseCase):
 
 ### 6. Schedule the Task (Optional)
 
-For periodic tasks, add to beat schedule in `src/fastdjango/entrypoints/celery/factories.py`:
+For periodic tasks, add to beat schedule in `src/modern_python_template/entrypoints/celery/factories.py`:
 
 ```python
 from celery.schedules import crontab
@@ -222,8 +222,8 @@ from unittest.mock import AsyncMock
 import pytest
 from diwire import Container
 
-from fastdjango.core.email.services import EmailService
-from fastdjango.core.user.models import User
+from modern_python_template.core.email.services import EmailService
+from modern_python_template.core.user.models import User
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
     TestTasksRegistryFactory,
@@ -314,7 +314,7 @@ async def send_notification(self, user_id: int) -> NotifyResultSchema:
 ### Use BaseCelerySchema for Results
 
 ```python
-from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
+from modern_python_template.foundation.delivery.celery.schemas import BaseCelerySchema
 
 
 class ProcessResultSchema(BaseCelerySchema):
@@ -327,9 +327,9 @@ class ProcessResultSchema(BaseCelerySchema):
 
 | Action | File |
 |--------|------|
-| Modify | `src/fastdjango/entrypoints/celery/registry.py` |
-| Create | `src/fastdjango/core/email/delivery/celery/send_email.py` |
-| Modify | `src/fastdjango/entrypoints/celery/factories.py` |
+| Modify | `src/modern_python_template/entrypoints/celery/registry.py` |
+| Create | `src/modern_python_template/core/email/delivery/celery/send_email.py` |
+| Modify | `src/modern_python_template/entrypoints/celery/factories.py` |
 | Create | `tests/integration/core/email/delivery/celery/test_send_email.py` |
 
 ## Verification
@@ -338,8 +338,8 @@ class ProcessResultSchema(BaseCelerySchema):
 2. Trigger task in shell:
 
 ```python
-from fastdjango.ioc.container import get_container
-from fastdjango.entrypoints.celery.registry import TasksRegistry
+from modern_python_template.ioc.container import get_container
+from modern_python_template.entrypoints.celery.registry import TasksRegistry
 
 container = get_container()
 registry = container.resolve(TasksRegistry)

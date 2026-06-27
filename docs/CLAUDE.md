@@ -98,8 +98,8 @@ Use MkDocs Material admonitions for callouts:
 Always specify the language and include file path comments for context:
 
 ```python
-# src/fastdjango/core/todo/exceptions.py
-from fastdjango.core.exceptions import ApplicationError
+# src/modern_python_template/core/todo/exceptions.py
+from modern_python_template.core.exceptions import ApplicationError
 
 class TodoNotFoundError(ApplicationError):
     """Raised when a todo item cannot be found."""
@@ -120,8 +120,8 @@ In tutorials, use tables to show which files are created/modified:
 ```markdown
 | Action | File Path |
 |--------|-----------|
-| Create | `src/fastdjango/core/todo/models.py` |
-| Modify | `src/fastdjango/entrypoints/fastapi/factories.py` |
+| Create | `src/modern_python_template/core/todo/models.py` |
+| Modify | `src/modern_python_template/entrypoints/fastapi/factories.py` |
 ```
 
 ## Tutorial-Specific Guidelines
@@ -344,7 +344,7 @@ Key patterns:
 | Element | Convention |
 |---------|------------|
 | Headings | Title Case for H1, Sentence case for H2+ |
-| Code paths | Backticks: `src/fastdjango/core/todo/` |
+| Code paths | Backticks: `src/modern_python_template/core/todo/` |
 | Commands | Code blocks with `bash` language |
 | Python code | Include file path as comment |
 | Lists | Use `-` for unordered, `1.` for ordered |

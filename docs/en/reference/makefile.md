@@ -2,19 +2,6 @@
 
 Quick reference for all development commands.
 
-## Setup
-
-| Command | Description |
-|---------|-------------|
-| `make setup` | Run the one-time template setup wizard |
-
-### Examples
-
-```bash
-# Preview planned setup changes
-make setup ARGS="--dry-run"
-```
-
 ## Development
 
 | Command | Description |
@@ -99,30 +86,12 @@ make docs-build
 
 Runs:
 ```bash
-uv run uvicorn fastdjango.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn modern_python_template.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - Hot reloading enabled
 - Accessible at http://localhost:8000
 - API docs at http://localhost:8000/docs
-
-### `make setup`
-
-Runs:
-```bash
-uv run --group setup python -m management.setup_wizard $(ARGS)
-```
-
-- Renames the checkout folder to the project slug, then renames the project and Python package
-- Writes `.env` and updates committed environment examples
-- Configures SQLite, local Docker PostgreSQL, or remote PostgreSQL
-- Configures local Docker Redis or remote Redis
-- Configures local filesystem, local MinIO, or remote S3-compatible storage
-- Rewrites the README for the generated app
-- Sets optional public origins, repository metadata, ports, and Logfire defaults
-- Infers repository metadata from GitHub template checkouts and preserves their `origin`
-- Can reinitialize Git for direct template clones, set `origin` from the repository URL, and create a generated setup commit
-- Can remove template docs and setup-only files
 
 ### `make update-dependencies`
 
@@ -156,7 +125,7 @@ OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run watchmedo auto-restart \
     --directory=src \
     --pattern='*.py' \
     --recursive \
-    -- celery -A fastdjango.entrypoints.celery.app worker --loglevel=DEBUG
+    -- celery -A modern_python_template.entrypoints.celery.app worker --loglevel=DEBUG
 ```
 
 - Processes background tasks
@@ -171,7 +140,7 @@ uv run watchmedo auto-restart \
     --directory=src \
     --pattern='*.py' \
     --recursive \
-    -- celery -A fastdjango.entrypoints.celery.app beat --loglevel=DEBUG
+    -- celery -A modern_python_template.entrypoints.celery.app beat --loglevel=DEBUG
 ```
 
 - Schedules periodic tasks
@@ -256,13 +225,12 @@ uv run mkdocs build -f docs/mkdocs.yml
 ### Starting Fresh
 
 ```bash
-# Customize the template and generate .env
-make setup
+# First create the generated project with PROMPT_TEMPLATE.md and an LLM agent.
 
 # Install dependencies
 uv sync --locked --all-groups
 
-# Start local infrastructure for the choices made in setup
+# Start local infrastructure for the capabilities kept in the generated project
 docker compose up -d postgres redis
 
 # If you selected local MinIO storage

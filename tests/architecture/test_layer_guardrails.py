@@ -13,21 +13,21 @@ from tests.architecture._source import (
 
 CORE_DELIVERY_IMPORT_EXEMPTIONS = {
     (
-        Path("src/fastdjango/core/user/apps.py"),
-        "fastdjango.core.user.delivery.django",
+        Path("src/modern_python_template/core/user/apps.py"),
+        "modern_python_template.core.user.delivery.django",
     ),
 }
 CORE_INTERNAL_IMPORT_EXEMPTIONS = {
     (
-        Path("src/fastdjango/core/health/use_cases.py"),
-        "fastdjango.entrypoints.celery.registry",
+        Path("src/modern_python_template/core/health/use_cases.py"),
+        "modern_python_template.entrypoints.celery.registry",
     ),
 }
 ASYNC_TO_SYNC_ALLOWED_PATHS = {
-    Path("src/fastdjango/infrastructure/celery/controllers.py"),
+    Path("src/modern_python_template/infrastructure/celery/controllers.py"),
 }
 SYNC_CELERY_DELAY_ALLOWED_PATHS = {
-    Path("src/fastdjango/infrastructure/celery/registry.py"),
+    Path("src/modern_python_template/infrastructure/celery/registry.py"),
 }
 ENVIRONMENT_ACCESS_FILE_NAMES = {"configurator.py", "manage.py", "settings.py"}
 ROUTE_DECORATOR_NAMES = {
@@ -70,8 +70,8 @@ TASK_REGISTRY_DEPENDENCY_NAMES = {
     "TasksRegistryFactory",
 }
 TASK_REGISTRY_MODULE_NAMES = {
-    "fastdjango.entrypoints.celery.factories",
-    "fastdjango.entrypoints.celery.registry",
+    "modern_python_template.entrypoints.celery.factories",
+    "modern_python_template.entrypoints.celery.registry",
 }
 
 
@@ -84,10 +84,10 @@ def test_foundation_layer_has_no_outward_dependencies() -> None:
         if not import_reference.is_type_checking
         if import_reference.module_name.startswith(
             (
-                "fastdjango.core",
-                "fastdjango.entrypoints",
-                "fastdjango.infrastructure",
-                "fastdjango.ioc",
+                "modern_python_template.core",
+                "modern_python_template.entrypoints",
+                "modern_python_template.infrastructure",
+                "modern_python_template.ioc",
             ),
         )
     ]
@@ -134,7 +134,7 @@ def test_infrastructure_does_not_depend_on_domain_delivery_or_entrypoints() -> N
         for import_reference in iter_imports(module)
         if not import_reference.is_type_checking
         if _is_core_delivery_module(import_reference.module_name)
-        or import_reference.module_name.startswith("fastdjango.entrypoints")
+        or import_reference.module_name.startswith("modern_python_template.entrypoints")
     ]
 
     assert violations == [], (
@@ -276,7 +276,7 @@ def test_container_access_stays_in_composition_roots() -> None:
         if not _can_access_container(module)
         for import_reference in iter_imports(module)
         if not import_reference.is_type_checking
-        if import_reference.module_name.startswith("fastdjango.ioc")
+        if import_reference.module_name.startswith("modern_python_template.ioc")
     )
 
     assert violations == [], "Only composition roots may access the IoC container."
@@ -507,7 +507,7 @@ def test_task_registry_usage_stays_in_behavior_or_composition_roots() -> None:
         if not _can_use_task_registry(module)
         for import_reference in iter_imports(module)
         if not import_reference.is_type_checking
-        if import_reference.module_name == "fastdjango.entrypoints.celery.registry"
+        if import_reference.module_name == "modern_python_template.entrypoints.celery.registry"
     ]
     violations.extend(
         (
@@ -693,7 +693,11 @@ def _is_forbidden_core_internal_import(module: SourceModule, module_name: str) -
         return False
 
     if module_name.startswith(
-        ("fastdjango.entrypoints", "fastdjango.infrastructure", "fastdjango.ioc"),
+        (
+            "modern_python_template.entrypoints",
+            "modern_python_template.infrastructure",
+            "modern_python_template.ioc",
+        ),
     ):
         return True
 
@@ -715,7 +719,7 @@ def _is_forbidden_domain_logic_delivery_import(
 
 
 def _is_core_delivery_module(module_name: str) -> bool:
-    return module_name.startswith("fastdjango.core.") and ".delivery." in module_name
+    return module_name.startswith("modern_python_template.core.") and ".delivery." in module_name
 
 
 def _is_exempt_core_delivery_import(module: SourceModule, module_name: str) -> bool:
@@ -737,7 +741,7 @@ def _is_same_domain_django_admin_import_from_app_config(
         return False
 
     domain_name = module.source_parts[1]
-    return module_name == f"fastdjango.core.{domain_name}.delivery.django"
+    return module_name == f"modern_python_template.core.{domain_name}.delivery.django"
 
 
 def _is_exempt_core_internal_import(module: SourceModule, module_name: str) -> bool:
@@ -791,10 +795,10 @@ def _is_delivery_framework_module(module: SourceModule, framework_name: str) -> 
 
 
 def _imports_concrete_core_domain(module_name: str) -> bool:
-    if not module_name.startswith("fastdjango.core."):
+    if not module_name.startswith("modern_python_template.core."):
         return False
 
-    domain_name = module_name.removeprefix("fastdjango.core.").split(".", maxsplit=1)[0]
+    domain_name = module_name.removeprefix("modern_python_template.core.").split(".", maxsplit=1)[0]
     return domain_name not in {"exceptions", "shared"}
 
 
@@ -828,7 +832,9 @@ def _is_django_model_module(module: SourceModule) -> bool:
 
 
 def _is_forbidden_django_model_import(module_name: str) -> bool:
-    if module_name.startswith(("fastdjango.entrypoints", "fastdjango.infrastructure")):
+    if module_name.startswith(
+        ("modern_python_template.entrypoints", "modern_python_template.infrastructure"),
+    ):
         return True
 
     if ".delivery." in module_name:
@@ -837,7 +843,7 @@ def _is_forbidden_django_model_import(module_name: str) -> bool:
     parts = module_name.split(".")
     return (
         len(parts) > 3
-        and parts[0] == "fastdjango"
+        and parts[0] == "modern_python_template"
         and parts[1] == "core"
         and any(part in {"services", "use_cases"} for part in parts[3:])
     )

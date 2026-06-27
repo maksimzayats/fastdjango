@@ -16,7 +16,7 @@ Use factories when:
 The most common factory in this project is `JWTAuthFactory`:
 
 ```python
-# src/fastdjango/core/authentication/delivery/fastapi/auth.py
+# src/modern_python_template/core/authentication/delivery/fastapi/auth.py
 from dataclasses import dataclass
 
 
@@ -95,7 +95,7 @@ Auth dependencies are created in `__post_init__` and stored as instance attribut
 The `FastAPIFactory` creates the entire FastAPI application:
 
 ```python
-# src/fastdjango/entrypoints/fastapi/factories.py
+# src/modern_python_template/entrypoints/fastapi/factories.py
 @dataclass(kw_only=True)
 class FastAPIFactory(BaseFactory):
     _application_settings: ApplicationSettings
@@ -237,7 +237,7 @@ container.add_factory_class(TasksRegistryFactory, provides=TasksRegistry)
 ## CeleryAppFactory Example
 
 ```python
-# src/fastdjango/entrypoints/celery/factories.py
+# src/modern_python_template/entrypoints/celery/factories.py
 @dataclass(kw_only=True)
 class CeleryAppFactory(BaseFactory):
     """Factory for creating Celery applications."""

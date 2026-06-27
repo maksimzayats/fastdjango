@@ -1,7 +1,7 @@
 import pytest
 from pydantic import SecretStr
 
-from fastdjango.core.authentication.services.jwt import JWTService, JWTServiceSettings
+from modern_python_template.core.authentication.services.jwt import JWTService, JWTServiceSettings
 
 _SECRET_KEY = "test-secret-key-with-enough-bytes"  # noqa: S105
 _INVALID_TOKEN = "not-a-jwt"  # noqa: S105

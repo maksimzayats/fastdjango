@@ -18,7 +18,7 @@ DTO_FORBIDDEN_IMPORT_PREFIXES = (
     "fastapi",
     "starlette",
     "celery",
-    "fastdjango.infrastructure",
+    "modern_python_template.infrastructure",
 )
 
 

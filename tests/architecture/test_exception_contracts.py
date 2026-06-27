@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SOURCE_ROOT = REPO_ROOT / "src" / "fastdjango"
+SOURCE_ROOT = REPO_ROOT / "src" / "modern_python_template"
 
 SERVICE_AND_USE_CASE_BASES = {"BaseService", "BaseUseCase"}
 EXCEPTION_NAME_SUFFIXES = ("Error", "Exception", "_ERROR", "_EXCEPTION")
@@ -406,7 +406,9 @@ def _is_exception_name(name: str) -> bool:
 
 
 def _is_domain_exception_module(module_name: str) -> bool:
-    return module_name.startswith("fastdjango.core.") and module_name.endswith(".exceptions")
+    return module_name.startswith("modern_python_template.core.") and module_name.endswith(
+        ".exceptions",
+    )
 
 
 class _ExceptionClass(NamedTuple):

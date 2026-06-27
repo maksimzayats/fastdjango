@@ -3,7 +3,7 @@ from typing import Any
 
 from diwire import Container
 
-from fastdjango.foundation.factories import BaseFactory
+from modern_python_template.foundation.factories import BaseFactory
 
 
 class BaseTestFactory(BaseFactory, ABC):

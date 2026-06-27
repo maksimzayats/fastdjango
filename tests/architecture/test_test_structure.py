@@ -1,7 +1,7 @@
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SOURCE_ROOT = REPO_ROOT / "src" / "fastdjango"
+SOURCE_ROOT = REPO_ROOT / "src" / "modern_python_template"
 TESTS_ROOT = REPO_ROOT / "tests"
 
 MIRRORED_TEST_LAYER_NAMES = ("integration", "unit")

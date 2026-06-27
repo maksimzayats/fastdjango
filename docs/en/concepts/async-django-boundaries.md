@@ -11,8 +11,8 @@ bridge.
 Async code may do non-transactional ORM reads with Django's async ORM methods:
 
 ```python
-# src/fastdjango/core/user/use_cases.py
-from fastdjango.core.user.models import User
+# src/modern_python_template/core/user/use_cases.py
+from modern_python_template.core.user.models import User
 
 
 async def get_user_by_id(self, *, user_id: int) -> User | None:
@@ -24,15 +24,15 @@ If a workflow needs a transaction, keep it in a small sync method and call it
 from async orchestration with `sync_to_async(..., thread_sensitive=True)`:
 
 ```python
-# src/fastdjango/core/user/use_cases.py
+# src/modern_python_template/core/user/use_cases.py
 from asgiref.sync import sync_to_async
 from django.contrib.auth.hashers import make_password
 from diwire import Injected
 
-from fastdjango.core.user.dtos import CreateUserDTO
-from fastdjango.core.user.models import User
-from fastdjango.foundation.transactions import TransactionFactory
-from fastdjango.foundation.use_cases import BaseUseCase
+from modern_python_template.core.user.dtos import CreateUserDTO
+from modern_python_template.core.user.models import User
+from modern_python_template.foundation.transactions import TransactionFactory
+from modern_python_template.foundation.use_cases import BaseUseCase
 
 
 class UserUseCase(BaseUseCase):

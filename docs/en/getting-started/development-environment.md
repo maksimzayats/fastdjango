@@ -101,13 +101,8 @@ Create `.vscode/settings.json`:
 
 ### Local development
 
-The setup wizard writes `.env` for the database, Redis, storage, and public
-origin choices you made:
-
-```bash
-# Makefile
-make setup
-```
+The prompt template asks the LLM coding agent to write `.env` for the database,
+Redis, storage, and public origin capabilities kept in the generated project.
 
 The `.env.example` file stays committed as a reference. Key variables for
 development:
@@ -149,7 +144,7 @@ back to the committed `.env.test.example` defaults.
 # Makefile
 # FastAPI HTTP API
 make dev
-# Equivalent to: uv run uvicorn fastdjango.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
+# Equivalent to: uv run uvicorn modern_python_template.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
 
 # Celery worker
 make celery-dev
@@ -232,8 +227,8 @@ LOGGING_LEVEL=DEBUG make dev
 For detailed Celery logs:
 
 ```bash
-# src/fastdjango/entrypoints/celery/app.py
-uv run celery -A fastdjango.entrypoints.celery.app worker --loglevel=debug
+# src/modern_python_template/entrypoints/celery/app.py
+uv run celery -A modern_python_template.entrypoints.celery.app worker --loglevel=debug
 ```
 
 ## Docker development

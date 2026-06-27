@@ -46,7 +46,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from fastdjango.core.payment.services import PaymentService
+from modern_python_template.core.payment.services import PaymentService
 from tests.integration.factories import TestClientFactory
 
 
@@ -106,8 +106,8 @@ def test_product_with_mock_inventory(
 ### Mock to Raise Exceptions
 
 ```python
-from fastdjango.core.email.exceptions import EmailDeliveryError
-from fastdjango.core.email.services import EmailService
+from modern_python_template.core.email.exceptions import EmailDeliveryError
+from modern_python_template.core.email.services import EmailService
 
 
 @pytest.mark.django_db(transaction=True)
@@ -136,7 +136,7 @@ def test_handles_email_failure(
 ### Mock Settings
 
 ```python
-from fastdjango.core.feature.settings import FeatureSettings
+from modern_python_template.core.feature.settings import FeatureSettings
 
 
 @pytest.mark.django_db(transaction=True)

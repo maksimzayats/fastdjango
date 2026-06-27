@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from fastdjango.core.product.services import ProductService
+from modern_python_template.core.product.services import ProductService
 from tests.integration.factories import TestClientFactory
 
 

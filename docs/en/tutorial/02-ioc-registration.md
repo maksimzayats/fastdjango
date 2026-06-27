@@ -14,7 +14,7 @@ Understand how the dependency injection container wires services automatically w
 
 ## Container Creation
 
-The container is created in `src/fastdjango/ioc/container.py`:
+The container is created in `src/modern_python_template/ioc/container.py`:
 
 ```python
 from diwire import Container, DependencyRegistrationPolicy, MissingPolicy
@@ -69,8 +69,8 @@ assert service is not None
 The HTTP app resolves the factory by type from the bootstrap container:
 
 ```python
-from fastdjango.entrypoints.fastapi.bootstrap import container
-from fastdjango.entrypoints.fastapi.factories import FastAPIFactory
+from modern_python_template.entrypoints.fastapi.bootstrap import container
+from modern_python_template.entrypoints.fastapi.factories import FastAPIFactory
 
 api_factory = container.resolve(FastAPIFactory)
 ```

@@ -1306,7 +1306,7 @@ def _github_json(*, url: str) -> Any | None:
         url=url,
         headers={
             "Accept": "application/vnd.github+json",
-            "User-Agent": "fastdjango-dependency-updater",
+            "User-Agent": "modern-python-template-dependency-updater",
         },
     )
     if response is None:

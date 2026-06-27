@@ -1,7 +1,7 @@
-.PHONY: dev makemigrations migrate collectstatic setup update-dependencies format lint test celery-dev celery-beat-dev docs docs-build
+.PHONY: dev makemigrations migrate collectstatic update-dependencies format lint test celery-dev celery-beat-dev docs docs-build
 
 dev:
-	uv run uvicorn fastdjango.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
+	uv run uvicorn modern_python_template.entrypoints.fastapi.app:app --reload --host 0.0.0.0 --port 8000
 
 makemigrations:
 	uv run python management/manage.py makemigrations
@@ -11,9 +11,6 @@ migrate:
 
 collectstatic:
 	uv run python management/manage.py collectstatic --no-input
-
-setup:
-	uv run --group setup python -m management.setup_wizard $(ARGS)
 
 update-dependencies:
 	uv run python -m management.dependency_updater $(ARGS)
@@ -32,14 +29,14 @@ celery-dev:
 		--directory=src \
 		--pattern='*.py' \
 		--recursive \
-		-- celery -A fastdjango.entrypoints.celery.app worker --loglevel=DEBUG
+		-- celery -A modern_python_template.entrypoints.celery.app worker --loglevel=DEBUG
 
 celery-beat-dev:
 	uv run watchmedo auto-restart \
 		--directory=src \
 		--pattern='*.py' \
 		--recursive \
-		-- celery -A fastdjango.entrypoints.celery.app beat --loglevel=DEBUG
+		-- celery -A modern_python_template.entrypoints.celery.app beat --loglevel=DEBUG
 
 docs:
 	uv run mkdocs serve --livereload -f docs/mkdocs.yml

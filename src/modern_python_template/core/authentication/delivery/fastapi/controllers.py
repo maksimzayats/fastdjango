@@ -1,0 +1,134 @@
+from dataclasses import dataclass
+from http import HTTPStatus
+from typing import Any
+
+from diwire import Injected
+from fastapi import APIRouter, Depends, HTTPException, Request
+from throttled import rate_limiter
+
+from modern_python_template.core.authentication.delivery.fastapi.auth import (
+    AuthenticatedRequest,
+    JWTAuthFactory,
+)
+from modern_python_template.core.authentication.delivery.fastapi.schemas import (
+    IssueTokenRequestSchema,
+    RefreshTokenRequestSchema,
+    TokenResponseSchema,
+)
+from modern_python_template.core.authentication.delivery.fastapi.throttling import (
+    UserThrottlerFactory,
+)
+from modern_python_template.core.authentication.dtos import TokenRequestContextDTO
+from modern_python_template.core.authentication.use_cases import TokenUseCase
+from modern_python_template.core.shared.delivery.fastapi.request import RequestInfoService
+from modern_python_template.core.shared.delivery.fastapi.throttling import IPThrottlerFactory
+from modern_python_template.foundation.delivery.controllers import BaseAsyncController
+
+
+@dataclass(kw_only=True)
+class AuthenticationTokenController(BaseAsyncController):
+    _jwt_auth_factory: Injected[JWTAuthFactory]
+    _request_info_service: Injected[RequestInfoService]
+    _ip_throttler_factory: Injected[IPThrottlerFactory]
+    _user_throttler_factory: Injected[UserThrottlerFactory]
+    _token_use_case: Injected[TokenUseCase]
+
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
+        super().__post_init__()
+
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
+            path="/v1/auth/token",
+            endpoint=self.issue_token,
+            methods=["POST"],
+            dependencies=[
+                Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
+            ],
+            response_model=TokenResponseSchema,
+        )
+
+        registry.add_api_route(
+            path="/v1/auth/token/refresh",
+            endpoint=self.refresh_token,
+            methods=["POST"],
+            dependencies=[
+                Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
+            ],
+            response_model=TokenResponseSchema,
+        )
+
+        registry.add_api_route(
+            path="/v1/auth/token/revoke",
+            endpoint=self.revoke_token,
+            methods=["POST"],
+            dependencies=[
+                Depends(self._jwt_auth),
+                Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
+                Depends(self._user_throttler_factory(quota=rate_limiter.per_min(10))),
+            ],
+        )
+
+    async def issue_token(
+        self,
+        request: Request,
+        body: IssueTokenRequestSchema,
+    ) -> TokenResponseSchema:
+        token = await self._token_use_case.issue_token(
+            data=body,
+            context=TokenRequestContextDTO(
+                user_agent=self._request_info_service.get_user_agent(request=request),
+                ip_address_trace=self._request_info_service.get_user_ip_trace(
+                    request=request,
+                ),
+            ),
+        )
+
+        return TokenResponseSchema.model_validate(token)
+
+    async def refresh_token(
+        self,
+        body: RefreshTokenRequestSchema,
+    ) -> TokenResponseSchema:
+        token = await self._token_use_case.refresh_token(
+            data=body,
+        )
+
+        return TokenResponseSchema.model_validate(token)
+
+    async def revoke_token(
+        self,
+        request: AuthenticatedRequest,
+        body: RefreshTokenRequestSchema,
+    ) -> None:
+        await self._token_use_case.revoke_token(
+            data=body,
+            user=request.state.user,
+        )
+
+    async def handle_exception(self, exception: Exception) -> Any:
+        if isinstance(exception, TokenUseCase.INVALID_CREDENTIALS_ERROR):
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail="Invalid username or password",
+            ) from exception
+
+        if isinstance(exception, TokenUseCase.INVALID_REFRESH_TOKEN_ERROR):
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail="Invalid refresh token",
+            ) from exception
+
+        if isinstance(exception, TokenUseCase.EXPIRED_REFRESH_TOKEN_ERROR):
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail="Refresh token expired or revoked",
+            ) from exception
+
+        if isinstance(exception, TokenUseCase.REFRESH_TOKEN_ERROR):
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail="Refresh token error",
+            ) from exception
+
+        return await super().handle_exception(exception)

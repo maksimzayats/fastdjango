@@ -13,12 +13,12 @@ Expose the Todo service via REST API with JWT authentication.
 
 | Action | File Path |
 |--------|-----------|
-| Create | `src/fastdjango/core/todo/delivery/fastapi/__init__.py` |
-| Create | `src/fastdjango/core/todo/delivery/fastapi/schemas.py` |
-| Create | `src/fastdjango/core/todo/delivery/fastapi/controllers.py` |
-| Create | `src/fastdjango/core/todo/delivery/django/__init__.py` |
-| Create | `src/fastdjango/core/todo/delivery/django/admin.py` |
-| Modify | `src/fastdjango/entrypoints/fastapi/factories.py` |
+| Create | `src/modern_python_template/core/todo/delivery/fastapi/__init__.py` |
+| Create | `src/modern_python_template/core/todo/delivery/fastapi/schemas.py` |
+| Create | `src/modern_python_template/core/todo/delivery/fastapi/controllers.py` |
+| Create | `src/modern_python_template/core/todo/delivery/django/__init__.py` |
+| Create | `src/modern_python_template/core/todo/delivery/django/admin.py` |
+| Modify | `src/modern_python_template/entrypoints/fastapi/factories.py` |
 
 ## Concept Reference
 
@@ -27,23 +27,23 @@ Expose the Todo service via REST API with JWT authentication.
 ## Step 1: Create the Directory Structure
 
 ```bash
-mkdir -p src/fastdjango/core/todo/delivery/fastapi
-touch src/fastdjango/core/todo/delivery/fastapi/__init__.py
-mkdir -p src/fastdjango/core/todo/delivery/django
-touch src/fastdjango/core/todo/delivery/django/__init__.py
+mkdir -p src/modern_python_template/core/todo/delivery/fastapi
+touch src/modern_python_template/core/todo/delivery/fastapi/__init__.py
+mkdir -p src/modern_python_template/core/todo/delivery/django
+touch src/modern_python_template/core/todo/delivery/django/__init__.py
 ```
 
 ## Step 2: Define Pydantic Schemas
 
-Create request and response schemas in `src/fastdjango/core/todo/delivery/fastapi/schemas.py`:
+Create request and response schemas in `src/modern_python_template/core/todo/delivery/fastapi/schemas.py`:
 
 ```python
-# src/fastdjango/core/todo/delivery/fastapi/schemas.py
+# src/modern_python_template/core/todo/delivery/fastapi/schemas.py
 from datetime import datetime
 
 from pydantic import Field
 
-from fastdjango.foundation.delivery.fastapi.schemas import BaseFastAPISchema
+from modern_python_template.foundation.delivery.fastapi.schemas import BaseFastAPISchema
 
 
 class CreateTodoRequestSchema(BaseFastAPISchema):
@@ -88,33 +88,33 @@ Key points:
 
 ## Step 3: Create the Controller
 
-Create `src/fastdjango/core/todo/delivery/fastapi/controllers.py`:
+Create `src/modern_python_template/core/todo/delivery/fastapi/controllers.py`:
 
 ```python
-# src/fastdjango/core/todo/delivery/fastapi/controllers.py
+# src/modern_python_template/core/todo/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from fastdjango.core.todo.exceptions import (
+from modern_python_template.core.todo.exceptions import (
     TodoAccessDeniedError,
     TodoNotFoundError,
 )
-from fastdjango.core.todo.services import (
+from modern_python_template.core.todo.services import (
     TodoService,
 )
-from fastdjango.core.authentication.delivery.fastapi.auth import (
+from modern_python_template.core.authentication.delivery.fastapi.auth import (
     AuthenticatedRequest,
     JWTAuthFactory,
 )
-from fastdjango.core.todo.delivery.fastapi.schemas import (
+from modern_python_template.core.todo.delivery.fastapi.schemas import (
     CreateTodoRequestSchema,
     TodoListSchema,
     TodoSchema,
     UpdateTodoRequestSchema,
 )
-from fastdjango.foundation.delivery.controllers import BaseAsyncController
+from modern_python_template.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
@@ -304,12 +304,12 @@ Override `handle_exception` to map domain exceptions to HTTP responses:
 
 ## Step 4: Register the Controller
 
-Modify `src/fastdjango/entrypoints/fastapi/factories.py` to include the TodoController:
+Modify `src/modern_python_template/entrypoints/fastapi/factories.py` to include the TodoController:
 
 ```python
-# src/fastdjango/entrypoints/fastapi/factories.py
+# src/modern_python_template/entrypoints/fastapi/factories.py
 # Add this import at the top
-from fastdjango.core.todo.delivery.fastapi.controllers import TodoController
+from modern_python_template.core.todo.delivery.fastapi.controllers import TodoController
 
 
 @dataclass(kw_only=True)
@@ -330,13 +330,13 @@ The controller is declared as a dataclass field and auto-resolved by the IoC con
 
 ## Step 5: Register with Django Admin
 
-Create `src/fastdjango/core/todo/delivery/django/admin.py`:
+Create `src/modern_python_template/core/todo/delivery/django/admin.py`:
 
 ```python
-# src/fastdjango/core/todo/delivery/django/admin.py
+# src/modern_python_template/core/todo/delivery/django/admin.py
 from django.contrib import admin
 
-from fastdjango.core.todo.models import Todo
+from modern_python_template.core.todo.models import Todo
 
 
 @admin.register(Todo)
@@ -356,9 +356,9 @@ class TodoAdmin(admin.ModelAdmin):
 Import the admin module from `TodoConfig.ready()` so Django registers it:
 
 ```python
-# src/fastdjango/core/todo/apps.py
+# src/modern_python_template/core/todo/apps.py
 def ready(self) -> None:
-    from fastdjango.core.todo.delivery.django import admin as _todo_admin  # noqa: F401, PLC0415
+    from modern_python_template.core.todo.delivery.django import admin as _todo_admin  # noqa: F401, PLC0415
 ```
 
 ## Verification
@@ -393,7 +393,7 @@ curl -X POST http://localhost:8000/v1/auth/token \
 curl -X POST http://localhost:8000/v1/todos \
   -H "Authorization: Bearer <your-access-token>" \
   -H "Content-Type: application/json" \
-  -d '{"title": "Learn Fast Django", "description": "Complete the tutorial"}'
+  -d '{"title": "Learn modern-python-template", "description": "Complete the tutorial"}'
 ```
 
 5. List todos:

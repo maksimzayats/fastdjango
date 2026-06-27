@@ -2,9 +2,9 @@ from http import HTTPStatus
 
 import pytest
 
-from fastdjango.core.authentication.delivery.fastapi.schemas import TokenResponseSchema
-from fastdjango.core.user.delivery.fastapi.schemas import UserSchema
-from fastdjango.core.user.models import User
+from modern_python_template.core.authentication.delivery.fastapi.schemas import TokenResponseSchema
+from modern_python_template.core.user.delivery.fastapi.schemas import UserSchema
+from modern_python_template.core.user.models import User
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
 _TEST_PASSWORD = "test-password"  # noqa: S105

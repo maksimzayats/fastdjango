@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from fastdjango.infrastructure.django.settings import DjangoStorageSettings
+from modern_python_template.infrastructure.django.settings import DjangoStorageSettings
 
 
 def test_storage_settings_use_whitenoise_for_local_filesystem(

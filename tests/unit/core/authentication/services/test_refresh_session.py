@@ -5,8 +5,8 @@ from typing import Self, cast
 
 import pytest
 
-from fastdjango.core.authentication.models import RefreshSession
-from fastdjango.core.authentication.services.refresh_session import (
+from modern_python_template.core.authentication.models import RefreshSession
+from modern_python_template.core.authentication.services.refresh_session import (
     RefreshSessionService,
     RefreshSessionServiceSettings,
 )

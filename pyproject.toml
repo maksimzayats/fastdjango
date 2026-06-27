@@ -1,5 +1,5 @@
 [project]
-name = "fastdjango"
+name = "modern-python-template"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
@@ -45,13 +45,6 @@ docs = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.6",
 ]
-setup = [
-    "libcst>=1.8.6",
-    "questionary>=2.1.1",
-    "rich>=15.0.0",
-    "ruamel.yaml>=0.19.1",
-    "tomlkit>=0.15.0",
-]
 
 [build-system]
 requires = ["uv_build>=0.11.24,<0.12.0"]
@@ -81,11 +74,11 @@ disable_error_code = [
 ]
 
 [[tool.mypy.overrides]]
-module = "fastdjango.*.migrations.*"
+module = "modern_python_template.*.migrations.*"
 disable_error_code = ["no-untyped-def"]
 
 [tool.django-stubs]
-django_settings_module = "fastdjango.infrastructure.django.settings"
+django_settings_module = "modern_python_template.infrastructure.django.settings"
 
 [tool.logfire]
 ignore_no_config = true
@@ -101,10 +94,10 @@ source = ["src"]
 omit = [
     # Entry points
     "management/manage.py",
-    "src/fastdjango/entrypoints/fastapi/app.py",
-    "src/fastdjango/entrypoints/celery/app.py",
+    "src/modern_python_template/entrypoints/fastapi/app.py",
+    "src/modern_python_template/entrypoints/celery/app.py",
     # Import-time framework settings
-    "src/fastdjango/infrastructure/django/settings.py",
+    "src/modern_python_template/infrastructure/django/settings.py",
     # Django admin (requires manual testing)
     "src/**/admin.py",
     # Observability/telemetry (requires external services)

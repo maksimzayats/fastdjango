@@ -8,7 +8,7 @@ Without a service layer, controllers directly access the database:
 
 ```python
 # ❌ Wrong - Controller accesses model directly
-from fastdjango.core.user.models import User
+from modern_python_template.core.user.models import User
 
 class UserController:
     def get_user(self, user_id: int) -> UserSchema:
@@ -29,7 +29,7 @@ The service layer acts as an intermediary. FastAPI-facing workflows are async:
 
 ```python
 # ✅ Correct - Controller uses a use case or service
-from fastdjango.core.user.use_cases import UserUseCase
+from modern_python_template.core.user.use_cases import UserUseCase
 
 class UserController:
     def __init__(self, user_use_case: UserUseCase) -> None:
@@ -57,16 +57,16 @@ This boundary is absolute: controllers handle delivery concerns, not ORM queries
 Services are dataclasses with injected dependencies:
 
 ```python
-# src/fastdjango/core/todo/services.py
+# src/modern_python_template/core/todo/services.py
 from dataclasses import dataclass
 
 from diwire import Injected
 
-from fastdjango.core.todo.exceptions import TodoNotFoundError
-from fastdjango.foundation.services import BaseService
-from fastdjango.foundation.transactions import TransactionFactory
-from fastdjango.core.todo.models import Todo
-from fastdjango.core.user.models import User
+from modern_python_template.core.todo.exceptions import TodoNotFoundError
+from modern_python_template.foundation.services import BaseService
+from modern_python_template.foundation.transactions import TransactionFactory
+from modern_python_template.core.todo.models import Todo
+from modern_python_template.core.user.models import User
 
 
 @dataclass(kw_only=True)
@@ -172,8 +172,8 @@ Each layer has a single responsibility:
 Services raise meaningful exceptions:
 
 ```python
-# src/fastdjango/core/todo/exceptions.py
-from fastdjango.core.exceptions import ApplicationError
+# src/modern_python_template/core/todo/exceptions.py
+from modern_python_template.core.exceptions import ApplicationError
 
 
 class TodoNotFoundError(ApplicationError):
@@ -201,8 +201,8 @@ Use a short sync transaction island for database writes:
 ```python
 from diwire import Injected
 
-from fastdjango.foundation.services import BaseService
-from fastdjango.foundation.transactions import TransactionFactory
+from modern_python_template.foundation.services import BaseService
+from modern_python_template.foundation.transactions import TransactionFactory
 
 @dataclass(kw_only=True)
 class TodoService(BaseService):
@@ -232,9 +232,9 @@ Model imports are acceptable in:
 ### Django Admin
 
 ```python
-# src/fastdjango/core/todo/delivery/django/admin.py
+# src/modern_python_template/core/todo/delivery/django/admin.py
 from django.contrib import admin
-from fastdjango.core.todo.models import Todo  # ✅ OK in admin
+from modern_python_template.core.todo.models import Todo  # ✅ OK in admin
 
 @admin.register(Todo)
 class TodoAdmin(admin.ModelAdmin):
@@ -252,7 +252,7 @@ from django.db import migrations, models
 
 ```python
 # tests/integration/conftest.py
-from fastdjango.core.todo.models import Todo  # ✅ OK in tests
+from modern_python_template.core.todo.models import Todo  # ✅ OK in tests
 
 @pytest.fixture
 def todo(user: User) -> Todo:
@@ -264,7 +264,7 @@ def todo(user: User) -> Todo:
 Controllers can reference models in type hints for validation, but must use services for operations:
 
 ```python
-from fastdjango.core.user.models import User  # For type hint only
+from modern_python_template.core.user.models import User  # For type hint only
 
 async def get_user(self, request: AuthenticatedRequest) -> UserSchema:
     user: User = request.state.user  # Type hint is fine
@@ -277,7 +277,7 @@ async def get_user(self, request: AuthenticatedRequest) -> UserSchema:
 Services can depend on other services:
 
 ```python
-from fastdjango.foundation.services import BaseService
+from modern_python_template.foundation.services import BaseService
 
 @dataclass(kw_only=True)
 class OrderService(BaseService):

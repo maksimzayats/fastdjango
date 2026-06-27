@@ -2,8 +2,8 @@ import pytest
 from diwire import Container
 from throttled.asyncio import MemoryStore
 
-from fastdjango.infrastructure.throttled.throttler import AsyncThrottlerStoreFactory
-from fastdjango.ioc.container import get_container
+from modern_python_template.infrastructure.throttled.throttler import AsyncThrottlerStoreFactory
+from modern_python_template.ioc.container import get_container
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
     TestClientFactory,

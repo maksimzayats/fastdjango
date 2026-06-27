@@ -39,8 +39,8 @@ from http import HTTPStatus
 
 import pytest
 
-from fastdjango.core.todo.models import Todo
-from fastdjango.core.user.models import User
+from modern_python_template.core.todo.models import Todo
+from modern_python_template.core.user.models import User
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
 
@@ -291,16 +291,16 @@ Create `tests/unit/core/todo/test_services.py`:
 # tests/unit/core/todo/test_services.py
 import pytest
 
-from fastdjango.core.todo.models import Todo
-from fastdjango.core.todo.exceptions import (
+from modern_python_template.core.todo.models import Todo
+from modern_python_template.core.todo.exceptions import (
     TodoAccessDeniedError,
     TodoNotFoundError,
 )
-from fastdjango.core.todo.services import (
+from modern_python_template.core.todo.services import (
     TodoService,
 )
-from fastdjango.core.user.models import User
-from fastdjango.infrastructure.django.transactions import DjangoTransactionFactory
+from modern_python_template.core.user.models import User
+from modern_python_template.infrastructure.django.transactions import DjangoTransactionFactory
 
 
 @pytest.fixture(scope="function")
@@ -470,8 +470,8 @@ Add task tests to `tests/integration/core/todo/delivery/celery/test_todo_cleanup
 # tests/integration/core/todo/delivery/celery/test_todo_cleanup.py
 import pytest
 
-from fastdjango.core.todo.models import Todo
-from fastdjango.core.user.models import User
+from modern_python_template.core.todo.models import Todo
+from modern_python_template.core.user.models import User
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
     TestTasksRegistryFactory,

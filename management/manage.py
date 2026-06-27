@@ -4,7 +4,7 @@ import sys
 
 from django.core.management import execute_from_command_line
 
-from fastdjango.ioc.container import get_container
+from modern_python_template.ioc.container import get_container
 
 
 class DjangoManager:

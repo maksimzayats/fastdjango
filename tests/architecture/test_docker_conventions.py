@@ -42,7 +42,6 @@ DOCKERFILE_REQUIRED_IGNORES = {
     "dist/",
     "docs/",
     "htmlcov/",
-    "management/setup_wizard/",
     "site/",
     "tests/",
 }

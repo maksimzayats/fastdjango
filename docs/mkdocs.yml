@@ -1,8 +1,8 @@
-site_name: Fast Django
-site_url: https://fastdjango.zayats.dev
-site_description: FastAPI, Django, and Celery project template with a setup wizard and dependency injection
-repo_url: https://github.com/maksimzayats/fastdjango
-repo_name: maksimzayats/fastdjango
+site_name: modern-python-template
+site_url: https://modern-python-template.zayats.dev
+site_description: FastAPI, Django, and Celery project template with agent-led setup and dependency injection
+repo_url: https://github.com/maksimzayats/modern-python-template
+repo_name: maksimzayats/modern-python-template
 
 docs_dir: en
 site_dir: ../site

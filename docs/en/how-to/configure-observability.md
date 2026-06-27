@@ -180,7 +180,7 @@ class OrderService(BaseService):
 Logfire is configured to scrub sensitive fields:
 
 ```python
-# src/fastdjango/infrastructure/logfire/configurator.py
+# src/modern_python_template/infrastructure/logfire/configurator.py
 logfire.configure(
     scrubbing=logfire.ScrubbingOptions(
         extra_patterns=["access_token", "refresh_token"],
@@ -192,7 +192,7 @@ Fields containing these patterns are replaced with `[Scrubbed]`.
 
 ### Adding Custom Scrub Patterns
 
-Edit `src/fastdjango/infrastructure/logfire/configurator.py`:
+Edit `src/modern_python_template/infrastructure/logfire/configurator.py`:
 
 ```python
 logfire.configure(

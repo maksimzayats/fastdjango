@@ -12,9 +12,9 @@ Add background task processing for todo cleanup.
 
 | Action | File Path |
 |--------|-----------|
-| Create | `src/fastdjango/core/todo/delivery/celery/todo_cleanup.py` |
-| Modify | `src/fastdjango/entrypoints/celery/registry.py` |
-| Modify | `src/fastdjango/entrypoints/celery/factories.py` |
+| Create | `src/modern_python_template/core/todo/delivery/celery/todo_cleanup.py` |
+| Modify | `src/modern_python_template/entrypoints/celery/registry.py` |
+| Modify | `src/modern_python_template/entrypoints/celery/factories.py` |
 
 ## Concept Reference
 
@@ -22,19 +22,19 @@ Add background task processing for todo cleanup.
 
 ## Step 1: Create the Task Controller
 
-Celery tasks follow the same controller pattern as HTTP endpoints. Create `src/fastdjango/core/todo/delivery/celery/todo_cleanup.py`:
+Celery tasks follow the same controller pattern as HTTP endpoints. Create `src/modern_python_template/core/todo/delivery/celery/todo_cleanup.py`:
 
 ```python
-# src/fastdjango/core/todo/delivery/celery/todo_cleanup.py
+# src/modern_python_template/core/todo/delivery/celery/todo_cleanup.py
 from dataclasses import dataclass
 
 from celery import Celery
 from diwire import Injected
 
-from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
-from fastdjango.core.todo.services import TodoService
-from fastdjango.core.user.use_cases import UserUseCase
-from fastdjango.infrastructure.celery.controllers import BaseCeleryTaskController
+from modern_python_template.foundation.delivery.celery.schemas import BaseCelerySchema
+from modern_python_template.core.todo.services import TodoService
+from modern_python_template.core.user.use_cases import UserUseCase
+from modern_python_template.infrastructure.celery.controllers import BaseCeleryTaskController
 
 TODO_CLEANUP_TASK_NAME = "todo.cleanup"
 
@@ -86,17 +86,17 @@ class TodoCleanupTaskController(BaseCeleryTaskController):
 ## Step 2: Add User List Method to UserUseCase
 
 The cleanup task needs to iterate over all users. Add the import near the top of
-`src/fastdjango/core/user/use_cases.py`:
+`src/modern_python_template/core/user/use_cases.py`:
 
 ```python
-# src/fastdjango/core/user/use_cases.py
+# src/modern_python_template/core/user/use_cases.py
 from asgiref.sync import sync_to_async
 ```
 
 Then add the methods to `UserUseCase`:
 
 ```python
-# Add to UserUseCase class in src/fastdjango/core/user/use_cases.py
+# Add to UserUseCase class in src/modern_python_template/core/user/use_cases.py
 async def list_all_users(self) -> list[User]:
     """List all active users.
 
@@ -112,14 +112,14 @@ def _list_all_users(self) -> list[User]:
 
 ## Step 3: Register the Task Name
 
-Add the task name to the registry in `src/fastdjango/entrypoints/celery/registry.py`:
+Add the task name to the registry in `src/modern_python_template/entrypoints/celery/registry.py`:
 
 ```python
-# src/fastdjango/entrypoints/celery/registry.py
+# src/modern_python_template/entrypoints/celery/registry.py
 from enum import StrEnum
 
-from fastdjango.core.health.delivery.celery.tasks import PING_TASK_NAME
-from fastdjango.core.todo.delivery.celery.todo_cleanup import TODO_CLEANUP_TASK_NAME
+from modern_python_template.core.health.delivery.celery.tasks import PING_TASK_NAME
+from modern_python_template.core.todo.delivery.celery.todo_cleanup import TODO_CLEANUP_TASK_NAME
 
 
 class TaskName(StrEnum):
@@ -140,12 +140,12 @@ def todo_cleanup(self) -> CeleryTask[[], CleanupResultSchema]:
 
 ## Step 4: Register the Task Controller
 
-Modify `src/fastdjango/entrypoints/celery/factories.py` to register the new task controller:
+Modify `src/modern_python_template/entrypoints/celery/factories.py` to register the new task controller:
 
 ```python
-# src/fastdjango/entrypoints/celery/factories.py
+# src/modern_python_template/entrypoints/celery/factories.py
 # Add this import at the top
-from fastdjango.core.todo.delivery.celery.todo_cleanup import TodoCleanupTaskController
+from modern_python_template.core.todo.delivery.celery.todo_cleanup import TodoCleanupTaskController
 
 
 @dataclass(kw_only=True)
@@ -173,7 +173,7 @@ Controllers are declared as dataclass fields and auto-resolved by the IoC contai
 
 ## Step 5: Schedule the Task (Optional)
 
-To run the cleanup task automatically, add it to the Celery Beat schedule. In `src/fastdjango/entrypoints/celery/factories.py`, modify the beat schedule in `CeleryAppFactory`:
+To run the cleanup task automatically, add it to the Celery Beat schedule. In `src/modern_python_template/entrypoints/celery/factories.py`, modify the beat schedule in `CeleryAppFactory`:
 
 ```python
 # In CeleryAppFactory.__call__ method, update beat_schedule:
@@ -233,7 +233,7 @@ Use dotted names for task organization:
 Use the task registry for type-safe calls:
 
 ```python
-from fastdjango.entrypoints.celery.registry import TasksRegistry
+from modern_python_template.entrypoints.celery.registry import TasksRegistry
 
 # Get registry manually in shell examples.
 # In application code, inject TasksRegistry into use cases or services.
@@ -267,8 +267,8 @@ uv run python management/manage.py shell
 ```
 
 ```python
-from fastdjango.ioc.container import get_container
-from fastdjango.entrypoints.celery.registry import TasksRegistry
+from modern_python_template.ioc.container import get_container
+from modern_python_template.entrypoints.celery.registry import TasksRegistry
 
 # Create container and get registry
 container = get_container()
@@ -309,7 +309,7 @@ async def cleanup_completed_todos(self) -> CleanupResultSchema:
 Use `BaseCelerySchema` or simple dicts:
 
 ```python
-from fastdjango.foundation.delivery.celery.schemas import BaseCelerySchema
+from modern_python_template.foundation.delivery.celery.schemas import BaseCelerySchema
 
 
 class CleanupResultSchema(BaseCelerySchema):

@@ -5,7 +5,7 @@ Reference for container configuration and management.
 Docker assets live in `docker/`. The default `.env.example` sets
 `COMPOSE_FILE=docker/docker-compose.yaml:docker/docker-compose.local.yaml`,
 so local `docker compose` commands can still be run from the repository root
-after the setup wizard generates `.env`.
+after the generated project has a local `.env`.
 
 ## Services overview
 

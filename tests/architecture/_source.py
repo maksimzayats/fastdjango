@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SOURCE_ROOT = REPO_ROOT / "src" / "fastdjango"
+SOURCE_ROOT = REPO_ROOT / "src" / "modern_python_template"
 TESTS_ROOT = REPO_ROOT / "tests"
 
 
@@ -24,7 +24,7 @@ class SourceModule:
     @property
     def module_name(self) -> str:
         module_path = self.path.relative_to(SOURCE_ROOT).with_suffix("")
-        return f"fastdjango.{'.'.join(module_path.parts)}"
+        return f"modern_python_template.{'.'.join(module_path.parts)}"
 
 
 @dataclass(frozen=True)

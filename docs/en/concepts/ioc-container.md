@@ -37,7 +37,7 @@ service = container.resolve(UserUseCase)
 
 ## Container Creation
 
-`src/fastdjango/ioc/container.py` creates and configures the container:
+`src/modern_python_template/ioc/container.py` creates and configures the container:
 
 ```python
 from diwire import Container, DependencyRegistrationPolicy, MissingPolicy
@@ -76,8 +76,8 @@ def get_container(
 The HTTP wiring creates the container in a bootstrap module, where `get_container` is invoked at import time:
 
 ```python
-# src/fastdjango/entrypoints/fastapi/bootstrap.py
-from fastdjango.ioc.container import get_container
+# src/modern_python_template/entrypoints/fastapi/bootstrap.py
+from modern_python_template.ioc.container import get_container
 
 container = get_container()
 ```
@@ -85,8 +85,8 @@ container = get_container()
 Then the app entrypoint uses ordinary top-level imports (no delayed/lazy import behavior):
 
 ```python
-from fastdjango.entrypoints.fastapi.bootstrap import container
-from fastdjango.entrypoints.fastapi.factories import FastAPIFactory
+from modern_python_template.entrypoints.fastapi.bootstrap import container
+from modern_python_template.entrypoints.fastapi.factories import FastAPIFactory
 
 api_factory = container.resolve(FastAPIFactory)
 ```

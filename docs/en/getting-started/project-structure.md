@@ -6,16 +6,17 @@ Understanding the codebase organization is essential for working effectively wit
 
 ```
 .
+├── PROMPT_TEMPLATE.md      # Agent-led setup prompt for project creators
 ├── src/                    # Application source code
-│   └── fastdjango/         # Application package
+│   └── modern_python_template/         # Application package
 │       ├── core/           # Business logic and domain models
 │       ├── entrypoints/    # FastAPI, Django, and Celery composition roots
 │       ├── foundation/     # Shared base contracts
 │       ├── infrastructure/ # Cross-cutting concerns
 │       └── ioc/            # Dependency injection container
 ├── management/             # Repository management commands
-│   ├── manage.py           # Django management entry point
-│   └── setup_wizard/       # One-time template setup wizard
+│   ├── dependency_updater.py # Dependency update helper
+│   └── manage.py           # Django management entry point
 ├── tests/                  # Test suite
 │   ├── integration/        # Integration tests
 │   └── unit/               # Unit tests
@@ -26,7 +27,7 @@ Understanding the codebase organization is essential for working effectively wit
 
 ## Source Code Structure
 
-### `src/fastdjango/core/` - Business Logic
+### `src/modern_python_template/core/` - Business Logic
 
 The core layer contains domain models, use cases, and each component's delivery code.
 This is where application behavior lives.
@@ -77,7 +78,7 @@ core/
 **Key principle**: Use cases encapsulate application behavior. Controllers never access models directly.
 DTOs live beside use cases; delivery schemas have their own independent base and may inherit from DTOs only when the wire shape matches the use-case shape.
 
-### `src/fastdjango/foundation/` - Base Contracts
+### `src/modern_python_template/foundation/` - Base Contracts
 
 Foundational marker and base classes live outside `core/`, `infrastructure/`,
 and `entrypoints/` so every layer can depend on them without reversing
@@ -101,7 +102,7 @@ foundation/
 Celery's async task-controller bridge lives in `infrastructure/celery/` because
 it adapts async application handlers to Celery's sync worker API.
 
-### `src/fastdjango/entrypoints/` - Composition Roots
+### `src/modern_python_template/entrypoints/` - Composition Roots
 
 Application bootstrapping, framework factories, route registration, task
 registration, and Django URL configuration live outside `core/`:
@@ -132,7 +133,7 @@ stay in `foundation/`; application entry points and registries live in
 `entrypoints/`. This keeps reusable code from importing concrete application
 components.
 
-### `src/fastdjango/infrastructure/` - Cross-Cutting Concerns
+### `src/modern_python_template/infrastructure/` - Cross-Cutting Concerns
 
 Infrastructure code that supports all layers.
 
@@ -153,7 +154,7 @@ Key files:
 - **`django/transactions.py`**: Provides the injectable Django transaction factory
 - **`logging/configurator.py`**: Configures application logging
 
-### `src/fastdjango/ioc/` - Dependency Injection
+### `src/modern_python_template/ioc/` - Dependency Injection
 
 Container configuration.
 
@@ -177,7 +178,7 @@ tests/
 ├── integration/            # Integration tests
 │   ├── conftest.py         # Integration fixtures (container, factories)
 │   ├── factories.py        # Test factories
-│   └── core/               # Mirrors src/fastdjango/core
+│   └── core/               # Mirrors src/modern_python_template/core
 │       ├── authentication/
 │       │   └── delivery/fastapi/test_controllers.py
 │       ├── health/
@@ -187,8 +188,8 @@ tests/
 │       └── user/
 │           └── delivery/fastapi/test_controllers.py
 └── unit/                   # Focused tests for reusable behavior
-    ├── core/               # Mirrors src/fastdjango/core
-    └── infrastructure/     # Mirrors src/fastdjango/infrastructure
+    ├── core/               # Mirrors src/modern_python_template/core
+    └── infrastructure/     # Mirrors src/modern_python_template/infrastructure
 ```
 
 Key components:
@@ -203,8 +204,8 @@ The application has multiple entry points:
 
 | Entry Point | File | Purpose |
 |-------------|------|---------|
-| FastAPI App | `src/fastdjango/entrypoints/fastapi/app.py` | HTTP API application |
-| Celery Worker | `src/fastdjango/entrypoints/celery/app.py` | Background task processing |
+| FastAPI App | `src/modern_python_template/entrypoints/fastapi/app.py` | HTTP API application |
+| Celery Worker | `src/modern_python_template/entrypoints/celery/app.py` | Background task processing |
 | Django Admin | Mounted at `/django/admin/` | Administration interface |
 
 ## Data Flow

@@ -4,7 +4,7 @@ Use this checklist for a new domain such as `product`.
 
 ## Core
 
-- [ ] Create `src/fastdjango/core/product/__init__.py`.
+- [ ] Create `src/modern_python_template/core/product/__init__.py`.
 - [ ] Create `apps.py` with `ProductConfig`.
 - [ ] Add the app config to `DjangoSettings.installed_apps`.
 - [ ] Create `models.py`.

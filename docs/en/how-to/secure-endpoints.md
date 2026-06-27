@@ -27,7 +27,7 @@ Protect endpoints with JWT authentication and role-based access control.
 ```python
 from dataclasses import dataclass
 
-from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuthFactory
+from modern_python_template.core.authentication.delivery.fastapi.auth import JWTAuthFactory
 
 
 @dataclass(kw_only=True)
@@ -92,7 +92,7 @@ def register(self, registry: APIRouter) -> None:
 Use `AuthenticatedRequest` to access the user:
 
 ```python
-from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest
+from modern_python_template.core.authentication.delivery.fastapi.auth import AuthenticatedRequest
 
 
 async def list_favorites(self, request: AuthenticatedRequest) -> list[ProductSchema]:
@@ -103,23 +103,23 @@ async def list_favorites(self, request: AuthenticatedRequest) -> list[ProductSch
 ## Complete Example
 
 ```python
-# src/fastdjango/core/product/delivery/fastapi/controllers.py
+# src/modern_python_template/core/product/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from fastdjango.core.product.exceptions import ProductNotFoundError
-from fastdjango.core.product.services import ProductService
-from fastdjango.core.authentication.delivery.fastapi.auth import (
+from modern_python_template.core.product.exceptions import ProductNotFoundError
+from modern_python_template.core.product.services import ProductService
+from modern_python_template.core.authentication.delivery.fastapi.auth import (
     AuthenticatedRequest,
     JWTAuthFactory,
 )
-from fastdjango.core.product.delivery.fastapi.schemas import (
+from modern_python_template.core.product.delivery.fastapi.schemas import (
     CreateProductRequestSchema,
     ProductSchema,
 )
-from fastdjango.foundation.delivery.controllers import BaseAsyncController
+from modern_python_template.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
@@ -211,7 +211,7 @@ For additional security, add rate limiting:
 from fastapi import Depends
 from throttled import rate_limiter
 
-from fastdjango.core.shared.delivery.fastapi.throttling import IPThrottlerFactory
+from modern_python_template.core.shared.delivery.fastapi.throttling import IPThrottlerFactory
 
 
 @dataclass(kw_only=True)

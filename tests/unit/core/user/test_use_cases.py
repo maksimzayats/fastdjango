@@ -2,10 +2,10 @@ import pytest
 from asgiref.sync import sync_to_async
 from django.db import IntegrityError
 
-from fastdjango.core.user.dtos import CreateUserDTO
-from fastdjango.core.user.models import User
-from fastdjango.core.user.use_cases import UserUseCase
-from fastdjango.infrastructure.django.transactions import DjangoTransactionFactory
+from modern_python_template.core.user.dtos import CreateUserDTO
+from modern_python_template.core.user.models import User
+from modern_python_template.core.user.use_cases import UserUseCase
+from modern_python_template.infrastructure.django.transactions import DjangoTransactionFactory
 
 _STRONG_PASSWORD = "S3cure-test-password-123!"  # noqa: S105
 _WEAK_PASSWORD = "123"  # noqa: S105

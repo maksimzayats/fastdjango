@@ -17,7 +17,10 @@ def configure_django_for_tests() -> None:
         if test_env_example_path:
             load_dotenv(test_env_example_path, override=True)
 
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fastdjango.infrastructure.django.settings")
+    os.environ.setdefault(
+        "DJANGO_SETTINGS_MODULE",
+        "modern_python_template.infrastructure.django.settings",
+    )
 
     if not apps.ready:
         django.setup()

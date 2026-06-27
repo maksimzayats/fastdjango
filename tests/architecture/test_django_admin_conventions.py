@@ -128,7 +128,7 @@ def _domain_apps_imports_admin(admin_path: Path) -> bool:
         path=apps_path,
         tree=ast.parse(apps_path.read_text(encoding="utf-8"), filename=str(apps_path)),
     )
-    expected_module = f"fastdjango.core.{domain_root.name}.delivery.django"
+    expected_module = f"modern_python_template.core.{domain_root.name}.delivery.django"
 
     return any(
         import_reference.module_name == expected_module for import_reference in iter_imports(module)

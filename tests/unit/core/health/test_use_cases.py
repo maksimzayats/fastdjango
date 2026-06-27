@@ -3,9 +3,9 @@ from typing import cast
 
 import pytest
 
-from fastdjango.core.health import use_cases as health_use_cases
-from fastdjango.core.health.use_cases import SystemHealthUseCase
-from fastdjango.entrypoints.celery.registry import TasksRegistry
+from modern_python_template.core.health import use_cases as health_use_cases
+from modern_python_template.core.health.use_cases import SystemHealthUseCase
+from modern_python_template.entrypoints.celery.registry import TasksRegistry
 
 
 class WorkingSessionManager:

@@ -8,11 +8,11 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from fastdjango.core.product.delivery.fastapi.schemas import ProductSchema
-from fastdjango.core.product.exceptions import ProductNotFoundError
-from fastdjango.core.product.use_cases import ProductUseCase
-from fastdjango.core.authentication.delivery.fastapi.auth import JWTAuthFactory
-from fastdjango.infrastructure.django.controllers import BaseTransactionController
+from modern_python_template.core.product.delivery.fastapi.schemas import ProductSchema
+from modern_python_template.core.product.exceptions import ProductNotFoundError
+from modern_python_template.core.product.use_cases import ProductUseCase
+from modern_python_template.core.authentication.delivery.fastapi.auth import JWTAuthFactory
+from modern_python_template.infrastructure.django.controllers import BaseTransactionController
 
 
 @dataclass(kw_only=True)
@@ -57,9 +57,9 @@ from dataclasses import dataclass
 
 from celery import Celery
 
-from fastdjango.core.product.delivery.celery.schemas import CleanupResultSchema
-from fastdjango.core.product.services import ProductCleanupService
-from fastdjango.foundation.delivery.controllers import BaseController
+from modern_python_template.core.product.delivery.celery.schemas import CleanupResultSchema
+from modern_python_template.core.product.services import ProductCleanupService
+from modern_python_template.foundation.delivery.controllers import BaseController
 
 PRODUCT_CLEANUP_TASK_NAME = "product.cleanup"
 

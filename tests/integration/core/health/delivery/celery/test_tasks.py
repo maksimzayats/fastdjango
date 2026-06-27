@@ -1,6 +1,6 @@
 import pytest
 
-from fastdjango.core.health.delivery.celery.schemas import PingResultSchema
+from modern_python_template.core.health.delivery.celery.schemas import PingResultSchema
 from tests.integration.factories import TestCeleryWorkerFactory, TestTasksRegistryFactory
 
 

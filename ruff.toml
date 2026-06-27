@@ -59,7 +59,7 @@ ignore = [
 
 [lint.isort]
 combine-as-imports = true
-known-first-party = ["fastdjango"]
+known-first-party = ["modern_python_template"]
 
 [lint.ruff]
 strictly-empty-init-modules = true

@@ -6,8 +6,8 @@ from diwire import Container
 from starlette import status
 from starlette.websockets import WebSocketDisconnect
 
-from fastdjango.core.health.delivery.fastapi.schemas import HealthCheckResponseSchema
-from fastdjango.core.health.use_cases import SystemHealthUseCase
+from modern_python_template.core.health.delivery.fastapi.schemas import HealthCheckResponseSchema
+from modern_python_template.core.health.use_cases import SystemHealthUseCase
 from tests.integration.factories import TestClientFactory
 
 

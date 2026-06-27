@@ -37,8 +37,8 @@ async def handle_exception(self, exception: Exception) -> Any:
 Create exceptions in the domain exception module:
 
 ```python
-# src/fastdjango/core/order/exceptions.py
-from fastdjango.core.exceptions import ApplicationError
+# src/modern_python_template/core/order/exceptions.py
+from modern_python_template.core.exceptions import ApplicationError
 
 
 class OrderNotFoundError(ApplicationError):
@@ -63,9 +63,9 @@ class InvalidOrderStateError(ApplicationError):
 from asgiref.sync import sync_to_async
 from diwire import Injected
 
-from fastdjango.foundation.services import BaseService
-from fastdjango.foundation.transactions import TransactionFactory
-from fastdjango.core.order.exceptions import (
+from modern_python_template.foundation.services import BaseService
+from modern_python_template.foundation.transactions import TransactionFactory
+from modern_python_template.core.order.exceptions import (
     InsufficientStockError,
     InvalidOrderStateError,
     OrderAlreadyPaidError,
@@ -111,22 +111,22 @@ class OrderService(BaseService):
 ### 3. Map Exceptions in Controller
 
 ```python
-# src/fastdjango/core/order/delivery/fastapi/controllers.py
+# src/modern_python_template/core/order/delivery/fastapi/controllers.py
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from fastdjango.core.order.exceptions import (
+from modern_python_template.core.order.exceptions import (
     InsufficientStockError,
     InvalidOrderStateError,
     OrderAlreadyPaidError,
     OrderNotFoundError,
 )
-from fastdjango.core.order.services import (
+from modern_python_template.core.order.services import (
     OrderService,
 )
-from fastdjango.foundation.delivery.controllers import BaseAsyncController
+from modern_python_template.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
@@ -194,8 +194,8 @@ class OrderController(BaseAsyncController):
 For more detailed error responses, create an error schema:
 
 ```python
-# src/fastdjango/core/common/delivery/fastapi/schemas.py
-from fastdjango.foundation.delivery.fastapi.schemas import BaseFastAPISchema
+# src/modern_python_template/core/common/delivery/fastapi/schemas.py
+from modern_python_template.foundation.delivery.fastapi.schemas import BaseFastAPISchema
 
 
 class ErrorResponseSchema(BaseFastAPISchema):

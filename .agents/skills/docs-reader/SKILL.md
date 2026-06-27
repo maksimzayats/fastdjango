@@ -40,9 +40,9 @@ Controller -> Use Case / Service -> Model
 - Controllers handle FastAPI or Celery delivery concerns.
 - Use cases and services own application logic and ORM access.
 - Models define database structure.
-- Base contracts live in `src/fastdjango/foundation/`.
-- Domain delivery lives inside `src/fastdjango/core/<domain>/delivery/`.
-- App composition lives in `src/fastdjango/entrypoints/`.
+- Base contracts live in `src/modern_python_template/foundation/`.
+- Domain delivery lives inside `src/modern_python_template/core/<domain>/delivery/`.
+- App composition lives in `src/modern_python_template/entrypoints/`.
 
 ## Current Technology Notes
 

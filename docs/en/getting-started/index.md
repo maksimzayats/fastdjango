@@ -16,11 +16,11 @@ Before you begin, ensure you have:
 
 - **Python 3.14+** - The project uses modern Python features
 - **uv** - Fast Python package manager ([install guide](https://docs.astral.sh/uv/getting-started/installation/))
-- **Docker** - Needed when you choose local Docker PostgreSQL, Redis, or MinIO in the setup wizard
+- **Docker** - Needed when your generated project keeps local Docker PostgreSQL, Redis, or MinIO
 
 ## Recommended Path
 
-1. **[Quick Start](quick-start.md)** - Run the setup wizard and start the application locally
+1. **[Quick Start](quick-start.md)** - Use the prompt template and start the application locally
 2. **[Project Structure](project-structure.md)** - Understand where things are located
 3. **[Development Environment](development-environment.md)** - Set up your IDE and tools
 4. **[Tutorial](../tutorial/index.md)** - Learn by building a feature
