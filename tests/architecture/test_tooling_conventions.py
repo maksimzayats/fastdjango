@@ -34,6 +34,11 @@ REMOVED_PROJECT_CUSTOMIZER_MARKERS = {
     f"tests/{REMOVED_PROJECT_CUSTOMIZER_MODULE}",
     "--group " + "setup",
 }
+ALLOWED_WPS_WILDCARD_IGNORE_PATHS = {
+    "src/fastapi_template/core/**/repositories/*.py",
+    "src/fastapi_template/core/**/services/*.py",
+    "src/fastapi_template/core/**/use_cases/*.py",
+}
 
 
 def test_prek_quality_hooks_run_against_the_whole_project() -> None:
@@ -87,6 +92,12 @@ def test_wemake_styleguide_config_is_strict_but_scoped() -> None:
     assert flake8_config["max-arguments"] == "6"
     assert "tests" not in _normalized_words(flake8_config["per-file-ignores"])
     assert not any(code == "WPS" for code in _wps_ignore_codes(flake8_config["per-file-ignores"]))
+    assert (
+        _wildcard_wps_ignore_paths(
+            value=flake8_config["per-file-ignores"],
+        )
+        == ALLOWED_WPS_WILDCARD_IGNORE_PATHS
+    )
 
 
 def test_makefile_quality_targets_use_prek() -> None:
@@ -205,6 +216,22 @@ def _wps_ignore_codes(value: str) -> set[str]:
     return {
         word.strip() for word in value.replace(",", " ").split() if word.strip().startswith("WPS")
     }
+
+
+def _wildcard_wps_ignore_paths(*, value: str) -> set[str]:
+    wildcard_paths: set[str] = set()
+    active_path = ""
+    for line in value.splitlines():
+        stripped_line = line.strip()
+        if not stripped_line or stripped_line.startswith("#"):
+            continue
+        if stripped_line.endswith(":"):
+            active_path = stripped_line.removesuffix(":")
+            continue
+        if "WPS" in stripped_line and "*" in active_path:
+            wildcard_paths.add(active_path)
+
+    return wildcard_paths
 
 
 def _workflow_requests_content_write_permissions(*, path: Path) -> bool:

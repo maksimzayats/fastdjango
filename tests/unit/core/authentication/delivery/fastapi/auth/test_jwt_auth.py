@@ -30,9 +30,20 @@ class FakeJWTService:
 
 
 @pytest.mark.anyio
-async def test_jwt_auth_returns_none_when_credentials_are_optional_and_missing() -> None:
+async def test_jwt_auth_rejects_missing_required_credentials() -> None:
     auth = _build_auth(payload={"sub": "1"})
-    auth.auto_error = False
+
+    with pytest.raises(HTTPException) as exc_info:
+        await auth(_request())
+
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == "Not authenticated"
+    assert exc_info.value.headers == {"WWW-Authenticate": "Bearer"}
+
+
+@pytest.mark.anyio
+async def test_jwt_auth_returns_none_when_optional_credentials_are_missing() -> None:
+    auth = _build_auth(payload={"sub": "1"}, required=False)
 
     assert await auth(_request()) is None
 
@@ -101,8 +112,12 @@ def _build_auth(
     *,
     payload: dict[str, Any],
     error: Exception | None = None,
+    required: bool = True,
 ) -> JWTAuth:
-    return JWTAuth(jwt_service=cast(JWTService, FakeJWTService(payload=payload, error=error)))
+    return JWTAuth(
+        jwt_service=cast(JWTService, FakeJWTService(payload=payload, error=error)),
+        required=required,
+    )
 
 
 def _request(*, token: str | None = None) -> Request:

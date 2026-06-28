@@ -91,6 +91,19 @@ def test_revoke_token_applies_ip_throttle_before_jwt_auth() -> None:
     assert user_throttler_factory.dependency_called is False
 
 
+def test_revoke_token_rejects_missing_bearer_token(
+    test_client_factory: TestClientFactory,
+) -> None:
+    with test_client_factory() as test_client:
+        response = test_client.post(
+            "/api/v1/auth/token/revoke",
+            json={"refresh_token": _REFRESH_TOKEN},
+        )
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
 class RecordingJWTAuthFactory:
     dependency_called = False
 

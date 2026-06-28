@@ -3,8 +3,12 @@ from http import HTTPStatus
 from typing import Any
 
 from diwire import Injected
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from throttled import rate_limiter
 
+from fastapi_template.core.shared.delivery.fastapi.throttling.ip_throttler_factory import (
+    IPThrottlerFactory,
+)
 from fastapi_template.core.user.delivery.fastapi.schemas.create_user_request import (
     CreateUserRequestSchema,
 )
@@ -18,6 +22,7 @@ from fastapi_template.foundation.delivery.controller import BaseAsyncController
 class CreateUserController(BaseAsyncController):
     """Define CreateUserController."""
 
+    _ip_throttler_factory: Injected[IPThrottlerFactory]
     _create_user_use_case: Injected[CreateUserUseCase]
 
     def register(self, registry: APIRouter) -> None:
@@ -26,6 +31,9 @@ class CreateUserController(BaseAsyncController):
             path="/api/v1/users",
             endpoint=self.create_user,
             methods=["POST"],
+            dependencies=[
+                Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
+            ],
             response_model=UserSchema,
         )
 

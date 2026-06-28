@@ -8,8 +8,10 @@ AGGREGATE_SOURCE_FILENAMES = {
     "constants.py",
     "controllers.py",
     "dtos.py",
+    "entities.py",
     "exceptions.py",
     "factories.py",
+    "mappers.py",
     "models.py",
     "repositories.py",
     "schemas.py",
@@ -81,6 +83,20 @@ def test_source_modules_have_at_most_one_public_function() -> None:
     assert violations == [], "A scoped source file may define only one public function."
 
 
+def test_source_modules_do_not_use_import_only_public_alias_shims() -> None:
+    violations = [
+        str(module.relative_path)
+        for module in iter_source_modules()
+        if module.path.name != "__init__.py"
+        if _has_public_import_from_alias(module=module)
+        if not _public_classes(module=module)
+        if not _public_functions(module=module)
+        if _is_import_only_module(module=module)
+    ]
+
+    assert violations == [], "Source files must not be import-only public alias shims."
+
+
 def _public_classes(*, module: SourceModule) -> list[ast.ClassDef]:
     return [
         node
@@ -101,3 +117,32 @@ def _public_functions(*, module: SourceModule) -> list[ast.FunctionDef | ast.Asy
 
 def _is_auxiliary_class(*, class_name: str) -> bool:
     return any(class_name.endswith(suffix) for suffix in AUXILIARY_CLASS_SUFFIXES)
+
+
+def _has_public_import_from_alias(*, module: SourceModule) -> bool:
+    return any(
+        not alias.name.startswith("_")
+        for node in module.tree.body
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    )
+
+
+def _is_import_only_module(*, module: SourceModule) -> bool:
+    return all(
+        isinstance(node, ast.Import | ast.ImportFrom)
+        for node in _non_docstring_nodes(module=module)
+    )
+
+
+def _non_docstring_nodes(*, module: SourceModule) -> list[ast.stmt]:
+    return [
+        node
+        for index, node in enumerate(module.tree.body)
+        if not (
+            index == 0
+            and isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        )
+    ]

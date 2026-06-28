@@ -1,8 +1,13 @@
+from http import HTTPStatus
 from typing import cast
 
 import pytest
-from fastapi import HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.testclient import TestClient
 
+from fastapi_template.core.shared.delivery.fastapi.throttling.ip_throttler_factory import (
+    IPThrottlerFactory,
+)
 from fastapi_template.core.user.delivery.fastapi.controllers.create_user import (
     CreateUserController,
 )
@@ -91,11 +96,50 @@ async def test_create_user_controller_reraises_unhandled_errors() -> None:
     assert exc_info.value is error
 
 
+def test_create_user_controller_applies_ip_throttle_before_use_case() -> None:
+    create_user_use_case = RecordingCreateUserUseCase()
+    controller = CreateUserController(
+        _ip_throttler_factory=cast(IPThrottlerFactory, RejectingIPThrottlerFactory()),
+        _create_user_use_case=cast(CreateUserUseCase, create_user_use_case),
+    )
+    app = FastAPI()
+    router = APIRouter()
+    controller.register(router)
+    app.include_router(router)
+
+    with TestClient(app) as test_client:
+        response = test_client.post(
+            "/api/v1/users",
+            json={
+                "username": "created",
+                "email": "created@example.com",
+                "first_name": "Created",
+                "last_name": "User",
+                "password": _VALID_PASSWORD,
+            },
+        )
+
+    assert response.status_code == HTTPStatus.TOO_MANY_REQUESTS
+    assert create_user_use_case.data is None
+
+
+class RejectingIPThrottlerFactory:
+    def __call__(self, *, quota: object) -> object:
+        return self.throttle
+
+    async def throttle(self, request: Request) -> None:
+        raise HTTPException(
+            status_code=HTTPStatus.TOO_MANY_REQUESTS,
+            detail="Too many requests",
+        )
+
+
 def _build_controller(
     *,
     create_user_use_case: CreateUserUseCase | None = None,
 ) -> CreateUserController:
     return CreateUserController(
+        _ip_throttler_factory=cast(IPThrottlerFactory, object()),
         _create_user_use_case=create_user_use_case or cast(CreateUserUseCase, object()),
     )
 
