@@ -7,16 +7,25 @@ from typing import ClassVar, NamedTuple
 from diwire import Injected
 from pydantic_settings import BaseSettings
 
-from fastapi_template.core.authentication.dtos import CreateRefreshSessionDTO
-from fastapi_template.core.authentication.entities import RefreshSession
-from fastapi_template.core.authentication.exceptions import (
+from fastapi_template.core.authentication.dtos.create_refresh_session import (
+    CreateRefreshSessionDTO,
+)
+from fastapi_template.core.authentication.dtos.replace_refresh_session_token import (
+    ReplaceRefreshSessionTokenDTO,
+)
+from fastapi_template.core.authentication.entities.refresh_session import RefreshSession
+from fastapi_template.core.authentication.exceptions.expired_refresh_token import (
     ExpiredRefreshTokenError,
+)
+from fastapi_template.core.authentication.exceptions.invalid_refresh_token import (
     InvalidRefreshTokenError,
 )
-from fastapi_template.core.authentication.repositories import RefreshSessionRepository
+from fastapi_template.core.authentication.repositories.refresh_session import (
+    RefreshSessionRepository,
+)
 from fastapi_template.core.unit_of_work import UnitOfWork
-from fastapi_template.core.user.entities import User
-from fastapi_template.foundation.services import BaseService
+from fastapi_template.core.user.entities.user import User
+from fastapi_template.foundation.service import BaseService
 
 
 class RefreshSessionServiceSettings(BaseSettings):
@@ -80,16 +89,20 @@ class RefreshSessionService(BaseService):
         Returns:
         The operation result.
         """
+        expected_refresh_token_hash = self._hash_refresh_token(refresh_token=refresh_token)
         session = await self._get_active_refresh_session(
             repository=uow.refresh_session_repository,
-            refresh_token=refresh_token,
+            refresh_token_hash=expected_refresh_token_hash,
         )
         new_refresh_token = self._issue_refresh_token()
         rotated_session = await uow.refresh_session_repository.replace_token_hash(
-            session_id=session.id,
-            refresh_token_hash=self._hash_refresh_token(refresh_token=new_refresh_token),
-            last_used_at=datetime.now(tz=UTC),
-            rotation_counter=session.rotation_counter + 1,
+            data=ReplaceRefreshSessionTokenDTO(
+                session_id=session.id,
+                expected_refresh_token_hash=expected_refresh_token_hash,
+                refresh_token_hash=self._hash_refresh_token(refresh_token=new_refresh_token),
+                last_used_at=datetime.now(tz=UTC),
+                rotation_counter=session.rotation_counter + 1,
+            ),
         )
         if rotated_session is None:
             raise self.INVALID_REFRESH_TOKEN_ERROR
@@ -106,7 +119,7 @@ class RefreshSessionService(BaseService):
         """Run revoke refresh token."""
         session = await self._get_active_refresh_session(
             repository=uow.refresh_session_repository,
-            refresh_token=refresh_token,
+            refresh_token_hash=self._hash_refresh_token(refresh_token=refresh_token),
         )
         if session.user.id != user.id:
             raise self.INVALID_REFRESH_TOKEN_ERROR
@@ -126,10 +139,10 @@ class RefreshSessionService(BaseService):
         self,
         *,
         repository: RefreshSessionRepository,
-        refresh_token: str,
+        refresh_token_hash: str,
     ) -> RefreshSession:
         session = await repository.get_by_token_hash(
-            refresh_token_hash=self._hash_refresh_token(refresh_token=refresh_token),
+            refresh_token_hash=refresh_token_hash,
         )
         if session is None:
             raise self.INVALID_REFRESH_TOKEN_ERROR

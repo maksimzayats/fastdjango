@@ -3,9 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from types import TracebackType
 
-from fastapi_template.core.authentication.repositories import RefreshSessionRepository
-from fastapi_template.core.health.repositories import HealthRepository
-from fastapi_template.core.user.repositories import UserRepository
+from fastapi_template.core.authentication.repositories.refresh_session import (
+    RefreshSessionRepository,
+)
+from fastapi_template.core.health.repositories.health import HealthRepository
+from fastapi_template.core.user.repositories.user import UserRepository
 
 
 class UnitOfWork(ABC):

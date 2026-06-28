@@ -7,7 +7,7 @@ from diwire import Injected
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from fastapi_template.foundation.services import BaseService
+from fastapi_template.foundation.service import BaseService
 
 
 class JWTServiceSettings(BaseSettings):

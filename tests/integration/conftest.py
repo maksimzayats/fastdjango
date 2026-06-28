@@ -10,7 +10,9 @@ from diwire import Container
 from throttled.asyncio import MemoryStore
 
 from fastapi_template.infrastructure.sqlalchemy.session import SQLAlchemySessionFactory
-from fastapi_template.infrastructure.throttled.throttler import AsyncThrottlerStoreFactory
+from fastapi_template.infrastructure.throttled.async_store_factory import (
+    AsyncThrottlerStoreFactory,
+)
 from fastapi_template.ioc.container import get_container
 from tests.integration.factories import TestClientFactory, TestUserFactory
 

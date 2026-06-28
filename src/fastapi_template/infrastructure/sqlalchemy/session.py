@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from fastapi_template.foundation.factories import BaseFactory
+from fastapi_template.foundation.factory import BaseFactory
 
 
 class DatabaseSettings(BaseSettings):

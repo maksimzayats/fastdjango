@@ -6,17 +6,24 @@ from types import TracebackType
 
 import pytest
 
-from fastapi_template.core.authentication.dtos import CreateRefreshSessionDTO
-from fastapi_template.core.authentication.entities import RefreshSession
-from fastapi_template.core.authentication.repositories import RefreshSessionRepository
+from fastapi_template.core.authentication.dtos.create_refresh_session import (
+    CreateRefreshSessionDTO,
+)
+from fastapi_template.core.authentication.dtos.replace_refresh_session_token import (
+    ReplaceRefreshSessionTokenDTO,
+)
+from fastapi_template.core.authentication.entities.refresh_session import RefreshSession
+from fastapi_template.core.authentication.repositories.refresh_session import (
+    RefreshSessionRepository,
+)
 from fastapi_template.core.authentication.services.refresh_session import (
     RefreshSessionService,
     RefreshSessionServiceSettings,
 )
-from fastapi_template.core.health.repositories import HealthRepository
+from fastapi_template.core.health.repositories.health import HealthRepository
 from fastapi_template.core.unit_of_work import UnitOfWork
-from fastapi_template.core.user.entities import User
-from fastapi_template.core.user.repositories import UserRepository
+from fastapi_template.core.user.entities.user import User
+from fastapi_template.core.user.repositories.user import UserRepository
 
 _OLD_REFRESH_TOKEN = "old-refresh-token"  # noqa: S105
 
@@ -30,6 +37,7 @@ class FakeRefreshSessionRepository(RefreshSessionRepository):
     session: RefreshSession | None
     replace_returns_none: bool = False
     replaced_session_id: uuid.UUID | None = None
+    replaced_expected_hash: str | None = None
     replaced_hash: str | None = None
     replaced_rotation_counter: int | None = None
     revoked_session_id: uuid.UUID | None = None
@@ -54,22 +62,24 @@ class FakeRefreshSessionRepository(RefreshSessionRepository):
     async def replace_token_hash(
         self,
         *,
-        session_id: uuid.UUID,
-        refresh_token_hash: str,
-        last_used_at: datetime,
-        rotation_counter: int,
+        data: ReplaceRefreshSessionTokenDTO,
     ) -> RefreshSession | None:
-        self.replaced_session_id = session_id
-        self.replaced_hash = refresh_token_hash
-        self.replaced_rotation_counter = rotation_counter
-        if self.replace_returns_none or self.session is None:
+        self.replaced_session_id = data.session_id
+        self.replaced_expected_hash = data.expected_refresh_token_hash
+        self.replaced_hash = data.refresh_token_hash
+        self.replaced_rotation_counter = data.rotation_counter
+        if (
+            self.replace_returns_none
+            or self.session is None
+            or self.session.refresh_token_hash != data.expected_refresh_token_hash
+        ):
             return None
 
         self.session = _build_session(
-            session_id=session_id,
-            refresh_token_hash=refresh_token_hash,
-            rotation_counter=rotation_counter,
-            last_used_at=last_used_at,
+            session_id=data.session_id,
+            refresh_token_hash=data.refresh_token_hash,
+            rotation_counter=data.rotation_counter,
+            last_used_at=data.last_used_at,
         )
         return self.session
 
@@ -132,6 +142,7 @@ async def test_rotate_refresh_token_replaces_stored_hash() -> None:
     )
 
     assert repository.replaced_session_id == session.id
+    assert repository.replaced_expected_hash == session.refresh_token_hash
     assert repository.replaced_hash is not None
     assert repository.replaced_hash != session.refresh_token_hash
     assert repository.replaced_rotation_counter == session.rotation_counter + 1

@@ -20,8 +20,8 @@
 - Database access uses async SQLAlchemy, Alembic, repositories, and a unit-of-work boundary.
 - `foundation/`: neutral base classes and shared primitives.
 - `core/`: vertical business modules. Inner entities, DTOs, repository ports,
-  services, use cases, and exceptions live directly under each business package.
-  Local delivery adapters live under paths such as `core/user/delivery/fastapi`.
+  services, use cases, and exceptions live in scoped packages under each business
+  package. Local delivery adapters live under paths such as `core/user/delivery/fastapi`.
   Local concrete infrastructure adapters live under paths such as
   `core/user/infrastructure/sqlalchemy`.
 - `entrypoints/`: FastAPI composition root.
@@ -62,6 +62,20 @@
 - Infrastructure must not depend on core delivery details.
 - Shared code must be genuinely shared, not a dumping ground.
 
+## Scoped Files
+
+- Use packages with scoped files instead of aggregate modules. Do not add
+  `use_cases.py`, `dtos.py`, `services.py`, `repositories.py`, `schemas.py`,
+  `controllers.py`, `models.py`, `exceptions.py`, or similar bucket files.
+- A scoped source file has one primary public class or one public function.
+  Tightly owned helper classes ending in `Settings`, `Result`, or `State` may
+  live beside their owner.
+- One use case file contains one use case. One controller file contains one
+  endpoint/action controller. One repository file contains one domain-model
+  repository. One SQLAlchemy model file contains one table/domain model.
+- Keep `__init__.py` files empty. Import concrete classes from their direct
+  modules and do not add alias modules or package re-exports.
+
 ## Class Markers
 
 - Use `BaseService`, `BaseUseCase`, `BaseFactory`, and `BaseConfigurator`.
@@ -81,7 +95,6 @@
 
 - Follow existing file names, imports, and local patterns.
 - Keep edits scoped to the request.
-- Do not add backward-compatibility layers unless explicitly requested.
 - Use `apply_patch` for manual edits.
 - Prefer explicit readable code over clever typing workarounds.
 - Service and use-case methods must make custom arguments keyword-only with `*`.

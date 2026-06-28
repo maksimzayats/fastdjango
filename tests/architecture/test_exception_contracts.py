@@ -406,7 +406,7 @@ def _is_exception_name(name: str) -> bool:
 
 
 def _is_domain_exception_module(module_name: str) -> bool:
-    return module_name.startswith("fastapi_template.core.") and module_name.endswith(".exceptions")
+    return module_name.startswith("fastapi_template.core.") and ".exceptions." in module_name
 
 
 class _ExceptionClass(NamedTuple):
@@ -463,13 +463,13 @@ def _inherits_from_application_error(
 
 def _is_core_exception_module(source_file: Path) -> bool:
     relative_parts = source_file.relative_to(SOURCE_ROOT).parts
-    return relative_parts[0] == "core" and source_file.name == "exceptions.py"
+    return relative_parts[0] == "core" and "exceptions" in relative_parts
 
 
 def _is_service_or_use_case_module(source_file: Path) -> bool:
     relative_parts = source_file.relative_to(SOURCE_ROOT).parts
     return relative_parts[0] == "core" and (
-        "services" in relative_parts or source_file.name == "use_cases.py"
+        "services" in relative_parts or "use_cases" in relative_parts
     )
 
 

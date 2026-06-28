@@ -3,7 +3,7 @@ from typing import Any
 
 from diwire import Container
 
-from fastapi_template.foundation.factories import BaseFactory
+from fastapi_template.foundation.factory import BaseFactory
 
 
 class BaseTestFactory(BaseFactory, ABC):

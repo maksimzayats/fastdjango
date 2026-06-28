@@ -24,8 +24,15 @@ SHARED_SQLALCHEMY_MODULES = {
     "unit_of_work.py",
 }
 DATABASE_DOMAIN_MODEL_SOURCE_PARTS = {
-    ("core", "authentication", "infrastructure", "sqlalchemy", "models.py"),
-    ("core", "user", "infrastructure", "sqlalchemy", "models.py"),
+    (
+        "core",
+        "authentication",
+        "infrastructure",
+        "sqlalchemy",
+        "models",
+        "refresh_session.py",
+    ),
+    ("core", "user", "infrastructure", "sqlalchemy", "models", "user.py"),
 }
 FRAMEWORK_IMPORT_PREFIXES = ("fastapi", "starlette")
 DATABASE_QUERY_FUNCTION_NAMES = {"delete", "insert", "select", "text", "update"}
@@ -40,7 +47,6 @@ FORBIDDEN_CONTROLLER_IMPORT_PREFIXES = (
     "sqlalchemy",
     "fastapi_template.infrastructure.sqlalchemy.unit_of_work",
 )
-FORBIDDEN_CONTROLLER_IMPORT_SUFFIXES = (".repositories", ".models")
 
 
 def test_runtime_code_does_not_import_removed_frameworks() -> None:
@@ -278,6 +284,20 @@ def test_services_and_use_cases_depend_on_unit_of_work_for_database_access() -> 
     assert violations == [], "Use cases and services must inject UnitOfWork, not repositories."
 
 
+def test_scoped_import_predicates_catch_package_and_module_imports() -> None:
+    assert _is_core_delivery_import("fastapi_template.core.user.delivery")
+    assert _is_core_delivery_import("fastapi_template.core.user.delivery.fastapi")
+    assert _is_core_local_infrastructure_import("fastapi_template.core.user.infrastructure")
+    assert _is_core_local_infrastructure_import(
+        "fastapi_template.core.user.infrastructure.sqlalchemy",
+    )
+    assert _is_forbidden_controller_import("fastapi_template.core.user.repositories")
+    assert _is_forbidden_controller_import("fastapi_template.core.user.repositories.user")
+    assert _is_forbidden_controller_import(
+        "fastapi_template.core.user.infrastructure.sqlalchemy.models.user",
+    )
+
+
 def _format_import_violation(
     module: SourceModule,
     module_name: str,
@@ -316,19 +336,19 @@ def _is_local_sqlalchemy_adapter_module(module: SourceModule) -> bool:
 
 
 def _is_local_sqlalchemy_repository_module(module: SourceModule) -> bool:
-    return _is_local_sqlalchemy_adapter_module(module) and module.path.name == "repositories.py"
+    return _is_local_sqlalchemy_adapter_module(module) and "repositories" in module.source_parts
 
 
 def _is_repository_port_module(module: SourceModule) -> bool:
     return (
         module.source_parts[0] == "core"
-        and module.path.name == "repositories.py"
+        and "repositories" in module.source_parts
         and "infrastructure" not in module.source_parts
     )
 
 
 def _is_repository_module(module: SourceModule) -> bool:
-    return module.source_parts[0] == "core" and module.path.name == "repositories.py"
+    return module.source_parts[0] == "core" and "repositories" in module.source_parts
 
 
 def _is_forbidden_core_internal_import(module_name: str) -> bool:
@@ -347,11 +367,11 @@ def _is_forbidden_core_internal_import(module_name: str) -> bool:
 
 
 def _is_core_delivery_import(module_name: str) -> bool:
-    return module_name.startswith("fastapi_template.core.") and ".delivery." in module_name
+    return _has_core_package_part(module_name=module_name, package_part="delivery")
 
 
 def _is_core_local_infrastructure_import(module_name: str) -> bool:
-    return module_name.startswith("fastapi_template.core.") and ".infrastructure." in module_name
+    return _has_core_package_part(module_name=module_name, package_part="infrastructure")
 
 
 def _is_framework_boundary_module(module: SourceModule) -> bool:
@@ -433,7 +453,7 @@ def _is_service_module(module: SourceModule) -> bool:
 
 
 def _is_controller_module(module: SourceModule) -> bool:
-    return _is_core_delivery_module(module) and module.path.name == "controllers.py"
+    return _is_core_delivery_module(module) and "controllers" in module.source_parts
 
 
 def _is_forbidden_controller_import(module_name: str) -> bool:
@@ -441,7 +461,18 @@ def _is_forbidden_controller_import(module_name: str) -> bool:
         module_name.startswith(FORBIDDEN_CONTROLLER_IMPORT_PREFIXES)
         or module_name == "fastapi_template.core.unit_of_work"
         or _is_core_local_infrastructure_import(module_name)
-        or module_name.endswith(FORBIDDEN_CONTROLLER_IMPORT_SUFFIXES)
+        or _has_core_package_part(module_name=module_name, package_part="repositories")
+        or _has_core_package_part(module_name=module_name, package_part="models")
+    )
+
+
+def _has_core_package_part(*, module_name: str, package_part: str) -> bool:
+    parts = module_name.split(".")
+    return (
+        len(parts) >= 3
+        and parts[0] == "fastapi_template"
+        and parts[1] == "core"
+        and package_part in parts[2:]
     )
 
 
@@ -450,7 +481,7 @@ def _is_service_or_use_case_module(module: SourceModule) -> bool:
         module.source_parts[0] == "core"
         and "delivery" not in module.source_parts
         and "infrastructure" not in module.source_parts
-        and (module.path.name == "use_cases.py" or "services" in module.source_parts)
+        and ("use_cases" in module.source_parts or "services" in module.source_parts)
     )
 
 

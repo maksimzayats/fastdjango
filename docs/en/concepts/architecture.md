@@ -6,7 +6,9 @@ Use cases coordinate externally meaningful application actions and expose a sing
 
 When one application action needs repository work, the use case opens the UoW inside `execute(...)`. If the action needs multiple repository operations, open one UoW and pass the active `uow` to focused collaborators. Do not nest separate UoWs for one workflow. Services may use the active `uow`, but they do not open transactions.
 
-`core` is a vertical business-module namespace. Inner application code lives directly under each business package: entities, DTOs, exceptions, repository interfaces, services, and use cases. Local delivery adapters live under paths such as `core/user/delivery/fastapi`; local SQLAlchemy adapters live under paths such as `core/user/infrastructure/sqlalchemy`.
+`core` is a vertical business-module namespace. Inner application code lives in scoped packages under each business package: entities, DTOs, exceptions, repository interfaces, services, and use cases. Local delivery adapters live under paths such as `core/user/delivery/fastapi`; local SQLAlchemy adapters live under paths such as `core/user/infrastructure/sqlalchemy`.
+
+Use packages with scoped files instead of bucket modules. A use-case file contains one use case, a controller file contains one endpoint/action controller, a repository file contains one domain-model repository, and a SQLAlchemy model file contains one table/domain model. Keep `__init__.py` files empty and import classes from their direct modules.
 
 Repository interfaces are inner core contracts and do not import SQLAlchemy. Concrete SQLAlchemy models, mappers, and repositories live in local business infrastructure. Local infrastructure may import inner entities, DTOs, exceptions, and repository interfaces, but it must not import delivery. Delivery modules map request schemas to DTOs and must not import local infrastructure.
 

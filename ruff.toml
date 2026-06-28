@@ -42,11 +42,8 @@ ignore = [
     "D107",  # Migration scripts do not expose public application APIs
     "RUF012",  # Mutable class attributes
 ]
-"**/models.py" = [
+"**/models/*.py" = [
     "RUF012",
-]
-"**/factories.py" = [
-    "PLR0913",
 ]
 "tests/**" = [
     "S101",  # Use of assert detected

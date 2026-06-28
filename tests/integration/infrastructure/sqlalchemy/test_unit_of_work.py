@@ -4,7 +4,7 @@ import pytest
 from diwire import Container
 
 from fastapi_template.core.unit_of_work import UnitOfWork
-from fastapi_template.core.user.dtos import CreateUserDTO
+from fastapi_template.core.user.dtos.create_user import CreateUserDTO
 from fastapi_template.infrastructure.sqlalchemy.session import SQLAlchemySessionFactory
 from fastapi_template.infrastructure.sqlalchemy.unit_of_work import SQLAlchemyUnitOfWork
 

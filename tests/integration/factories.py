@@ -6,10 +6,10 @@ from fastapi.testclient import TestClient
 
 from fastapi_template.core.authentication.services.jwt import JWTService
 from fastapi_template.core.unit_of_work import UnitOfWork
-from fastapi_template.core.user.dtos import CreateUserDTO
-from fastapi_template.core.user.entities import User
-from fastapi_template.core.user.use_cases import CreateUserUseCase
-from fastapi_template.entrypoints.fastapi.factories import FastAPIFactory
+from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.entities.user import User
+from fastapi_template.core.user.use_cases.create_user import CreateUserUseCase
+from fastapi_template.entrypoints.fastapi.factory import FastAPIFactory
 from tests.foundation.factories import ContainerBasedFactory
 
 

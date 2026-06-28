@@ -10,7 +10,7 @@ from fastapi_template.core.shared.delivery.fastapi.request import (
     RequestInfoService,
     RequestInfoServiceSettings,
 )
-from fastapi_template.core.shared.delivery.fastapi.throttling import IPThrottler
+from fastapi_template.core.shared.delivery.fastapi.throttling.ip_throttler import IPThrottler
 
 
 @pytest.fixture()

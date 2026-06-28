@@ -7,7 +7,7 @@ from diwire import Injected
 from pydantic_settings import BaseSettings
 from starlette.requests import Request
 
-from fastapi_template.foundation.services import BaseService
+from fastapi_template.foundation.service import BaseService
 
 logger = logging.getLogger(__name__)
 

@@ -27,7 +27,9 @@ def test_dtos_live_in_dto_modules_and_inherit_base_dto() -> None:
         for violation in _dto_violations(module=module, class_node=class_node)
     ]
 
-    assert violations == [], "DTO classes must live in dtos.py, inherit BaseDTO, and end with DTO."
+    assert violations == [], (
+        "DTO classes must live in dto modules, inherit BaseDTO, and end with DTO."
+    )
 
 
 def test_delivery_schemas_live_in_schema_modules_and_inherit_delivery_schema_base() -> None:
@@ -62,12 +64,17 @@ def test_delivery_schemas_do_not_import_dtos() -> None:
         for module in iter_source_modules()
         if _delivery_schema_framework(module) is not None
         for import_reference in iter_imports(module)
-        if import_reference.module_name.endswith(".dtos")
+        if _is_core_dto_import(import_reference.module_name)
     ]
 
     assert violations == [], (
         "Delivery schemas must define delivery shapes directly and must not import DTOs."
     )
+
+
+def test_schema_import_predicates_catch_scoped_dto_imports() -> None:
+    assert _is_core_dto_import("fastapi_template.core.user.dtos")
+    assert _is_core_dto_import("fastapi_template.core.user.dtos.create_user")
 
 
 def test_delivery_schemas_do_not_inherit_dtos() -> None:
@@ -160,7 +167,7 @@ def _delivery_schema_framework(module: SourceModule) -> str | None:
     if module.source_parts[0] != "core":
         return None
 
-    if module.path.name != "schemas.py":
+    if "schemas" not in module.source_parts or module.path.name == "__init__.py":
         return None
 
     parts = module.source_parts
@@ -172,7 +179,11 @@ def _delivery_schema_framework(module: SourceModule) -> str | None:
 
 
 def _is_dto_module(module: SourceModule) -> bool:
-    return module.source_parts[0] == "core" and module.path.name == "dtos.py"
+    return (
+        module.source_parts[0] == "core"
+        and "dtos" in module.source_parts
+        and module.path.name != "__init__.py"
+    )
 
 
 def _is_forbidden_dto_import(module_name: str) -> bool:
@@ -190,12 +201,28 @@ def _matches_import_prefix(*, module_name: str, prefix: str) -> bool:
 
 
 def _is_delivery_module(module_name: str) -> bool:
-    return module_name.startswith("fastapi_template.core.") and ".delivery." in module_name
+    parts = module_name.split(".")
+    return (
+        len(parts) >= 3
+        and parts[0] == "fastapi_template"
+        and parts[1] == "core"
+        and "delivery" in parts[2:]
+    )
 
 
 def _is_delivery_schema_module(module_name: str) -> bool:
     parts = module_name.split(".")
-    return "delivery" in parts and parts[-1] == "schemas"
+    return "delivery" in parts and "schemas" in parts
+
+
+def _is_core_dto_import(module_name: str) -> bool:
+    parts = module_name.split(".")
+    return (
+        len(parts) >= 3
+        and parts[0] == "fastapi_template"
+        and parts[1] == "core"
+        and "dtos" in parts[2:]
+    )
 
 
 def _schema_behavior_statement_name(statement: ast.stmt) -> str | None:

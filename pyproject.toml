@@ -72,8 +72,9 @@ ignore_no_config = true
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-addopts = "--exitfirst -vv --strict-config --strict-markers --cov=src --cov-report=term-missing:skip-covered --cov-report=html --cov-fail-under=100"
+addopts = "--exitfirst -vv --strict-config --strict-markers --import-mode=importlib --cov=src --cov-report=term-missing:skip-covered --cov-report=html --cov-fail-under=100"
 filterwarnings = ["error"]
+pythonpath = ["."]
 xfail_strict = true
 testpaths = ["tests"]
 

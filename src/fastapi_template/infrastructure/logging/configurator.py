@@ -7,7 +7,7 @@ from diwire import Injected
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from fastapi_template.foundation.configurators import BaseConfigurator
+from fastapi_template.foundation.configurator import BaseConfigurator
 from fastapi_template.infrastructure.logfire.configurator import LogfireSettings
 
 

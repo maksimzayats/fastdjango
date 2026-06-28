@@ -7,7 +7,7 @@ from logfire import ScrubbingOptions
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from fastapi_template.foundation.configurators import BaseConfigurator
+from fastapi_template.foundation.configurator import BaseConfigurator
 
 logger = logging.getLogger(__name__)
 
