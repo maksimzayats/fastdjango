@@ -87,8 +87,6 @@ omit = [
     "src/fastapi_template/entrypoints/fastapi/bootstrap.py",
     # Migration scripts
     "migrations/**",
-    # Observability/telemetry (requires external services)
-    "src/**/logfire/**",
 ]
 
 [tool.coverage.report]

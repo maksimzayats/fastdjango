@@ -34,18 +34,18 @@ class StaffUserLookupController(BaseAsyncController):
         """Run register."""
         registry.add_api_route(
             path="/api/v1/users/{user_id}",
-            endpoint=self.get_user_by_id,
+            endpoint=self.staff_user_lookup,
             methods=["GET"],
             dependencies=[Depends(self._staff_jwt_auth)],
             response_model=UserSchema,
         )
 
-    async def get_user_by_id(
+    async def staff_user_lookup(
         self,
         request: AuthenticatedRequest,
         user_id: int,
     ) -> UserSchema:
-        """Run get user by id.
+        """Run staff user lookup.
 
         Returns:
         The operation result.

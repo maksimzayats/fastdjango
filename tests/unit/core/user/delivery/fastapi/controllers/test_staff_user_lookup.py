@@ -28,7 +28,7 @@ async def test_staff_user_lookup_controller_returns_not_found_for_missing_user()
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        await controller.get_user_by_id(
+        await controller.staff_user_lookup(
             request=cast(AuthenticatedRequest, SimpleNamespace(state=SimpleNamespace(user_id=2))),
             user_id=1,
         )

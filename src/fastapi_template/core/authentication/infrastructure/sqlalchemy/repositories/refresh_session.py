@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
+from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -77,23 +79,32 @@ class SQLAlchemyRefreshSessionRepository(RefreshSessionRepository):
         Returns:
             The updated refresh session, if an active matching session exists.
         """
+        update_result = cast(
+            CursorResult[Any],
+            await self._session.execute(
+                update(RefreshSessionModel)
+                .where(
+                    RefreshSessionModel.refresh_token_hash == data.expected_refresh_token_hash,
+                    RefreshSessionModel.revoked_at.is_(None),
+                    RefreshSessionModel.expires_at > data.expires_after,
+                )
+                .values(
+                    refresh_token_hash=data.refresh_token_hash,
+                    last_used_at=data.last_used_at,
+                    rotation_counter=RefreshSessionModel.rotation_counter + 1,
+                )
+                .execution_options(synchronize_session=False),
+            ),
+        )
+        if update_result.rowcount != 1:
+            return None
+
         query_result = await self._session.execute(
             select(RefreshSessionModel)
             .options(selectinload(RefreshSessionModel.user))
-            .where(
-                RefreshSessionModel.refresh_token_hash == data.expected_refresh_token_hash,
-                RefreshSessionModel.revoked_at.is_(None),
-                RefreshSessionModel.expires_at > data.expires_after,
-            )
-            .with_for_update(),
+            .where(RefreshSessionModel.refresh_token_hash == data.refresh_token_hash),
         )
-        model = query_result.scalar_one_or_none()
-        if model is None:
-            return None
-
-        model.refresh_token_hash = data.refresh_token_hash
-        model.rotation_counter += 1
-        model.last_used_at = data.last_used_at
+        model = query_result.scalar_one()
 
         return refresh_session_from_model(model=model)
 
