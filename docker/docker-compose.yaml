@@ -6,7 +6,6 @@ x-common: &common
 
   environment:
     DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}"
-    AWS_S3_ENDPOINT_URL: "http://minio:9000"
     REDIS_URL: "redis://default:${REDIS_PASSWORD}@redis:6379/0"
 
   logging:
@@ -31,7 +30,7 @@ services:
       - "8009:8000"
     command:
       - gunicorn
-      - fastdjango.entrypoints.fastapi.app:app
+      - fastapi_template.entrypoints.fastapi.app:app
       - --workers=4
       - --worker-class=uvicorn.workers.UvicornWorker
       - --bind=0.0.0.0:8000
@@ -39,68 +38,15 @@ services:
     depends_on:
       pgbouncer:
         condition: service_healthy
-      migrations:
-        condition: service_completed_successfully
-      collectstatic:
-        condition: service_completed_successfully
-      celery-worker:
-        condition: service_started
+      redis:
+        condition: service_healthy
     healthcheck:
-      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/health', timeout=8).read()" ]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=8).read()" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
     restart: always
-
-  celery-worker:
-    <<: *common
-    command:
-      - celery
-      - --app=fastdjango.entrypoints.celery.app
-      - worker
-      - --loglevel=${LOGGING_LEVEL:-INFO}
-      - --concurrency=4
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-      migrations:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-    restart: always
-
-  celery-beat:
-    <<: *common
-    command:
-      - celery
-      - --app=fastdjango.entrypoints.celery.app
-      - beat
-      - --loglevel=${LOGGING_LEVEL:-INFO}
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-      migrations:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-    restart: always
-
-  migrations:
-    <<: *common
-    command: python management/manage.py migrate --noinput
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-
-  collectstatic:
-    <<: *common
-    command: python management/manage.py collectstatic --noinput
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-      minio-create-buckets:
-        condition: service_completed_successfully
 
   postgres:
     image: postgres:18.3-alpine
@@ -186,54 +132,10 @@ services:
     networks:
       - main
 
-  minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
-    env_file:
-      - ../.env
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
-      interval: 2s
-      timeout: 10s
-      retries: 5
-    networks:
-      - main
-
-  minio-create-buckets:
-    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
-    depends_on:
-      minio:
-        condition: service_healthy
-    env_file:
-      - ../.env
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc alias set my-minio http://minio:9000 \"$${AWS_S3_ACCESS_KEY_ID}\" \"$${AWS_S3_SECRET_ACCESS_KEY}\";
-      /usr/bin/mc mb --ignore-existing \"my-minio/$${AWS_S3_PROTECTED_BUCKET_NAME:-protected}\";
-      /usr/bin/mc anonymous set none \"my-minio/$${AWS_S3_PROTECTED_BUCKET_NAME:-protected}\";
-
-      /usr/bin/mc mb --ignore-existing \"my-minio/$${AWS_S3_PUBLIC_BUCKET_NAME:-public}\";
-      /usr/bin/mc anonymous set public \"my-minio/$${AWS_S3_PUBLIC_BUCKET_NAME:-public}\";
-
-      exit 0;
-      "
-    networks:
-      - main
-
 volumes:
   postgres_data:
     driver: local
   redis_data:
-    driver: local
-  minio_data:
     driver: local
 
 networks:

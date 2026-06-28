@@ -23,7 +23,6 @@ from management.setup_wizard.models import (
     FileOperation,
     RedisMode,
     SetupAnswers,
-    StorageMode,
 )
 from management.setup_wizard.planner import build_setup_plan, detect_current_package_name
 from management.setup_wizard.prompts import confirm_plan, prompt_for_answers
@@ -46,7 +45,7 @@ def main() -> int:
         Panel.fit(
             f"Current package: [bold]{current_package_name}[/bold]\n"
             "This wizard will rewrite repository files for your new project.",
-            title="fastdjango setup",
+            title="fastapi_template setup",
         ),
     )
 
@@ -96,7 +95,7 @@ def main() -> int:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the fastdjango one-time setup wizard.")
+    parser = argparse.ArgumentParser(description="Run the fastapi_template one-time setup wizard.")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -255,11 +254,7 @@ def _render_next_steps(
     if docker_services:
         table.add_row("Start local services", f"docker compose up -d {' '.join(docker_services)}")
 
-    if answers.storage_mode == StorageMode.MINIO:
-        table.add_row("Create MinIO buckets", "docker compose up minio-create-buckets")
-
     table.add_row("Apply migrations", "make migrate")
-    table.add_row("Collect static files", "make collectstatic")
     table.add_row("Run the app", "make dev")
 
     if answers.keep_docs:
@@ -274,8 +269,6 @@ def _docker_services(*, answers: SetupAnswers) -> list[str]:
         services.append("postgres")
     if answers.redis_mode == RedisMode.DOCKER_REDIS:
         services.append("redis")
-    if answers.storage_mode == StorageMode.MINIO:
-        services.append("minio")
     return services
 
 

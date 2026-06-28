@@ -1,7 +1,7 @@
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SOURCE_ROOT = REPO_ROOT / "src" / "fastdjango"
+SOURCE_ROOT = REPO_ROOT / "src" / "fastapi_template"
 TESTS_ROOT = REPO_ROOT / "tests"
 
 MIRRORED_TEST_LAYER_NAMES = ("integration", "unit")
@@ -33,8 +33,7 @@ def test_important_source_modules_have_matching_tests() -> None:
 
     assert missing_tests == [], (
         "Important behavior modules must have matching tests. "
-        "Cover delivery controllers/tasks with integration tests and "
-        "services/use cases with unit tests."
+        "Cover delivery controllers with integration tests and services/use cases with unit tests."
     )
 
 
@@ -60,7 +59,6 @@ def _iter_important_source_modules() -> list[Path]:
     source_modules: list[Path] = []
 
     source_modules.extend(sorted(SOURCE_ROOT.glob("core/*/delivery/fastapi/controllers.py")))
-    source_modules.extend(sorted(SOURCE_ROOT.glob("core/*/delivery/celery/tasks.py")))
     source_modules.extend(
         source_path
         for source_path in sorted(SOURCE_ROOT.glob("core/*/services/*.py"))

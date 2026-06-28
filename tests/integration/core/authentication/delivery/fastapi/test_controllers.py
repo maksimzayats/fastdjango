@@ -2,9 +2,9 @@ from http import HTTPStatus
 
 import pytest
 
-from fastdjango.core.authentication.delivery.fastapi.schemas import TokenResponseSchema
-from fastdjango.core.user.delivery.fastapi.schemas import UserSchema
-from fastdjango.core.user.models import User
+from fastapi_template.core.authentication.delivery.fastapi.schemas import TokenResponseSchema
+from fastapi_template.core.user.delivery.fastapi.schemas import UserSchema
+from fastapi_template.core.user.entities import User
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
 _TEST_PASSWORD = "test-password"  # noqa: S105
@@ -15,7 +15,6 @@ def user(user_factory: TestUserFactory) -> User:
     return user_factory(username="test", password=_TEST_PASSWORD)
 
 
-@pytest.mark.django_db(transaction=True)
 class TestAuthenticationTokenController:
     """Tests for AuthenticationTokenController endpoints."""
 
@@ -26,19 +25,19 @@ class TestAuthenticationTokenController:
     ) -> None:
         with test_client_factory() as test_client:
             response = test_client.post(
-                "/v1/auth/token",
+                "/api/v1/auth/token",
                 json={"username": user.username, "password": _TEST_PASSWORD},
             )
             token_response = TokenResponseSchema.model_validate(response.json())
 
             response = test_client.get(
-                "/v1/users/me",
+                "/api/v1/users/me",
                 headers={"Authorization": f"Bearer {token_response.access_token}"},
             )
             user_data = UserSchema.model_validate(response.json())
 
         assert response.status_code == HTTPStatus.OK
-        assert user_data.id == user.pk
+        assert user_data.id == user.id
         assert user_data.username == user.username
         assert user_data.email == user.email
 
@@ -49,7 +48,7 @@ class TestAuthenticationTokenController:
     ) -> None:
         with test_client_factory() as test_client:
             response = test_client.post(
-                "/v1/auth/token",
+                "/api/v1/auth/token",
                 json={"username": user.username, "password": "invalid-password"},
             )
 
@@ -62,26 +61,26 @@ class TestAuthenticationTokenController:
     ) -> None:
         with test_client_factory() as test_client:
             response = test_client.post(
-                "/v1/auth/token",
+                "/api/v1/auth/token",
                 json={"username": user.username, "password": _TEST_PASSWORD},
             )
             token_response = TokenResponseSchema.model_validate(response.json())
 
             response = test_client.post(
-                "/v1/auth/token/refresh",
+                "/api/v1/auth/token/refresh",
                 json={"refresh_token": token_response.refresh_token},
             )
             token_response = TokenResponseSchema.model_validate(response.json())
 
             response = test_client.post(
-                "/v1/auth/token/revoke",
+                "/api/v1/auth/token/revoke",
                 json={"refresh_token": token_response.refresh_token},
                 headers={"Authorization": f"Bearer {token_response.access_token}"},
             )
             revoke_status = response.status_code
 
             response = test_client.post(
-                "/v1/auth/token/refresh",
+                "/api/v1/auth/token/refresh",
                 json={"refresh_token": token_response.refresh_token},
             )
 

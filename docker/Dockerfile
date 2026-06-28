@@ -20,7 +20,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY pyproject.toml uv.lock ./
 COPY src ./src
-COPY management/__init__.py management/manage.py ./management/
+COPY alembic.ini ./
+COPY migrations ./migrations
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
@@ -37,7 +38,8 @@ RUN groupadd --gid 10001 app \
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --from=builder --chown=app:app /app/src /app/src
-COPY --from=builder --chown=app:app /app/management /app/management
+COPY --from=builder --chown=app:app /app/alembic.ini /app/alembic.ini
+COPY --from=builder --chown=app:app /app/migrations /app/migrations
 
 WORKDIR /app
 USER app

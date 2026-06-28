@@ -12,26 +12,21 @@ from tests.architecture._source import (
 FOUNDATION_BASE_SUFFIXES = {
     "ApplicationSettings": "Settings",
     "BaseAsyncController": "Controller",
-    "BaseCeleryTaskController": "Controller",
-    "BaseCelerySchema": "Schema",
     "BaseConfigurator": "Configurator",
     "BaseDTO": "DTO",
     "BaseFactory": "Factory",
     "BaseFastAPISchema": "Schema",
     "BaseService": "Service",
     "BaseSettings": "Settings",
-    "BaseTasksRegistry": "Registry",
     "BaseThrottler": "Throttler",
     "BaseUseCase": "UseCase",
 }
 
 INJECTABLE_BASES = {
     "BaseAsyncController",
-    "BaseCeleryTaskController",
     "BaseConfigurator",
     "BaseFactory",
     "BaseService",
-    "BaseTasksRegistry",
     "BaseThrottler",
     "BaseUseCase",
 }
@@ -129,6 +124,36 @@ def test_services_and_use_cases_use_keyword_only_method_arguments() -> None:
         "Add `*` after self/cls, for example `def create(self, *, data: DTO)`, "
         "and avoid positional `*args`."
     )
+
+
+def test_use_cases_expose_only_public_async_execute_method() -> None:
+    violations = []
+    for module in iter_source_modules():
+        for class_node in iter_class_definitions(module):
+            if class_node.name.startswith("Base") or not has_base(class_node, {"BaseUseCase"}):
+                continue
+
+            public_methods = [
+                method_node
+                for method_node in class_node.body
+                if isinstance(method_node, ast.FunctionDef | ast.AsyncFunctionDef)
+                if not method_node.name.startswith("_")
+            ]
+            if len(public_methods) != 1 or public_methods[0].name != "execute":
+                method_names = ", ".join(method.name for method in public_methods)
+                violations.append(
+                    f"{module.relative_path}:{class_node.lineno} "
+                    f"{class_node.name} public methods: {method_names or '<none>'}",
+                )
+                continue
+
+            if not isinstance(public_methods[0], ast.AsyncFunctionDef):
+                violations.append(
+                    f"{module.relative_path}:{public_methods[0].lineno} "
+                    f"{class_node.name}.execute must be async",
+                )
+
+    assert violations == [], "Use cases must expose exactly one public async execute method."
 
 
 def _has_custom_positional_arguments(

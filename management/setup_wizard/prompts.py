@@ -11,29 +11,16 @@ from urllib.parse import urlsplit
 
 import questionary
 
-from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
+from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers
 
 PACKAGE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 DISTRIBUTION_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*[a-z0-9]$")
-TEMPLATE_PROJECT_NAME = "fastdjango"
-TEMPLATE_PACKAGE_NAME = "fastdjango"
-TEMPLATE_DISTRIBUTION_NAME = "fastdjango"
-TEMPLATE_REPOSITORY_URL = "https://github.com/maksimzayats/fastdjango"
+TEMPLATE_PROJECT_NAME = "fastapi_template"
+TEMPLATE_PACKAGE_NAME = "fastapi_template"
+TEMPLATE_DISTRIBUTION_NAME = "fastapi-template"
+TEMPLATE_REPOSITORY_URL = "https://github.com/maksimzayats/fastapi-template"
 GITHUB_REPOSITORY_PATH_PARTS = 2
 MAX_PORT = 65535
-
-
-@dataclass(frozen=True, kw_only=True)
-class StoragePromptAnswers:
-    s3_endpoint_url: str | None = None
-    s3_public_endpoint_url: str | None = None
-    s3_region_name: str | None = None
-    s3_access_key_id: str | None = None
-    s3_secret_access_key: str | None = None
-    s3_public_bucket_name: str = "public"
-    s3_protected_bucket_name: str = "protected"
-    minio_api_port: int = 9000
-    minio_console_port: int = 9001
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -96,8 +83,6 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
     keep_docs = _ask_confirm("Keep documentation?", default=True)
     docs_site_url = _ask_docs_site_url(keep_docs=keep_docs)
     git_answers = _ask_git_answers(repo_root=repo_root)
-    storage_mode = _ask_storage_mode()
-    storage_answers = _ask_storage_answers(storage_mode=storage_mode)
     database_mode = _ask_database_mode()
     database_answers = _ask_database_answers(database_mode=database_mode)
     redis_mode = _ask_redis_mode()
@@ -112,7 +97,6 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
         package_name=package_name.strip(),
         distribution_name=distribution_name.strip(),
         docs_site_url=docs_site_url,
-        storage_mode=storage_mode,
         database_mode=database_mode,
         redis_mode=redis_mode,
         keep_docs=keep_docs,
@@ -121,13 +105,6 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
         repo_url=git_answers.repo_url,
         reinitialize_git_repository=git_answers.reinitialize_git_repository,
         create_initial_commit=git_answers.create_initial_commit,
-        s3_endpoint_url=storage_answers.s3_endpoint_url,
-        s3_public_endpoint_url=storage_answers.s3_public_endpoint_url,
-        s3_region_name=storage_answers.s3_region_name,
-        s3_access_key_id=storage_answers.s3_access_key_id,
-        s3_secret_access_key=storage_answers.s3_secret_access_key,
-        s3_public_bucket_name=storage_answers.s3_public_bucket_name,
-        s3_protected_bucket_name=storage_answers.s3_protected_bucket_name,
         database_url=database_answers.database_url,
         redis_url=redis_answers.redis_url,
         production_api_origin=public_origin_answers.production_api_origin,
@@ -137,29 +114,11 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
         logfire_environment=logfire_answers.logfire_environment,
         postgres_port=database_answers.postgres_port,
         redis_port=redis_answers.redis_port,
-        minio_api_port=storage_answers.minio_api_port,
-        minio_console_port=storage_answers.minio_console_port,
     )
 
 
 def confirm_plan() -> bool:
     return _ask_confirm("Apply these changes?", default=False)
-
-
-def _ask_storage_mode() -> StorageMode:
-    value = questionary.select(
-        "Storage mode",
-        choices=[
-            questionary.Choice("Local filesystem", StorageMode.LOCAL),
-            questionary.Choice("Local MinIO", StorageMode.MINIO),
-            questionary.Choice("Remote S3-compatible", StorageMode.REMOTE_S3),
-        ],
-        default=StorageMode.LOCAL,
-    ).ask()
-    if value is None:
-        raise KeyboardInterrupt
-
-    return cast(StorageMode, value)
 
 
 def _ask_database_mode() -> DatabaseMode:
@@ -221,37 +180,6 @@ def _ask_redis_answers(*, redis_mode: RedisMode) -> RedisPromptAnswers:
 
     return RedisPromptAnswers(
         redis_port=_ask_int("Redis host port", default=6379),
-    )
-
-
-def _ask_storage_answers(*, storage_mode: StorageMode) -> StoragePromptAnswers:
-    if storage_mode == StorageMode.MINIO:
-        return StoragePromptAnswers(
-            minio_api_port=_ask_int("MinIO API host port", default=9000),
-            minio_console_port=_ask_int("MinIO console host port", default=9001),
-        )
-
-    if storage_mode != StorageMode.REMOTE_S3:
-        return StoragePromptAnswers()
-
-    return StoragePromptAnswers(
-        s3_endpoint_url=_ask_text(
-            "S3 endpoint URL (example: https://s3.example.com)",
-            validate=_validate_required_text,
-        ),
-        s3_public_endpoint_url=_ask_text(
-            "Public S3 endpoint URL (example: https://cdn.example.com)",
-            validate=_validate_required_text,
-        ),
-        s3_region_name=_ask_text(
-            "S3 region (example: us-east-1)",
-            validate=_validate_required_text,
-        ),
-        s3_access_key_id=_ask_text("S3 access key ID", validate=_validate_required_text),
-        s3_secret_access_key=_ask_text("S3 secret access key", validate=_validate_required_text),
-        s3_public_bucket_name=_optional_text("Public bucket (blank uses: public)") or "public",
-        s3_protected_bucket_name=_optional_text("Protected bucket (blank uses: protected)")
-        or "protected",
     )
 
 

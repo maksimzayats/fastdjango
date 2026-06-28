@@ -10,15 +10,12 @@ from tests.architecture._source import (
 )
 
 DELIVERY_SCHEMA_BASES = {
-    "celery": "BaseCelerySchema",
     "fastapi": "BaseFastAPISchema",
 }
 DTO_FORBIDDEN_IMPORT_PREFIXES = (
-    "django",
     "fastapi",
     "starlette",
-    "celery",
-    "fastdjango.infrastructure",
+    "fastapi_template.infrastructure",
 )
 
 
@@ -70,8 +67,8 @@ def test_dtos_do_not_import_framework_or_infrastructure_modules() -> None:
     ]
 
     assert violations == [], (
-        "DTOs must stay framework-neutral and must not import Django, FastAPI, "
-        "Starlette, Celery, or infrastructure modules."
+        "DTOs must stay framework-neutral and must not import FastAPI, "
+        "Starlette, or infrastructure modules."
     )
 
 

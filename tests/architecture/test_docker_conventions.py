@@ -13,7 +13,6 @@ COMPOSE_FILE_NAMES = {
 }
 HEALTHCHECK_REQUIRED_SERVICES = {
     "api",
-    "minio",
     "pgbouncer",
     "postgres",
     "redis",

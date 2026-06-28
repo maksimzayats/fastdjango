@@ -1,8 +1,8 @@
-site_name: Fast Django
-site_url: https://fastdjango.zayats.dev
-site_description: FastAPI, Django, and Celery project template with a setup wizard and dependency injection
-repo_url: https://github.com/maksimzayats/fastdjango
-repo_name: maksimzayats/fastdjango
+site_name: FastAPI Template
+site_url: https://fastapi-template.zayats.dev
+site_description: FastAPI project template with SQLAlchemy, Alembic, dependency injection, and setup automation
+repo_url: https://github.com/maksimzayats/fastapi-template
+repo_name: maksimzayats/fastapi-template
 
 docs_dir: en
 site_dir: ../site
@@ -47,23 +47,11 @@ markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
-  - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - tables
   - toc:
       permalink: true
   - attr_list
   - md_in_html
-
-extra:
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/maksimzayats
-      name: GitHub
-    - icon: fontawesome/brands/linkedin
-      link: https://www.linkedin.com/in/maksimzayats/
-      name: LinkedIn
 
 nav:
   - Home: index.md
@@ -71,31 +59,16 @@ nav:
     - getting-started/index.md
     - Quick Start: getting-started/quick-start.md
     - Project Structure: getting-started/project-structure.md
-    - Development Environment: getting-started/development-environment.md
-  - "Tutorial: Build a Todo List":
-    - tutorial/index.md
-    - "Step 1: Model & Service": tutorial/01-model-and-service.md
-    - "Step 2: IoC Registration": tutorial/02-ioc-registration.md
-    - "Step 3: HTTP API": tutorial/03-http-api.md
-    - "Step 4: Celery Tasks": tutorial/04-celery-tasks.md
-    - "Step 5: Observability": tutorial/05-observability.md
-    - "Step 6: Testing": tutorial/06-testing.md
   - Concepts:
     - concepts/index.md
-    - Service Layer: concepts/service-layer.md
-    - Async Django Boundaries: concepts/async-django-boundaries.md
-    - IoC Container: concepts/ioc-container.md
-    - Controller Pattern: concepts/controller-pattern.md
-    - Factory Pattern: concepts/factory-pattern.md
-    - Pydantic Settings: concepts/pydantic-settings.md
+    - Architecture: concepts/architecture.md
+    - Dependency Injection: concepts/ioc-container.md
+    - Settings: concepts/settings.md
   - How-To Guides:
     - how-to/index.md
-    - Add a New Domain: how-to/add-new-domain.md
-    - Custom Exception Handling: how-to/custom-exception-handling.md
+    - Add an HTTP Endpoint: how-to/add-http-endpoint.md
+    - Run Migrations: how-to/run-migrations.md
     - Override IoC in Tests: how-to/override-ioc-in-tests.md
-    - Add Celery Task: how-to/add-celery-task.md
-    - Secure Endpoints: how-to/secure-endpoints.md
-    - Configure Observability: how-to/configure-observability.md
   - Reference:
     - reference/index.md
     - Environment Variables: reference/environment-variables.md

@@ -1,30 +1,6 @@
 # Getting Started
 
-This section helps you get the project running and understand its structure.
+Use these pages to install dependencies, start local services, run migrations, and understand the project layout.
 
-## In This Section
-
-| Page | Description |
-|------|-------------|
-| [Quick Start](quick-start.md) | Get the project running in minutes |
-| [Project Structure](project-structure.md) | Understand the codebase organization |
-| [Development Environment](development-environment.md) | Configure your development tools |
-
-## Prerequisites
-
-Before you begin, ensure you have:
-
-- **Python 3.14+** - The project uses modern Python features
-- **uv** - Fast Python package manager ([install guide](https://docs.astral.sh/uv/getting-started/installation/))
-- **Docker** - Needed when you choose local Docker PostgreSQL, Redis, or MinIO in the setup wizard
-
-## Recommended Path
-
-1. **[Quick Start](quick-start.md)** - Run the setup wizard and start the application locally
-2. **[Project Structure](project-structure.md)** - Understand where things are located
-3. **[Development Environment](development-environment.md)** - Set up your IDE and tools
-4. **[Tutorial](../tutorial/index.md)** - Learn by building a feature
-
-## Next Steps
-
-Once you've completed the Getting Started section, head to the [Tutorial](../tutorial/index.md) to learn the architecture by building a complete feature.
+- [Quick Start](quick-start.md)
+- [Project Structure](project-structure.md)

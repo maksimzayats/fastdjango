@@ -5,11 +5,11 @@ from starlette.requests import Request
 from starlette.types import Scope
 from throttled.asyncio import Throttled
 
-from fastdjango.core.shared.delivery.fastapi.request import (
+from fastapi_template.core.shared.delivery.fastapi.request import (
     RequestInfoService,
     RequestInfoServiceSettings,
 )
-from fastdjango.core.shared.delivery.fastapi.throttling import IPThrottler
+from fastapi_template.core.shared.delivery.fastapi.throttling import IPThrottler
 
 
 @pytest.fixture()
@@ -39,8 +39,8 @@ def build_request(
     scope: Scope = {
         "type": "http",
         "method": "GET",
-        "path": "/v1/auth/token",
-        "raw_path": b"/v1/auth/token",
+        "path": "/api/v1/auth/token",
+        "raw_path": b"/api/v1/auth/token",
         "query_string": b"",
         "headers": [
             (name.lower().encode(), value.encode()) for name, value in (headers or {}).items()
@@ -103,5 +103,5 @@ async def test_ip_throttler_uses_full_request_ip_identity() -> None:
 
     await throttler(request=request)
 
-    assert captured_throttler.key == ("throttler:get:/v1/auth/token:203.0.113.10,198.51.100.5")
+    assert captured_throttler.key == ("throttler:get:/api/v1/auth/token:203.0.113.10,198.51.100.5")
     assert captured_throttler.cost == 1

@@ -23,15 +23,14 @@ def replace_project_references(text: str, *, references: ProjectReferences) -> s
 
     rewritten = _replace_docs_site_references(text=text, docs_site_url=docs_site_url)
     rewritten = _replace_repository_references(text=rewritten, repo_url=repo_url)
-    rewritten = rewritten.replace(f"src/{old_package_name}/manage.py", "management/manage.py")
     rewritten = rewritten.replace(f"src/{old_package_name}", f"src/{new_package_name}")
     rewritten = _replace_token(
         text=rewritten,
         old_value=old_package_name,
         new_value=new_package_name,
     )
-    rewritten = rewritten.replace("Fast Django", project_name)
-    return rewritten.replace("FastDjango", project_name.replace(" ", ""))
+    rewritten = rewritten.replace("FastAPI Template", project_name)
+    return rewritten.replace("FastAPITemplate", project_name.replace(" ", ""))
 
 
 def _replace_token(*, text: str, old_value: str, new_value: str) -> str:
@@ -44,21 +43,21 @@ def _replace_token(*, text: str, old_value: str, new_value: str) -> str:
 
 def _replace_docs_site_references(*, text: str, docs_site_url: str | None) -> str:
     if docs_site_url is None:
-        return text.replace("https://fastdjango.zayats.dev", "docs/en").replace(
-            "fastdjango.zayats.dev",
+        return text.replace("https://fastapi-template.zayats.dev", "docs/en").replace(
+            "fastapi-template.zayats.dev",
             "local docs",
         )
 
     normalized_docs_site_url = docs_site_url.rstrip("/")
     docs_site_host = urlsplit(normalized_docs_site_url).netloc or normalized_docs_site_url
-    return text.replace("https://fastdjango.zayats.dev", normalized_docs_site_url).replace(
-        "fastdjango.zayats.dev",
+    return text.replace("https://fastapi-template.zayats.dev", normalized_docs_site_url).replace(
+        "fastapi-template.zayats.dev",
         docs_site_host,
     )
 
 
 def _replace_repository_references(*, text: str, repo_url: str | None) -> str:
-    template_repo_url = "https://github.com/maksimzayats/fastdjango"
+    template_repo_url = "https://github.com/maksimzayats/fastapi-template"
     if repo_url is not None:
         return text.replace(template_repo_url, repo_url.removesuffix(".git").rstrip("/"))
 

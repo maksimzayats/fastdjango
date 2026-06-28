@@ -2,33 +2,44 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
+from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers
 
-FASTDJANGO_TEMPLATE_URL = "https://github.com/maksimzayats/fastdjango"
+TEMPLATE_URL = "https://github.com/maksimzayats/fastapi-template"
 
 
-def build_project_readme(*, answers: SetupAnswers) -> str:  # noqa: PLR0912
+def build_project_readme(*, answers: SetupAnswers) -> str:
     sections = [
         f"# {answers.project_name}",
         "",
-        f"Generated from [fastdjango]({FASTDJANGO_TEMPLATE_URL}) on {_generated_date()}.",
+        f"Generated from [fastapi-template]({TEMPLATE_URL}) on {_generated_date()}.",
         "",
     ]
+    sections.extend(_repository_section(answers=answers))
+    sections.extend(_quick_start_section(answers=answers))
+    sections.extend(_configuration_section(answers=answers))
+    sections.extend(_commands_section(answers=answers))
+    sections.extend(_documentation_section(answers=answers))
+    sections.extend(["## License", "", "[MIT](LICENSE.md)", ""])
+    return "\n".join(sections)
 
+
+def _repository_section(*, answers: SetupAnswers) -> list[str]:
     if answers.repo_url is not None:
         repo_url = answers.repo_url.removesuffix(".git").rstrip("/")
-        sections.extend([f"Project repository: [{repo_url}]({repo_url})", ""])
+        return [f"Project repository: [{repo_url}]({repo_url})", ""]
 
-    sections.extend(
-        [
-            "## Quick Start",
-            "",
-            "```bash",
-            "uv sync --locked --all-groups",
-            "```",
-            "",
-        ],
-    )
+    return []
+
+
+def _quick_start_section(*, answers: SetupAnswers) -> list[str]:
+    sections = [
+        "## Quick Start",
+        "",
+        "```bash",
+        "uv sync --locked --all-groups",
+        "```",
+        "",
+    ]
 
     docker_services = _docker_services(answers=answers)
     if docker_services:
@@ -41,82 +52,79 @@ def build_project_readme(*, answers: SetupAnswers) -> str:  # noqa: PLR0912
             ],
         )
     else:
-        sections.extend(
-            [
-                "The selected database, Redis, and storage defaults do not require local Docker services.",
-                "",
-            ],
-        )
-
-    if answers.storage_mode == StorageMode.MINIO:
-        sections.extend(
-            [
-                "```bash",
-                "docker compose up minio-create-buckets",
-                "```",
-                "",
-            ],
-        )
+        sections.extend(["No local Docker services are required for the selected defaults.", ""])
 
     sections.extend(
         [
             "```bash",
             "make migrate",
-            "make collectstatic",
             "make dev",
             "```",
             "",
-            "The API runs at `http://localhost:8000`; health checks are available at `/v1/health`.",
-            "",
-            "## Configuration",
-            "",
-            f"- Database: {_database_label(answers=answers)}",
-            f"- Redis: {_redis_label(answers=answers)}",
-            f"- Storage: {_storage_label(answers=answers)}",
-            f"- Logfire: {'enabled' if answers.enable_logfire else 'disabled'}",
+            (
+                "The API runs at `http://localhost:8000`; health checks are available at "
+                "`/api/v1/health`."
+            ),
             "",
         ],
     )
+    return sections
 
+
+def _configuration_section(*, answers: SetupAnswers) -> list[str]:
+    sections = [
+        "## Configuration",
+        "",
+        f"- Database: {_database_label(answers=answers)}",
+        f"- Redis: {_redis_label(answers=answers)}",
+        f"- Logfire: {'enabled' if answers.enable_logfire else 'disabled'}",
+    ]
     if answers.production_api_origin is not None:
-        sections.insert(-1, f"- Production API origin: `{answers.production_api_origin}`")
+        sections.append(f"- Production API origin: `{answers.production_api_origin}`")
 
     if answers.frontend_origin is not None:
-        sections.insert(-1, f"- Frontend origin: `{answers.frontend_origin}`")
+        sections.append(f"- Frontend origin: `{answers.frontend_origin}`")
 
-    sections.extend(
-        [
-            "Generated secrets and local connection values live in `.env`. Commit `.env.example` and keep `.env` private.",
-            "",
-            "## Commands",
-            "",
-            "| Command | Purpose |",
-            "| --- | --- |",
-            "| `make dev` | Run the FastAPI development server |",
-            "| `make migrate` | Apply Django migrations |",
-            "| `make collectstatic` | Collect Django static files |",
-            "| `make test` | Run the test suite |",
-            "| `make lint` | Run formatting, lint, and type checks |",
-        ],
-    )
+    sections.append("")
+    return sections
 
+
+def _commands_section(*, answers: SetupAnswers) -> list[str]:
+    sections = [
+        "Generated secrets and local connection values live in `.env`. Commit `.env.example` "
+        "and keep `.env` private.",
+        "",
+        "## Commands",
+        "",
+        "| Command | Purpose |",
+        "| --- | --- |",
+        "| `make dev` | Run the FastAPI development server |",
+        "| `make migrate` | Apply Alembic migrations |",
+        "| `make test` | Run the test suite |",
+        "| `make lint` | Run formatting, lint, and type checks |",
+    ]
     if answers.keep_docs:
         sections.append("| `make docs` | Serve project documentation |")
 
-    if answers.keep_docs:
-        sections.extend(["", "## Documentation", ""])
-        if answers.docs_site_url is None:
-            sections.extend(["Open [local docs](docs/en) or run `make docs`.", ""])
-        else:
-            sections.extend(
-                [
-                    f"Documentation is available at [{answers.docs_site_url}]({answers.docs_site_url}).",
-                    "",
-                ],
-            )
+    return sections
 
-    sections.extend(["## License", "", "[MIT](LICENSE.md)", ""])
-    return "\n".join(sections)
+
+def _documentation_section(*, answers: SetupAnswers) -> list[str]:
+    if not answers.keep_docs:
+        return []
+
+    sections = ["", "## Documentation", ""]
+    if answers.docs_site_url is None:
+        sections.extend(["Open [local docs](docs/en) or run `make docs`.", ""])
+        return sections
+
+    sections.extend(
+        [
+            f"Documentation is available at [{answers.docs_site_url}]({answers.docs_site_url}).",
+            "",
+        ],
+    )
+    return sections
 
 
 def _docker_services(*, answers: SetupAnswers) -> list[str]:
@@ -127,9 +135,6 @@ def _docker_services(*, answers: SetupAnswers) -> list[str]:
 
     if answers.redis_mode == RedisMode.DOCKER_REDIS:
         services.append("redis")
-
-    if answers.storage_mode == StorageMode.MINIO:
-        services.append("minio")
 
     return services
 
@@ -153,13 +158,3 @@ def _redis_label(*, answers: SetupAnswers) -> str:
         return "remote Redis"
 
     return f"local Docker Redis on port {answers.redis_port}"
-
-
-def _storage_label(*, answers: SetupAnswers) -> str:
-    if answers.storage_mode == StorageMode.LOCAL:
-        return "local filesystem"
-
-    if answers.storage_mode == StorageMode.MINIO:
-        return f"local MinIO on ports {answers.minio_api_port} and {answers.minio_console_port}"
-
-    return "remote S3-compatible storage"

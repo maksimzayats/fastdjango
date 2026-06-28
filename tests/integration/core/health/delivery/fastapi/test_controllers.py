@@ -6,12 +6,11 @@ from diwire import Container
 from starlette import status
 from starlette.websockets import WebSocketDisconnect
 
-from fastdjango.core.health.delivery.fastapi.schemas import HealthCheckResponseSchema
-from fastdjango.core.health.use_cases import SystemHealthUseCase
+from fastapi_template.core.health.delivery.fastapi.schemas import HealthCheckResponseSchema
+from fastapi_template.core.health.use_cases import SystemHealthUseCase
 from tests.integration.factories import TestClientFactory
 
 
-@pytest.mark.django_db(transaction=True)
 class TestHealthController:
     """Tests for HealthController endpoints."""
 
@@ -23,12 +22,12 @@ class TestHealthController:
         test_client_factory = TestClientFactory(container=container)
 
         with test_client_factory() as test_client:
-            response = test_client.get("/v1/health")
+            response = test_client.get("/api/v1/health")
 
         response_data = HealthCheckResponseSchema.model_validate(response.json())
         assert response.status_code == HTTPStatus.OK
         assert response_data.status == "ok"
-        mock_use_case.check.assert_awaited_once_with()
+        mock_use_case.execute.assert_awaited_once_with()
 
     def test_health_check_use_case_unavailable(
         self,
@@ -41,7 +40,7 @@ class TestHealthController:
         test_client_factory = TestClientFactory(container=container)
 
         with test_client_factory() as test_client:
-            response = test_client.get("/v1/health")
+            response = test_client.get("/api/v1/health")
 
         assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
         assert response.json()["detail"] == "Service is unavailable"
@@ -55,7 +54,7 @@ class TestHealthController:
 
         with (
             test_client_factory() as test_client,
-            test_client.websocket_connect("/v1/health/ws") as websocket,
+            test_client.websocket_connect("/api/v1/health/ws") as websocket,
         ):
             response_data = HealthCheckResponseSchema.model_validate(
                 websocket.receive_json(),
@@ -75,7 +74,7 @@ class TestHealthController:
 
         with (
             test_client_factory() as test_client,
-            test_client.websocket_connect("/v1/health/ws") as websocket,
+            test_client.websocket_connect("/api/v1/health/ws") as websocket,
         ):
             assert websocket.receive_json() == {"status": "unavailable"}
             with pytest.raises(WebSocketDisconnect) as exc_info:
@@ -90,7 +89,7 @@ class TestHealthController:
         error: Exception | None = None,
     ) -> MagicMock:
         mock_use_case = MagicMock(spec=SystemHealthUseCase)
-        mock_use_case.check = AsyncMock(side_effect=error)
+        mock_use_case.execute = AsyncMock(side_effect=error)
         container.add_instance(mock_use_case, provides=SystemHealthUseCase)
 
         return mock_use_case

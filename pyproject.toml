@@ -1,34 +1,28 @@
 [project]
-name = "fastdjango"
+name = "fastapi-template"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
-    "a2wsgi>=1.10.10",
+    "alembic>=1.17.2",
+    "aiosqlite>=0.22.0",
     "annotated-types>=0.7.0",
-    "boto3>=1.43.36",
-    "cachetools>=7.1.4",
-    "celery>=5.6.3",
-    "celery-types>=0.26.0",
     "colorlog>=6.10.1",
     "diwire>=1.4.2",
-    "dj-database-url>=3.1.2",
-    "django>=6.0.6",
-    "django-storages[s3]>=1.14.6",
-    "django-stubs[compatible-mypy]>=6.0.6",
     "fastapi>=0.138.1",
     "gunicorn>=26.0.0",
     "httpx>=0.28.1",
-    "logfire[fastapi, django, celery, requests, psycopg, httpx, redis]>=4.37.0",
+    "logfire[fastapi, requests, psycopg, httpx, redis]>=4.37.0",
     "psycopg[binary]>=3.3.4",
     "pydantic-settings>=2.14.2",
     "pydantic[email]>=2.13.4",
+    "pwdlib[argon2]>=0.3.0",
     "pyjwt>=2.13.0",
     "python-dotenv>=1.2.2",
     "redis>=8.0.1",
+    "sqlalchemy[asyncio]>=2.0.45",
     "throttled-py>=3.4.0",
     "uvicorn[standard]>=0.49.0",
     "watchdog[watchmedo]>=6.0.0",
-    "whitenoise>=6.12.0",
 ]
 
 [dependency-groups]
@@ -37,7 +31,6 @@ dev = [
     "prek>=0.4.5",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
-    "pytest-django>=4.12.0",
     "pytest-mock>=3.15.1",
     "ruff>=0.15.20",
 ]
@@ -60,7 +53,7 @@ build-backend = "uv_build"
 [tool.mypy]
 python_version = "3.14"
 strict = true
-plugins = ["mypy_django_plugin.main", "diwire.integrations.mypy_plugin"]
+plugins = ["diwire.integrations.mypy_plugin"]
 ignore_missing_imports = true
 local_partial_types = true
 warn_unreachable = true
@@ -80,19 +73,12 @@ disable_error_code = [
     "no-any-return",
 ]
 
-[[tool.mypy.overrides]]
-module = "fastdjango.*.migrations.*"
-disable_error_code = ["no-untyped-def"]
-
-[tool.django-stubs]
-django_settings_module = "fastdjango.infrastructure.django.settings"
-
 [tool.logfire]
 ignore_no_config = true
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-addopts = "--reuse-db --create-db --exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
+addopts = "--exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
 testpaths = ["tests"]
 
 [tool.coverage.run]
@@ -100,13 +86,9 @@ branch = true
 source = ["src"]
 omit = [
     # Entry points
-    "management/manage.py",
-    "src/fastdjango/entrypoints/fastapi/app.py",
-    "src/fastdjango/entrypoints/celery/app.py",
-    # Import-time framework settings
-    "src/fastdjango/infrastructure/django/settings.py",
-    # Django admin (requires manual testing)
-    "src/**/admin.py",
+    "src/fastapi_template/entrypoints/fastapi/app.py",
+    # Migration scripts
+    "migrations/**",
     # Observability/telemetry (requires external services)
     "src/**/logfire/**",
 ]

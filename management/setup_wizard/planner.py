@@ -27,7 +27,7 @@ from management.setup_wizard.text_rewrite import (
     replace_project_references,
 )
 
-DEFAULT_PACKAGE_NAME = "fastdjango"
+DEFAULT_PACKAGE_NAME = "fastapi_template"
 EXCLUDED_DIR_NAMES = {
     ".git",
     ".mypy_cache",
@@ -91,11 +91,17 @@ def detect_current_package_name(*, repo_root: Path) -> str:
 
 def _detect_package_name_from_pyproject(*, pyproject_path: Path) -> str | None:
     pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
-    django_settings_module = (
-        pyproject.get("tool", {}).get("django-stubs", {}).get("django_settings_module")
+    known_first_party = (
+        pyproject.get("tool", {})
+        .get("ruff", {})
+        .get("lint", {})
+        .get("isort", {})
+        .get("known-first-party")
     )
-    if isinstance(django_settings_module, str) and "." in django_settings_module:
-        return django_settings_module.split(".", maxsplit=1)[0]
+    if isinstance(known_first_party, list) and len(known_first_party) == 1:
+        package_name = known_first_party[0]
+        if isinstance(package_name, str):
+            return package_name
 
     return None
 

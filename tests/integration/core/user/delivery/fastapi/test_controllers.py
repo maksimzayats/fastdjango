@@ -2,8 +2,8 @@ from http import HTTPStatus
 
 import pytest
 
-from fastdjango.core.user.delivery.fastapi.schemas import UserSchema
-from fastdjango.core.user.models import User
+from fastapi_template.core.user.delivery.fastapi.schemas import UserSchema
+from fastapi_template.core.user.entities import User
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
 _TEST_PASSWORD = "test-password"  # noqa: S105
@@ -14,14 +14,13 @@ def user(user_factory: TestUserFactory) -> User:
     return user_factory(username="test", password=_TEST_PASSWORD)
 
 
-@pytest.mark.django_db(transaction=True)
 class TestUserController:
     """Tests for UserController endpoints."""
 
     def test_create_user(self, test_client_factory: TestClientFactory) -> None:
         with test_client_factory() as test_client:
             response = test_client.post(
-                "/v1/users/",
+                "/api/v1/users/",
                 json={
                     "username": "test_new_user",
                     "email": "new_user@test.com",
@@ -41,7 +40,7 @@ class TestUserController:
         user: User,
     ) -> None:
         with test_client_factory(auth_for_user=user) as test_client:
-            response = test_client.get("/v1/users/me")
+            response = test_client.get("/api/v1/users/me")
 
         assert response.status_code == HTTPStatus.OK
 
@@ -53,7 +52,7 @@ class TestUserController:
         staff_user = user_factory(username="staff_user", is_staff=True)
         other_user = user_factory(username="other_user")
         with test_client_factory(auth_for_user=staff_user) as test_client:
-            response = test_client.get(f"/v1/users/{other_user.pk}")
+            response = test_client.get(f"/api/v1/users/{other_user.id}")
 
         assert response.status_code == HTTPStatus.OK
 
@@ -65,6 +64,6 @@ class TestUserController:
         non_staff_user = user_factory(username="non_staff_user", is_staff=False)
         other_user = user_factory(username="other_user")
         with test_client_factory(auth_for_user=non_staff_user) as test_client:
-            response = test_client.get(f"/v1/users/{other_user.pk}")
+            response = test_client.get(f"/api/v1/users/{other_user.id}")
 
         assert response.status_code == HTTPStatus.FORBIDDEN

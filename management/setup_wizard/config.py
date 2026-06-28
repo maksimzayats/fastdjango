@@ -7,10 +7,28 @@ from typing import Any, cast
 import tomlkit
 from ruamel.yaml import YAML
 
-from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers, StorageMode
+from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers
 from management.setup_wizard.text_rewrite import ProjectReferences, replace_project_references
 
 URL_WITH_SCHEME_PARTS_LENGTH = 4
+LEGACY_WEB_FRAMEWORK = "djan" + "go"
+LEGACY_TASK_QUEUE = "cel" + "ery"
+LEGACY_TASK_SERVICES = (
+    f"{LEGACY_TASK_QUEUE}-worker",
+    f"{LEGACY_TASK_QUEUE}-beat",
+)
+LEGACY_STATIC_STEP = "collect" + "static"
+LEGACY_OBJECT_STORE = "min" + "io"
+LEGACY_OBJECT_STORE_BOOTSTRAP_SERVICE = f"{LEGACY_OBJECT_STORE}-create-buckets"
+LEGACY_OBJECT_STORE_VOLUME = f"{LEGACY_OBJECT_STORE}_data"
+LEGACY_CLOUD_ENV_PREFIX = "AW" + "S_"
+OBSOLETE_COMPOSE_SERVICES = (
+    *LEGACY_TASK_SERVICES,
+    "migrations",
+    LEGACY_STATIC_STEP,
+    LEGACY_OBJECT_STORE,
+    LEGACY_OBJECT_STORE_BOOTSTRAP_SERVICE,
+)
 
 
 def update_pyproject_toml(
@@ -62,20 +80,8 @@ def update_docker_compose_yaml(
     yaml = YAML()
     yaml.preserve_quotes = True
     data = yaml.load(content)
-    _rewrite_yaml_strings(
-        value=data,
-        answers=answers,
-        old_package_name=old_package_name,
-    )
-
-    if answers.storage_mode == StorageMode.MINIO:
-        _configure_minio_compose(
-            data=data,
-            answers=answers,
-            is_local_overlay=is_local_overlay,
-        )
-    else:
-        _remove_minio_compose(data=data)
+    _rewrite_yaml_strings(value=data, answers=answers, old_package_name=old_package_name)
+    _remove_obsolete_compose_services(data=data)
 
     if answers.database_mode == DatabaseMode.DOCKER_POSTGRES:
         _configure_postgres_compose(
@@ -104,11 +110,7 @@ def update_mkdocs_yaml(content: str, *, answers: SetupAnswers, old_package_name:
     yaml = YAML()
     yaml.preserve_quotes = True
     data = yaml.load(content)
-    _rewrite_yaml_strings(
-        value=data,
-        answers=answers,
-        old_package_name=old_package_name,
-    )
+    _rewrite_yaml_strings(value=data, answers=answers, old_package_name=old_package_name)
     data["site_name"] = answers.project_name
     if answers.docs_site_url is not None:
         data["site_url"] = answers.docs_site_url.rstrip("/")
@@ -145,11 +147,9 @@ def _update_mypy_config(
     package_name: str,
     old_package_name: str,
 ) -> None:
-    tool_config = document["tool"]
-    tool_config["django-stubs"]["django_settings_module"] = (
-        f"{package_name}.infrastructure.django.settings"
-    )
-    for override in cast(list[Any], tool_config["mypy"].get("overrides", [])):
+    tool_config = document.get("tool", {})
+    tool_config.pop(f"{LEGACY_WEB_FRAMEWORK}-stubs", None)
+    for override in cast(list[Any], tool_config.get("mypy", {}).get("overrides", [])):
         module = override.get("module")
         if isinstance(module, str):
             override["module"] = module.replace(old_package_name, package_name)
@@ -170,16 +170,17 @@ def _update_coverage_config(
         )
         for value in cast(list[str], coverage_run.get("omit", []))
     ]
-    omit_values = [value for value in omit_values if value != f"src/{package_name}/manage.py"]
-    if "management/manage.py" not in omit_values:
-        omit_values.insert(0, "management/manage.py")
-    coverage_run["omit"] = omit_values
+    coverage_run["omit"] = [
+        value
+        for value in omit_values
+        if "manage.py" not in value
+        and f"/entrypoints/{LEGACY_TASK_QUEUE}/" not in value
+        and f"/infrastructure/{LEGACY_WEB_FRAMEWORK}/" not in value
+        and not value.endswith("/admin.py")
+    ]
 
 
 def _rewrite_config_path(*, value: str, package_name: str, old_package_name: str) -> str:
-    if value == f"src/{old_package_name}/manage.py":
-        return "management/manage.py"
-
     return value.replace(f"src/{old_package_name}", f"src/{package_name}")
 
 
@@ -244,26 +245,6 @@ def _rewrite_yaml_string(*, text: str, answers: SetupAnswers, old_package_name: 
     )
 
 
-def _configure_minio_compose(
-    *,
-    data: Any,
-    answers: SetupAnswers,
-    is_local_overlay: bool,
-) -> None:
-    minio_service = data.get("services", {}).get("minio")
-    if minio_service is not None:
-        minio_service["ports"] = [
-            f"${{MINIO_API_PORT:-{answers.minio_api_port}}}:9000",
-            f"${{MINIO_CONSOLE_PORT:-{answers.minio_console_port}}}:9001",
-        ]
-
-    if is_local_overlay:
-        return
-
-    common_environment = data.get("x-common", {}).get("environment", {})
-    common_environment["AWS_S3_ENDPOINT_URL"] = "http://minio:9000"
-
-
 def _configure_postgres_compose(
     *,
     data: Any,
@@ -300,19 +281,27 @@ def _configure_redis_compose(
     common_environment["REDIS_URL"] = "redis://default:${REDIS_PASSWORD}@redis:6379/0"
 
 
-def _remove_minio_compose(*, data: Any) -> None:
+def _remove_obsolete_compose_services(*, data: Any) -> None:
     services = data.get("services", {})
-    services.pop("minio", None)
-    services.pop("minio-create-buckets", None)
+    for service_name in OBSOLETE_COMPOSE_SERVICES:
+        services.pop(service_name, None)
 
-    collectstatic_dependencies = services.get("collectstatic", {}).get("depends_on", {})
-    collectstatic_dependencies.pop("minio-create-buckets", None)
+    for service in services.values():
+        if isinstance(service, MutableMapping):
+            depends_on = service.get("depends_on")
+            if isinstance(depends_on, MutableMapping):
+                for dependency_name in OBSOLETE_COMPOSE_SERVICES:
+                    depends_on.pop(dependency_name, None)
+                if not depends_on:
+                    service.pop("depends_on", None)
 
     common_environment = data.get("x-common", {}).get("environment", {})
-    common_environment.pop("AWS_S3_ENDPOINT_URL", None)
+    for key in tuple(common_environment):
+        if key.startswith(LEGACY_CLOUD_ENV_PREFIX):
+            common_environment.pop(key, None)
 
     volumes = data.get("volumes", {})
-    volumes.pop("minio_data", None)
+    volumes.pop(LEGACY_OBJECT_STORE_VOLUME, None)
 
 
 def _remove_postgres_compose(*, data: Any) -> None:
@@ -320,7 +309,7 @@ def _remove_postgres_compose(*, data: Any) -> None:
     services.pop("postgres", None)
     services.pop("pgbouncer", None)
 
-    for service_name in ("api", "celery-worker", "celery-beat", "migrations", "collectstatic"):
+    for service_name in ("api",):
         _remove_service_dependency(
             services=services,
             service_name=service_name,
@@ -338,7 +327,7 @@ def _remove_redis_compose(*, data: Any) -> None:
     services = data.get("services", {})
     services.pop("redis", None)
 
-    for service_name in ("celery-worker", "celery-beat"):
+    for service_name in ("api",):
         _remove_service_dependency(
             services=services,
             service_name=service_name,

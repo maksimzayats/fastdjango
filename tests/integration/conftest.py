@@ -1,26 +1,29 @@
+from pathlib import Path
+
 import pytest
+from alembic import command
+from alembic.config import Config
 from diwire import Container
 from throttled.asyncio import MemoryStore
 
-from fastdjango.infrastructure.throttled.throttler import AsyncThrottlerStoreFactory
-from fastdjango.ioc.container import get_container
-from tests.integration.factories import (
-    TestCeleryWorkerFactory,
-    TestClientFactory,
-    TestTasksRegistryFactory,
-    TestUserFactory,
-)
+from fastapi_template.infrastructure.throttled.throttler import AsyncThrottlerStoreFactory
+from fastapi_template.ioc.container import get_container
+from tests.integration.factories import TestClientFactory, TestUserFactory
 
 
 @pytest.fixture(scope="function")
-def container() -> Container:
-    container = get_container()
+def container(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Container:
+    database_path = tmp_path / "test.sqlite3"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{database_path}")
+    _run_migrations()
+
+    container = get_container(configure_logfire=False, instrument_libraries=False)
     container.add_instance(lambda: MemoryStore(), provides=AsyncThrottlerStoreFactory)  # noqa: PLW0108
 
     return container
-
-
-# region Factories
 
 
 @pytest.fixture(scope="function")
@@ -29,21 +32,10 @@ def test_client_factory(container: Container) -> TestClientFactory:
 
 
 @pytest.fixture(scope="function")
-def user_factory(
-    transactional_db: None,
-    container: Container,
-) -> TestUserFactory:
+def user_factory(container: Container) -> TestUserFactory:
     return TestUserFactory(container=container)
 
 
-@pytest.fixture(scope="function")
-def celery_worker_factory(container: Container) -> TestCeleryWorkerFactory:
-    return TestCeleryWorkerFactory(container=container)
-
-
-@pytest.fixture(scope="function")
-def tasks_registry_factory(container: Container) -> TestTasksRegistryFactory:
-    return TestTasksRegistryFactory(container=container)
-
-
-# endregion Factories
+def _run_migrations() -> None:
+    alembic_config = Config("alembic.ini")
+    command.upgrade(alembic_config, "head")
