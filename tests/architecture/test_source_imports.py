@@ -1,4 +1,5 @@
 import ast
+from pathlib import Path
 
 from tests.architecture._source import SOURCE_ROOT, SourceModule, iter_imports
 
@@ -30,8 +31,25 @@ def test_import_from_preserves_type_checking_alias_metadata() -> None:
     assert import_references["fastapi_template.core.user.infrastructure"] is True
 
 
+def test_source_tree_does_not_contain_cache_only_directories() -> None:
+    violations = [
+        str(path.relative_to(SOURCE_ROOT))
+        for path in sorted(SOURCE_ROOT.rglob("*"))
+        if path.is_dir()
+        if _is_cache_only_directory(path=path)
+    ]
+
+    assert violations == []
+
+
 def _source_module(source: str) -> SourceModule:
     return SourceModule(
         path=SOURCE_ROOT / "core" / "example.py",
         tree=ast.parse(source),
     )
+
+
+def _is_cache_only_directory(*, path: Path) -> bool:
+    children = list(path.iterdir())
+
+    return bool(children) and all(child.name == "__pycache__" for child in children)
