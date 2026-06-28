@@ -7,13 +7,19 @@ from types import TracebackType
 from diwire import Injected
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction
 
-from fastapi_template.core.authentication.repositories import (
-    RefreshSessionRepository,
+from fastapi_template.core.authentication.infrastructure.persistence.sqlalchemy.repositories import (
     SQLAlchemyRefreshSessionRepository,
 )
-from fastapi_template.core.health.repositories import HealthRepository, SQLAlchemyHealthRepository
+from fastapi_template.core.authentication.repositories import RefreshSessionRepository
+from fastapi_template.core.health.infrastructure.persistence.sqlalchemy.repositories import (
+    SQLAlchemyHealthRepository,
+)
+from fastapi_template.core.health.repositories import HealthRepository
 from fastapi_template.core.unit_of_work import UnitOfWork
-from fastapi_template.core.user.repositories import SQLAlchemyUserRepository, UserRepository
+from fastapi_template.core.user.infrastructure.persistence.sqlalchemy.repositories import (
+    SQLAlchemyUserRepository,
+)
+from fastapi_template.core.user.repositories import UserRepository
 from fastapi_template.infrastructure.database.session import SQLAlchemySessionFactory
 
 _INACTIVE_UOW_ERROR = "Unit of work is not active."

@@ -1,14 +1,21 @@
-from fastapi_template.core.authentication.dtos import IssueTokenDTO, RefreshTokenDTO, TokenDTO
 from fastapi_template.foundation.delivery.fastapi.schemas import BaseFastAPISchema
 
 
-class IssueTokenRequestSchema(IssueTokenDTO, BaseFastAPISchema):
+class IssueTokenRequestSchema(BaseFastAPISchema):
     """Define IssueTokenRequestSchema."""
 
+    username: str
+    password: str
 
-class RefreshTokenRequestSchema(RefreshTokenDTO, BaseFastAPISchema):
+
+class RefreshTokenRequestSchema(BaseFastAPISchema):
     """Define RefreshTokenRequestSchema."""
 
+    refresh_token: str
 
-class TokenResponseSchema(TokenDTO, BaseFastAPISchema):
+
+class TokenResponseSchema(BaseFastAPISchema):
     """Define TokenResponseSchema."""
+
+    access_token: str
+    refresh_token: str

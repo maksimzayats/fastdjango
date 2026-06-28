@@ -19,7 +19,11 @@
 - Dependency injection uses `diwire`.
 - Persistence uses async SQLAlchemy, Alembic, repositories, and a unit-of-work boundary.
 - `foundation/`: neutral base classes and shared primitives.
-- `core/`: entities, SQLAlchemy domain models, DTOs, use cases, services, repositories, and unit-of-work contracts.
+- `core/`: vertical business modules. Inner entities, DTOs, repository ports,
+  services, use cases, and exceptions live directly under each business package.
+  Local delivery adapters live under paths such as `core/user/delivery/fastapi`.
+  Local concrete infrastructure adapters live under paths such as
+  `core/user/infrastructure/persistence/sqlalchemy`.
 - `entrypoints/`: FastAPI composition root.
 - `infrastructure/`: SQLAlchemy engine/session setup, unit-of-work transaction wiring, logging, telemetry, throttling, and external adapters.
 - `ioc/`: dependency injection container setup.
@@ -32,11 +36,24 @@
 - Use cases open persistence scopes through injected `UnitOfWork` with `async with self._uow as uow`.
 - Application actions that need multiple repository operations open one UoW in `execute(...)` and pass the active `uow` to focused collaborators; do not nest UoWs for one workflow.
 - Services may receive an active `uow` when they need repository access, but services must not open transactions.
-- SQLAlchemy domain models live with their core domain modules and use `*Model` names.
-- Repositories live in core and receive the active session from the unit of work; repositories do not open sessions or transactions.
+- Only files outside `delivery/` and `infrastructure/` are inner core.
+- Repository interfaces live in inner core and must not import SQLAlchemy.
+- SQLAlchemy models, mappers, and concrete repository implementations live in
+  local business infrastructure, for example
+  `core/authentication/infrastructure/persistence/sqlalchemy`.
+- Local infrastructure may import inner entities, DTOs, repository interfaces,
+  and exceptions; it must not import delivery.
+- Local delivery may import schemas, DTOs, use cases, and delivery helpers; it
+  must not import local infrastructure or repositories.
+- `infrastructure/database/unit_of_work.py` may import local SQLAlchemy repository
+  implementations to assemble one transaction boundary.
+- `ioc/registry.py` may register concrete adapters.
 - `infrastructure/database` is only for engine/session creation and unit-of-work transaction wiring.
 - Infrastructure must not define domain models, repositories, query behavior, normalization, duplicate decisions, token rotation decisions, or other application rules.
-- SQLAlchemy query construction and execution must stay inside core repositories.
+- SQLAlchemy query construction and execution must stay inside local SQLAlchemy
+  repository implementations.
+- Repositories may call `flush()`, but only the UoW may commit, roll back, close
+  sessions, open transactions, create engines, or create session factories.
 - Delivery schemas stay in delivery layers; DTOs stay near use cases.
 - Public HTTP routes must be full `/api/v1/...` paths.
 - Infrastructure must not depend on core delivery details.

@@ -13,6 +13,7 @@ from fastapi_template.core.user.delivery.fastapi.schemas import (
     CreateUserRequestSchema,
     UserSchema,
 )
+from fastapi_template.core.user.dtos import CreateUserDTO
 from fastapi_template.core.user.use_cases import CreateUserUseCase, GetUserByIdUseCase
 from fastapi_template.foundation.delivery.controllers import BaseAsyncController
 
@@ -62,7 +63,15 @@ class UserController(BaseAsyncController):
         Returns:
         The operation result.
         """
-        user = await self._create_user_use_case.execute(data=request_body)
+        user = await self._create_user_use_case.execute(
+            data=CreateUserDTO(
+                email=request_body.email,
+                username=request_body.username,
+                first_name=request_body.first_name,
+                last_name=request_body.last_name,
+                password=request_body.password,
+            ),
+        )
 
         return UserSchema.model_validate(user, from_attributes=True)
 

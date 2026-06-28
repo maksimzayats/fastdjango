@@ -5,9 +5,7 @@ from alembic import context
 from sqlalchemy import Connection, pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from fastapi_template.core.authentication import models as authentication_models  # noqa: F401
-from fastapi_template.core.database import Base
-from fastapi_template.core.user import models as user_models  # noqa: F401
+from fastapi_template.infrastructure.database.metadata import target_metadata
 from fastapi_template.infrastructure.database.session import DatabaseSettings
 
 config = context.config
@@ -16,7 +14,6 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 config.set_main_option("sqlalchemy.url", DatabaseSettings().async_url)
-target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

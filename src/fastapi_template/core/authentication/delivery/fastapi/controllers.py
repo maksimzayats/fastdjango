@@ -16,7 +16,11 @@ from fastapi_template.core.authentication.delivery.fastapi.schemas import (
     TokenResponseSchema,
 )
 from fastapi_template.core.authentication.delivery.fastapi.throttling import UserThrottlerFactory
-from fastapi_template.core.authentication.dtos import TokenRequestContextDTO
+from fastapi_template.core.authentication.dtos import (
+    IssueTokenDTO,
+    RefreshTokenDTO,
+    TokenRequestContextDTO,
+)
 from fastapi_template.core.authentication.use_cases import (
     IssueTokenUseCase,
     RefreshTokenUseCase,
@@ -88,7 +92,7 @@ class AuthenticationTokenController(BaseAsyncController):
         The operation result.
         """
         token = await self._issue_token_use_case.execute(
-            data=body,
+            data=IssueTokenDTO(username=body.username, password=body.password),
             context=TokenRequestContextDTO(
                 user_agent=self._request_info_service.get_user_agent(request=request),
                 ip_address_trace=self._request_info_service.get_user_ip_trace(
@@ -109,7 +113,7 @@ class AuthenticationTokenController(BaseAsyncController):
         The operation result.
         """
         token = await self._refresh_token_use_case.execute(
-            data=body,
+            data=RefreshTokenDTO(refresh_token=body.refresh_token),
         )
 
         return TokenResponseSchema.model_validate(token)
@@ -121,7 +125,7 @@ class AuthenticationTokenController(BaseAsyncController):
     ) -> None:
         """Run revoke token."""
         await self._revoke_token_use_case.execute(
-            data=body,
+            data=RefreshTokenDTO(refresh_token=body.refresh_token),
             user=request.state.user,
         )
 

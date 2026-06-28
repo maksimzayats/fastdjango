@@ -57,6 +57,33 @@ def test_non_delivery_code_does_not_import_delivery_schemas() -> None:
     assert violations == [], "Delivery schemas must not leak into non-delivery modules."
 
 
+def test_delivery_schemas_do_not_import_dtos() -> None:
+    violations = [
+        f"{module.relative_path}:{import_reference.line_number} imports {import_reference.module_name}"
+        for module in iter_source_modules()
+        if _delivery_schema_framework(module) is not None
+        for import_reference in iter_imports(module)
+        if import_reference.module_name.endswith(".dtos")
+    ]
+
+    assert violations == [], (
+        "Delivery schemas must define delivery shapes directly and must not import DTOs."
+    )
+
+
+def test_delivery_schemas_do_not_inherit_dtos() -> None:
+    violations = [
+        f"{module.relative_path}:{class_node.lineno} {class_node.name} inherits {base_name}"
+        for module in iter_source_modules()
+        if _delivery_schema_framework(module) is not None
+        for class_node in iter_class_definitions(module)
+        for base_name in base_names(class_node)
+        if base_name.endswith("DTO")
+    ]
+
+    assert violations == [], "Delivery schemas must not inherit DTO classes."
+
+
 def test_dtos_do_not_import_framework_or_infrastructure_modules() -> None:
     violations = [
         f"{module.relative_path}:{import_reference.line_number} imports {import_reference.module_name}"

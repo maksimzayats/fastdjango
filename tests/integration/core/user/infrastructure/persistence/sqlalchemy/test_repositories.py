@@ -71,6 +71,37 @@ async def test_user_repository_finds_user_by_username_or_email(container: Contai
     assert found_user.id == created_user.id
 
 
+@pytest.mark.anyio
+async def test_user_repository_duplicate_lookup_accepts_two_matching_rows(
+    container: Container,
+) -> None:
+    uow = container.resolve(UnitOfWork)
+
+    async with uow as active_uow:
+        await active_uow.user_repository.create(
+            data=_create_user_data(
+                username="duplicate_username",
+                email="first@example.com",
+            ),
+            password_hash=_password_hash(),
+        )
+        await active_uow.user_repository.create(
+            data=_create_user_data(
+                username="other_username",
+                email="duplicate@example.com",
+            ),
+            password_hash=_password_hash(),
+        )
+
+    async with uow as active_uow:
+        found_user = await active_uow.user_repository.get_by_username_or_email(
+            username="duplicate_username",
+            email="duplicate@example.com",
+        )
+
+    assert found_user is not None
+
+
 def _create_user_data(
     *,
     username: str = "repository_user",

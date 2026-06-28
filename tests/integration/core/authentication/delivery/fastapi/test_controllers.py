@@ -28,7 +28,8 @@ class TestAuthenticationTokenController:
                 "/api/v1/auth/token",
                 json={"username": user.username, "password": _TEST_PASSWORD},
             )
-            token_response = TokenResponseSchema.model_validate(response.json())
+            token_data = response.json()
+            token_response = TokenResponseSchema.model_validate(token_data)
 
             response = test_client.get(
                 "/api/v1/users/me",
@@ -37,6 +38,7 @@ class TestAuthenticationTokenController:
             user_data = UserSchema.model_validate(response.json())
 
         assert response.status_code == HTTPStatus.OK
+        assert set(token_data) == {"access_token", "refresh_token"}
         assert user_data.id == user.id
         assert user_data.username == user.username
         assert user_data.email == user.email
@@ -70,7 +72,8 @@ class TestAuthenticationTokenController:
                 "/api/v1/auth/token/refresh",
                 json={"refresh_token": token_response.refresh_token},
             )
-            token_response = TokenResponseSchema.model_validate(response.json())
+            token_data = response.json()
+            token_response = TokenResponseSchema.model_validate(token_data)
 
             response = test_client.post(
                 "/api/v1/auth/token/revoke",
@@ -85,4 +88,5 @@ class TestAuthenticationTokenController:
             )
 
         assert revoke_status == HTTPStatus.OK
+        assert set(token_data) == {"access_token", "refresh_token"}
         assert response.status_code == HTTPStatus.UNAUTHORIZED

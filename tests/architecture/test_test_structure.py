@@ -37,6 +37,18 @@ def test_important_source_modules_have_matching_tests() -> None:
     )
 
 
+def test_sqlalchemy_repository_tests_mirror_concrete_adapters() -> None:
+    stale_repository_tests = [
+        str(path.relative_to(REPO_ROOT))
+        for path in sorted((TESTS_ROOT / "integration" / "core").glob("*/test_repositories.py"))
+    ]
+
+    assert stale_repository_tests == [], (
+        "SQLAlchemy repository integration tests must mirror the concrete adapter path under "
+        "tests/integration/core/<domain>/infrastructure/persistence/sqlalchemy/."
+    )
+
+
 def _iter_mirrored_test_files() -> list[Path]:
     test_files: list[Path] = []
 
@@ -60,6 +72,9 @@ def _iter_important_source_modules() -> list[Path]:
 
     source_modules.extend(sorted(SOURCE_ROOT.glob("core/*/delivery/fastapi/controllers.py")))
     source_modules.extend(
+        sorted(SOURCE_ROOT.glob("core/*/infrastructure/persistence/sqlalchemy/repositories.py")),
+    )
+    source_modules.extend(
         source_path
         for source_path in sorted(SOURCE_ROOT.glob("core/*/services/*.py"))
         if source_path.name != "__init__.py"
@@ -72,10 +87,19 @@ def _iter_important_source_modules() -> list[Path]:
 def _expected_test_path_for(source_path: Path) -> Path:
     source_relative_path = source_path.relative_to(SOURCE_ROOT)
 
-    if "delivery" in source_relative_path.parts:
+    if "delivery" in source_relative_path.parts or _is_local_sqlalchemy_adapter(
+        source_relative_path,
+    ):
         return TESTS_ROOT / "integration" / _test_module_path_for(source_relative_path)
 
     return TESTS_ROOT / "unit" / _test_module_path_for(source_relative_path)
+
+
+def _is_local_sqlalchemy_adapter(source_relative_path: Path) -> bool:
+    return (
+        "infrastructure" in source_relative_path.parts
+        and "sqlalchemy" in source_relative_path.parts
+    )
 
 
 def _test_module_path_for(source_relative_path: Path) -> Path:

@@ -13,6 +13,6 @@ It includes:
 
 ## Runtime Shape
 
-Application behavior lives in `src/fastapi_template/core`. Framework and storage adapters live in `src/fastapi_template/infrastructure`. FastAPI app construction lives in `src/fastapi_template/entrypoints`, and dependency registration lives in `src/fastapi_template/ioc`.
+Application behavior lives in vertical business modules under `src/fastapi_template/core`. Domain-specific FastAPI delivery and SQLAlchemy persistence adapters live under each business package, while shared technical wiring lives in `src/fastapi_template/infrastructure`. FastAPI app construction lives in `src/fastapi_template/entrypoints`, and dependency registration lives in `src/fastapi_template/ioc`.
 
 Controllers parse HTTP requests and call use cases. Use cases expose `execute(...)`, open unit-of-work scopes for persistence, and may pass the active `uow` to focused services. SQLAlchemy repositories handle data access inside those scopes.

@@ -3,10 +3,8 @@ from typing import Annotated
 from annotated_types import Len
 from pydantic import EmailStr
 
+from fastapi_template.core.user.constants import PASSWORD_MAX_LENGTH, USER_NAME_MAX_LENGTH
 from fastapi_template.foundation.dtos import BaseDTO
-
-PASSWORD_MAX_LENGTH = 128
-USER_NAME_MAX_LENGTH = 150
 
 
 class CreateUserDTO(BaseDTO):
