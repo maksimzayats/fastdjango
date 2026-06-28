@@ -49,7 +49,9 @@
   implementations to assemble one transaction boundary.
 - `ioc/registry.py` may register concrete adapters.
 - `infrastructure/database` is only for engine/session creation and unit-of-work transaction wiring.
-- Infrastructure must not define domain models, repositories, query behavior, normalization, duplicate decisions, token rotation decisions, or other application rules.
+- Infrastructure adapters must not define application rules such as
+  normalization, duplicate decisions, token rotation decisions, or permission
+  checks.
 - SQLAlchemy query construction and execution must stay inside local SQLAlchemy
   repository implementations.
 - Repositories may call `flush()`, but only the UoW may commit, roll back, close

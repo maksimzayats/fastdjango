@@ -84,7 +84,7 @@ def test_delivery_schemas_do_not_inherit_dtos() -> None:
     assert violations == [], "Delivery schemas must not inherit DTO classes."
 
 
-def test_dtos_do_not_import_framework_or_infrastructure_modules() -> None:
+def test_dtos_do_not_import_delivery_framework_or_infrastructure_modules() -> None:
     violations = [
         f"{module.relative_path}:{import_reference.line_number} imports {import_reference.module_name}"
         for module in iter_source_modules()
@@ -94,8 +94,8 @@ def test_dtos_do_not_import_framework_or_infrastructure_modules() -> None:
     ]
 
     assert violations == [], (
-        "DTOs must stay framework-neutral and must not import FastAPI, "
-        "Starlette, or infrastructure modules."
+        "DTOs must stay framework-neutral and must not import FastAPI, Starlette, "
+        "delivery, or infrastructure modules."
     )
 
 
@@ -177,10 +177,21 @@ def _is_dto_module(module: SourceModule) -> bool:
 
 
 def _is_forbidden_dto_import(module_name: str) -> bool:
+    if _is_delivery_module(module_name):
+        return True
+
     return any(
-        module_name == prefix or module_name.startswith(f"{prefix}.")
+        _matches_import_prefix(module_name=module_name, prefix=prefix)
         for prefix in DTO_FORBIDDEN_IMPORT_PREFIXES
     )
+
+
+def _matches_import_prefix(*, module_name: str, prefix: str) -> bool:
+    return module_name == prefix or module_name.startswith(f"{prefix}.")
+
+
+def _is_delivery_module(module_name: str) -> bool:
+    return module_name.startswith("fastapi_template.core.") and ".delivery." in module_name
 
 
 def _is_delivery_schema_module(module_name: str) -> bool:
