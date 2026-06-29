@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Integer, String
+from sqlalchemy import Boolean, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from fastapi_template.infrastructure.sqlalchemy.base import Base
@@ -12,10 +12,14 @@ class UserModel(Base):
     """SQLAlchemy table mapping for core user accounts."""
 
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("username", name="uq_users_username"),
+        UniqueConstraint("email", name="uq_users_email"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    username: Mapped[str] = mapped_column(String(length=NAME_MAX_LENGTH), unique=True, index=True)
-    email: Mapped[str] = mapped_column(String(length=EMAIL_MAX_LENGTH), unique=True, index=True)
+    username: Mapped[str] = mapped_column(String(length=NAME_MAX_LENGTH))
+    email: Mapped[str] = mapped_column(String(length=EMAIL_MAX_LENGTH))
     first_name: Mapped[str] = mapped_column(String(length=NAME_MAX_LENGTH))
     last_name: Mapped[str] = mapped_column(String(length=NAME_MAX_LENGTH))
     password_hash: Mapped[str] = mapped_column(String(length=PASSWORD_HASH_MAX_LENGTH))

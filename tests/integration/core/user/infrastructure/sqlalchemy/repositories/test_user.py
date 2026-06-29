@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi_template.core.unit_of_work import UnitOfWork
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
 from fastapi_template.core.user.infrastructure.sqlalchemy.models.user import UserModel
 from fastapi_template.core.user.infrastructure.sqlalchemy.repositories.user import (
     SQLAlchemyUserRepository,
@@ -29,7 +29,7 @@ class BrokenSession:
 
 
 class PostgresDiagnostic:
-    constraint_name = "ix_users_email"
+    constraint_name = "uq_users_email"
 
 
 class PostgresUniqueError(Exception):
@@ -66,7 +66,7 @@ async def test_user_repository_maps_duplicate_create_error(container: Container)
     uow = container.resolve(UnitOfWork)
 
     async with uow as active_uow:
-        user_data = _create_user_data()
+        user_data = _persist_user_data()
         duplicate_error = active_uow.user_repository.USER_REPOSITORY_CONFLICT_ERROR
         await active_uow.user_repository.create(data=user_data, password_hash=_password_hash())
 
@@ -83,7 +83,7 @@ async def test_user_repository_reraises_unexpected_integrity_errors() -> None:
     repository = SQLAlchemyUserRepository(session=cast(AsyncSession, BrokenSession()))
 
     with pytest.raises(IntegrityError, match="foreign key failed"):
-        await repository.create(data=_create_user_data(), password_hash=_password_hash())
+        await repository.create(data=_persist_user_data(), password_hash=_password_hash())
 
 
 @pytest.mark.anyio
@@ -102,7 +102,7 @@ async def test_user_repository_maps_postgres_unique_constraint_error() -> None:
     )
 
     with pytest.raises(repository.USER_REPOSITORY_CONFLICT_ERROR):
-        await repository.create(data=_create_user_data(), password_hash=_password_hash())
+        await repository.create(data=_persist_user_data(), password_hash=_password_hash())
 
 
 def test_user_model_has_no_refresh_session_back_reference() -> None:
@@ -114,7 +114,7 @@ async def test_user_repository_finds_user_by_username_or_email(container: Contai
     uow = container.resolve(UnitOfWork)
 
     async with uow as active_uow:
-        user_data = _create_user_data(
+        user_data = _persist_user_data(
             username="lookup_user",
             email="lookup-user@example.com",
         )
@@ -141,7 +141,7 @@ async def test_user_repository_persists_core_supplied_create_state(
 
     async with uow as active_uow:
         created_user = await active_uow.user_repository.create(
-            data=_create_user_data(
+            data=_persist_user_data(
                 username="inactive_staff_user",
                 email="inactive-staff@example.com",
                 is_active=False,
@@ -164,14 +164,14 @@ async def test_user_repository_duplicate_lookup_accepts_two_matching_rows(
 
     async with uow as active_uow:
         await active_uow.user_repository.create(
-            data=_create_user_data(
+            data=_persist_user_data(
                 username="duplicate_username",
                 email="first@example.com",
             ),
             password_hash=_password_hash(),
         )
         await active_uow.user_repository.create(
-            data=_create_user_data(
+            data=_persist_user_data(
                 username="other_username",
                 email="duplicate@example.com",
             ),
@@ -187,15 +187,15 @@ async def test_user_repository_duplicate_lookup_accepts_two_matching_rows(
     assert found_user is not None
 
 
-def _create_user_data(
+def _persist_user_data(
     *,
     username: str = "repository_user",
     email: str = "repository@example.com",
     is_active: bool = True,
     is_staff: bool = False,
     is_superuser: bool = False,
-) -> CreateUserDTO:
-    return CreateUserDTO(
+) -> PersistUserDTO:
+    return PersistUserDTO(
         username=username,
         email=email,
         first_name="Repository",

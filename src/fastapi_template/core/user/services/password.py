@@ -5,7 +5,8 @@ from diwire import Injected
 from pwdlib import PasswordHash
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
+from fastapi_template.core.user.dtos.register_user import RegisterUserDTO
 from fastapi_template.core.user.exceptions.weak_password import WeakPasswordError
 from fastapi_template.foundation.service import BaseService
 
@@ -33,7 +34,7 @@ class PasswordService(BaseService):
         """Create the recommended password-hashing backend once per service."""
         self._password_hash = PasswordHash.recommended()
 
-    def validate(self, *, data: CreateUserDTO) -> None:
+    def validate(self, *, data: PersistUserDTO | RegisterUserDTO) -> None:
         """Reject passwords that fail the account-creation password policy."""
         if self._is_weak_password(data=data):
             raise self.WEAK_PASSWORD_ERROR
@@ -54,7 +55,7 @@ class PasswordService(BaseService):
         """
         return self._password_hash.verify(password, password_hash)
 
-    def _is_weak_password(self, *, data: CreateUserDTO) -> bool:
+    def _is_weak_password(self, *, data: PersistUserDTO | RegisterUserDTO) -> bool:
         password = data.password
 
         return (

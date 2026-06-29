@@ -1,7 +1,7 @@
 import unicodedata
 from dataclasses import dataclass
 
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.dtos.register_user import RegisterUserDTO
 from fastapi_template.foundation.service import BaseService
 
 
@@ -9,21 +9,18 @@ from fastapi_template.foundation.service import BaseService
 class UserIdentityService(BaseService):
     """Normalize user identity fields before validation or lookup."""
 
-    def normalize_create_user_data(self, *, data: CreateUserDTO) -> CreateUserDTO:
-        """Normalize identity fields while preserving creation policy flags.
+    def normalize_register_user_data(self, *, data: RegisterUserDTO) -> RegisterUserDTO:
+        """Normalize public registration identity without adding privilege flags.
 
         Returns:
-            A user creation DTO with normalized username and email.
+            Registration DTO with normalized username and email.
         """
-        return CreateUserDTO(
+        return RegisterUserDTO(
             username=self.normalize_username(username=data.username),
             email=self.normalize_email(email=str(data.email)),
             first_name=data.first_name,
             last_name=data.last_name,
             password=data.password,
-            is_active=data.is_active,
-            is_staff=data.is_staff,
-            is_superuser=data.is_superuser,
         )
 
     def normalize_username(self, *, username: str) -> str:

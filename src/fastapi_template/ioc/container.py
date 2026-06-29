@@ -22,6 +22,8 @@ def get_container(
         dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE,
     )
 
+    register_dependencies(container)
+
     if configure_logging:
         _configure_logging(container)
 
@@ -30,8 +32,6 @@ def get_container(
 
     if instrument_libraries:
         _instrument_libraries(container)
-
-    register_dependencies(container)
 
     return container
 

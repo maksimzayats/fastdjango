@@ -6,9 +6,9 @@ from fastapi.testclient import TestClient
 
 from fastapi_template.core.authentication.services.jwt import JWTService
 from fastapi_template.core.unit_of_work import UnitOfWork
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.dtos.register_user import RegisterUserDTO
 from fastapi_template.core.user.entities.user import User
-from fastapi_template.core.user.use_cases.create_user import CreateUserUseCase
+from fastapi_template.core.user.use_cases.register_user import RegisterUserUseCase
 from fastapi_template.entrypoints.fastapi.factory import FastAPIFactory
 from tests.foundation.factories import ContainerBasedFactory
 
@@ -75,9 +75,9 @@ class TestUserFactory(ContainerBasedFactory):
         is_staff: bool,
         is_superuser: bool,
     ) -> User:
-        create_user_use_case = self._container.resolve(CreateUserUseCase)
-        user = await create_user_use_case.execute(
-            data=CreateUserDTO(
+        register_user_use_case = self._container.resolve(RegisterUserUseCase)
+        user = await register_user_use_case.execute(
+            data=RegisterUserDTO(
                 username=username,
                 email=email or f"{username}@test.com",
                 first_name="Test",

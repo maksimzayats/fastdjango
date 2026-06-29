@@ -1,6 +1,6 @@
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 
 from fastapi_template.core.user.entities.user import User
 
@@ -20,11 +20,10 @@ class RefreshSession:
     revoked_at: datetime | None = None
     rotation_counter: int = 0
 
-    @property
-    def is_active(self) -> bool:
-        """Report whether the refresh session can still be used.
+    def is_active_at(self, *, now: datetime) -> bool:
+        """Report whether the refresh session can be used at a known instant.
 
         Returns:
             ``True`` when the session is neither revoked nor expired.
         """
-        return self.revoked_at is None and self.expires_at > datetime.now(tz=UTC)
+        return self.revoked_at is None and self.expires_at > now

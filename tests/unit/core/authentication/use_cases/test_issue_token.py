@@ -18,7 +18,6 @@ from fastapi_template.core.authentication.services.refresh_session import (
     RefreshSessionService,
 )
 from fastapi_template.core.authentication.use_cases.issue_token import IssueTokenUseCase
-from fastapi_template.core.health.repositories.health import HealthRepository
 from fastapi_template.core.unit_of_work import UnitOfWork
 from fastapi_template.core.user.entities.user import User
 from fastapi_template.core.user.repositories.user import UserRepository
@@ -48,10 +47,6 @@ class FakeUnitOfWork(UnitOfWork):
 
     @property
     def refresh_session_repository(self) -> RefreshSessionRepository:
-        raise UnexpectedRepositoryAccessError
-
-    @property
-    def health_repository(self) -> HealthRepository:
         raise UnexpectedRepositoryAccessError
 
     async def __aenter__(self) -> UnitOfWork:

@@ -1,4 +1,7 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from functools import partial
 
 import fastapi
 from diwire import Injected
@@ -44,6 +47,7 @@ from fastapi_template.foundation.factory import BaseFactory
 from fastapi_template.infrastructure.environment import Environment
 from fastapi_template.infrastructure.logfire.instrumentor import OpenTelemetryInstrumentor
 from fastapi_template.infrastructure.settings import ApplicationSettings
+from fastapi_template.infrastructure.sqlalchemy.session import SQLAlchemySessionFactory
 
 _POST_METHOD = "POST"
 PRE_BODY_IP_THROTTLED_ROUTES = (
@@ -63,6 +67,7 @@ class FastAPIFactory(BaseFactory):
     _cors_settings: Injected[CORSSettings]
 
     _telemetry_instrumentor: Injected[OpenTelemetryInstrumentor]
+    _session_factory: Injected[SQLAlchemySessionFactory]
     _ip_throttler_factory: Injected[IPThrottlerFactory]
 
     _health_check_controller: Injected[HealthCheckController]
@@ -93,6 +98,7 @@ class FastAPIFactory(BaseFactory):
             title="API",
             docs_url=docs_url,
             redoc_url=None,
+            lifespan=partial(_dispose_session_factory, session_factory=self._session_factory),
         )
 
         self._telemetry_instrumentor.instrument_fastapi(app=app)
@@ -170,3 +176,15 @@ class FastAPIFactory(BaseFactory):
         self._current_user_controller.register(user_router)
         self._staff_user_lookup_controller.register(user_router)
         app.include_router(user_router)
+
+
+@asynccontextmanager
+async def _dispose_session_factory(
+    _app: fastapi.FastAPI,
+    *,
+    session_factory: SQLAlchemySessionFactory,
+) -> AsyncIterator[None]:
+    try:
+        yield
+    finally:
+        await session_factory.dispose()

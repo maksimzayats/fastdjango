@@ -6,9 +6,8 @@ import pytest
 from fastapi_template.core.authentication.repositories.refresh_session import (
     RefreshSessionRepository,
 )
-from fastapi_template.core.health.repositories.health import HealthRepository
 from fastapi_template.core.unit_of_work import UnitOfWork
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
 from fastapi_template.core.user.entities.user import User
 from fastapi_template.core.user.repositories.user import UserRepository
 from fastapi_template.core.user.use_cases.get_active_user_by_id import (
@@ -41,7 +40,7 @@ class FakeUserRepository(UserRepository):
     async def get_by_username_or_email(self, *, username: str, email: str) -> User | None:
         raise UnexpectedRepositoryAccessError
 
-    async def create(self, *, data: CreateUserDTO, password_hash: str) -> User:
+    async def create(self, *, data: PersistUserDTO, password_hash: str) -> User:
         raise UnexpectedRepositoryAccessError
 
     async def set_access_flags(
@@ -64,10 +63,6 @@ class FakeUnitOfWork(UnitOfWork):
 
     @property
     def refresh_session_repository(self) -> RefreshSessionRepository:
-        raise UnexpectedRepositoryAccessError
-
-    @property
-    def health_repository(self) -> HealthRepository:
         raise UnexpectedRepositoryAccessError
 
     async def __aenter__(self) -> UnitOfWork:

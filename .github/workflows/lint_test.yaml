@@ -58,8 +58,19 @@ jobs:
         run: |
           docker compose up -d postgres pgbouncer redis
 
+      - name: Run migrations
+        run: make migrate
+
+      - name: Check migration drift
+        run: make check-migrations
+
       - name: Run tests
         run: make test
+
+      - name: Run PostgreSQL repository tests
+        env:
+          INTEGRATION_DATABASE_URL: postgres://postgres:test-postgres-password@localhost:5432/fastapi_template
+        run: make test-postgres
 
       - name: Show logs on failure
         if: failure()

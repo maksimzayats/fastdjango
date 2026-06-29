@@ -57,7 +57,7 @@ def test_get_container_runs_enabled_composition_steps(monkeypatch: pytest.Monkey
     result = container_module.get_container()
 
     assert isinstance(result, Container)
-    assert calls == ["logging", "logfire", "instrument", "register"]
+    assert calls == ["register", "logging", "logfire", "instrument"]
 
 
 def test_get_container_skips_disabled_composition_steps(monkeypatch: pytest.MonkeyPatch) -> None:

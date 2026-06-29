@@ -11,7 +11,7 @@ from fastapi_template.core.authentication.dtos.replace_refresh_session_token imp
     ReplaceRefreshSessionTokenDTO,
 )
 from fastapi_template.core.unit_of_work import UnitOfWork
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
 from fastapi_template.core.user.entities.user import User
 
 
@@ -55,7 +55,7 @@ async def test_refresh_session_repository_creates_and_updates_session(
 
     async with uow as active_uow:
         user = await active_uow.user_repository.create(
-            data=_create_user_data(username="session_user", email="session@example.com"),
+            data=_persist_user_data(username="session_user", email="session@example.com"),
             password_hash=_password_hash(),
         )
         session = await active_uow.refresh_session_repository.create(
@@ -99,7 +99,7 @@ async def test_refresh_session_repository_updates_matching_session_without_activ
 
     async with uow as active_uow:
         user = await active_uow.user_repository.create(
-            data=_create_user_data(username="inactive_user", email="inactive@example.com"),
+            data=_persist_user_data(username="inactive_user", email="inactive@example.com"),
             password_hash=_password_hash(),
         )
         expired_session = await active_uow.refresh_session_repository.create(
@@ -147,12 +147,12 @@ async def test_refresh_session_repository_updates_matching_session_without_activ
     assert revoked_result is not None
 
 
-def _create_user_data(
+def _persist_user_data(
     *,
     username: str,
     email: str,
-) -> CreateUserDTO:
-    return CreateUserDTO(
+) -> PersistUserDTO:
+    return PersistUserDTO(
         username=username,
         email=email,
         first_name="Repository",

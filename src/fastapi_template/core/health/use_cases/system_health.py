@@ -5,7 +5,9 @@ from typing import ClassVar
 from diwire import Injected
 
 from fastapi_template.core.health.exceptions.health_check import HealthCheckError
-from fastapi_template.core.unit_of_work import UnitOfWork
+from fastapi_template.core.health.services.database_health_checker import (
+    DatabaseHealthChecker,
+)
 from fastapi_template.foundation.use_case import BaseUseCase
 
 logger = logging.getLogger(__name__)
@@ -18,13 +20,12 @@ class SystemHealthUseCase(BaseUseCase):
     HEALTH_CHECK_ERROR: ClassVar = HealthCheckError  # noqa: WPS115
     UNEXPECTED_ERROR: ClassVar = Exception  # noqa: WPS115
 
-    _uow: Injected[UnitOfWork]
+    _database_health_checker: Injected[DatabaseHealthChecker]
 
     async def execute(self) -> None:
-        """Probe database readiness inside a unit-of-work scope."""
+        """Probe database readiness and expose failures as health-check errors."""
         try:
-            async with self._uow as uow:
-                await uow.health_repository.check_database()
+            await self._database_health_checker.check_database()
         except self.UNEXPECTED_ERROR as e:
             logger.exception("Health check failed: database is not reachable")
             raise self.HEALTH_CHECK_ERROR from e

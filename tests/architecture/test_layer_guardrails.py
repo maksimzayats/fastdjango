@@ -240,11 +240,11 @@ class ExampleUseCase(BaseUseCase):
     assert _use_case_uow_scope_violations(module=module) == []
 
 
-def test_database_query_execution_stays_in_local_sqlalchemy_repositories() -> None:
+def test_database_query_execution_stays_in_local_sqlalchemy_adapters() -> None:
     violations = [
         f"{module.relative_path}:{node.lineno} calls {call_name}"
         for module in iter_source_modules()
-        if not _is_local_sqlalchemy_repository_module(module)
+        if not _can_execute_sqlalchemy_queries(module)
         for node in ast.walk(module.tree)
         if isinstance(node, ast.Call)
         if (
@@ -259,7 +259,7 @@ def test_database_query_execution_stays_in_local_sqlalchemy_repositories() -> No
 
     assert violations == [], (
         "Runtime SQLAlchemy query construction and execution must stay in local "
-        "SQLAlchemy repository adapters."
+        "SQLAlchemy adapters."
     )
 
 
@@ -523,6 +523,16 @@ def _is_local_sqlalchemy_model_module(module: SourceModule) -> bool:
 
 def _is_local_sqlalchemy_repository_module(module: SourceModule) -> bool:
     return _is_local_sqlalchemy_adapter_module(module) and "repositories" in module.source_parts
+
+
+def _can_execute_sqlalchemy_queries(module: SourceModule) -> bool:
+    return _is_local_sqlalchemy_repository_module(module) or module.source_parts == (
+        "core",
+        "health",
+        "infrastructure",
+        "sqlalchemy",
+        "health_checker.py",
+    )
 
 
 def _is_repository_port_module(module: SourceModule) -> bool:

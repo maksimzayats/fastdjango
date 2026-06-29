@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from fastapi_template.core.user.infrastructure.sqlalchemy.models.user import UserModel
@@ -14,6 +14,9 @@ class RefreshSessionModel(Base):
     """SQLAlchemy table mapping for refresh-token sessions."""
 
     __tablename__ = "refresh_sessions"
+    __table_args__ = (
+        UniqueConstraint("refresh_token_hash", name="uq_refresh_sessions_refresh_token_hash"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -21,8 +24,6 @@ class RefreshSessionModel(Base):
     )
     refresh_token_hash: Mapped[str] = mapped_column(
         String(length=REFRESH_TOKEN_HASH_LENGTH),
-        unique=True,
-        index=True,
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     user_agent: Mapped[str] = mapped_column(Text)

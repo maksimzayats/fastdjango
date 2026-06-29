@@ -74,7 +74,7 @@ def test_delivery_schemas_do_not_import_dtos() -> None:
 
 def test_schema_import_predicates_catch_scoped_dto_imports() -> None:
     assert _is_core_dto_import("fastapi_template.core.user.dtos")
-    assert _is_core_dto_import("fastapi_template.core.user.dtos.create_user")
+    assert _is_core_dto_import("fastapi_template.core.user.dtos.persist_user")
 
 
 def test_delivery_schemas_do_not_inherit_dtos() -> None:

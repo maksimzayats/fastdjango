@@ -6,7 +6,6 @@ from types import TracebackType
 from fastapi_template.core.authentication.repositories.refresh_session import (
     RefreshSessionRepository,
 )
-from fastapi_template.core.health.repositories.health import HealthRepository
 from fastapi_template.core.user.repositories.user import UserRepository
 
 
@@ -30,16 +29,6 @@ class UnitOfWork(ABC):
 
         Returns:
             The refresh-session repository for the current transaction.
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def health_repository(self) -> HealthRepository:
-        """Health repository bound to the current transaction.
-
-        Returns:
-            The health repository for the current transaction.
         """
         raise NotImplementedError
 

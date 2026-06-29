@@ -8,7 +8,8 @@ src/fastapi_template/
       constraints/
         create_user.py
       dtos/
-        create_user.py
+        persist_user.py
+        register_user.py
       entities/
         user.py
       exceptions/
@@ -21,8 +22,8 @@ src/fastapi_template/
         user_credential.py
         user_identity.py
       use_cases/
-        create_user.py
         get_active_user_by_id.py
+        register_user.py
         staff_user_lookup.py
       infrastructure/sqlalchemy/
         models/user.py
@@ -50,10 +51,11 @@ src/fastapi_template/
         controllers/
     health/
       exceptions/
-      repositories/
+      services/
+        database_health_checker.py
       use_cases/
       infrastructure/sqlalchemy/
-        repositories/health.py
+        health_checker.py
       delivery/fastapi/
         schemas/health.py
         controllers/health_check.py
@@ -85,15 +87,16 @@ SQLAlchemy, local infrastructure, delivery modules, or the container.
 
 Delivery schemas and controllers live under each business package's
 `delivery/fastapi` directory. Controllers are endpoint/action scoped. Concrete SQLAlchemy models, mappers, and
-repository implementations live under each business package's
-`infrastructure/sqlalchemy` directory, with one model or repository per file.
+repository implementations and module-owned technical adapters live under each
+business package's `infrastructure/sqlalchemy` directory, with one model,
+repository, or adapter per file.
 
 ## Shared Infrastructure
 
 `infrastructure/sqlalchemy` builds the SQLAlchemy base, metadata, engine/session
 factory, and unit-of-work transaction wiring. Application decisions stay in
-core use cases and services; SQLAlchemy query work stays in local repository
-adapter implementations.
+core use cases and services; SQLAlchemy query work stays in local SQLAlchemy
+adapters owned by the module that needs the query.
 
 ## Entrypoints
 

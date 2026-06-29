@@ -12,7 +12,7 @@ Use packages with scoped files instead of bucket modules. A use-case file contai
 
 Repository interfaces are inner core contracts and do not import SQLAlchemy. Concrete SQLAlchemy models, mappers, and repositories live in local business infrastructure. Local infrastructure may import inner entities, DTOs, exceptions, and repository interfaces, but it must not import delivery. Delivery modules map request schemas to DTOs and must not import local infrastructure.
 
-`infrastructure/sqlalchemy` is shared SQLAlchemy base, metadata, engine/session, and unit-of-work transaction wiring. SQLAlchemy query execution stays inside local SQLAlchemy repository implementations; normalization, duplicate handling, token rotation decisions, and other application rules stay in core use cases and services.
+`infrastructure/sqlalchemy` is shared SQLAlchemy base, metadata, engine/session, and unit-of-work transaction wiring. SQLAlchemy query execution stays inside local SQLAlchemy adapters owned by the module that needs the query; normalization, duplicate handling, token rotation decisions, and other application rules stay in core use cases and services.
 
 Public HTTP routes are registered as full paths such as `/api/v1/users/me`; route prefixes are not split across routers and handlers.
 

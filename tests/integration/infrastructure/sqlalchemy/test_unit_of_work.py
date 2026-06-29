@@ -4,7 +4,7 @@ import pytest
 from diwire import Container
 
 from fastapi_template.core.unit_of_work import UnitOfWork
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
 from fastapi_template.infrastructure.sqlalchemy.session import SQLAlchemySessionFactory
 from fastapi_template.infrastructure.sqlalchemy.unit_of_work import SQLAlchemyUnitOfWork
 
@@ -23,6 +23,14 @@ class FakeTransaction:
         return None
 
 
+class PassingTransaction(FakeTransaction):
+    async def commit(self) -> None:
+        return None
+
+    async def rollback(self) -> None:
+        return None
+
+
 class FakeSession:
     closed = False
 
@@ -31,6 +39,11 @@ class FakeSession:
 
     async def close(self) -> None:
         self.closed = True
+
+
+class PassingSession(FakeSession):
+    async def begin(self) -> PassingTransaction:
+        return PassingTransaction()
 
 
 class FakeSessionFactory:
@@ -44,7 +57,7 @@ class FakeSessionFactory:
 @pytest.mark.anyio
 async def test_unit_of_work_commits_repository_changes(container: Container) -> None:
     uow = container.resolve(UnitOfWork)
-    create_user_data = _create_user_dto(username="committed_user")
+    create_user_data = _persist_user_dto(username="committed_user")
 
     async with uow as active_uow:
         user = await active_uow.user_repository.create(
@@ -62,7 +75,7 @@ async def test_unit_of_work_commits_repository_changes(container: Container) -> 
 @pytest.mark.anyio
 async def test_unit_of_work_rolls_back_repository_changes(container: Container) -> None:
     uow = container.resolve(UnitOfWork)
-    create_user_data = _create_user_dto(username="rolled_back_user")
+    create_user_data = _persist_user_dto(username="rolled_back_user")
 
     with pytest.raises(TransactionFailureError):
         await _create_user_then_fail(uow=uow, data=create_user_data)
@@ -96,6 +109,21 @@ async def test_unit_of_work_rejects_exit_when_inactive() -> None:
 
 
 @pytest.mark.anyio
+async def test_unit_of_work_rejects_nested_scope() -> None:
+    uow = SQLAlchemyUnitOfWork(
+        _session_factory=cast(
+            SQLAlchemySessionFactory,
+            FakeSessionFactory(session=PassingSession()),
+        ),
+    )
+
+    async with uow:
+        with pytest.raises(RuntimeError, match="Nested UnitOfWork scopes"):
+            async with uow:
+                pass
+
+
+@pytest.mark.anyio
 async def test_unit_of_work_closes_scope_when_commit_fails() -> None:
     session = FakeSession()
     uow = SQLAlchemyUnitOfWork(
@@ -111,7 +139,7 @@ async def test_unit_of_work_closes_scope_when_commit_fails() -> None:
         _ = uow.user_repository
 
 
-async def _create_user_then_fail(*, uow: UnitOfWork, data: CreateUserDTO) -> None:
+async def _create_user_then_fail(*, uow: UnitOfWork, data: PersistUserDTO) -> None:
     async with uow as active_uow:
         await active_uow.user_repository.create(
             data=data,
@@ -120,8 +148,8 @@ async def _create_user_then_fail(*, uow: UnitOfWork, data: CreateUserDTO) -> Non
         raise TransactionFailureError
 
 
-def _create_user_dto(*, username: str) -> CreateUserDTO:
-    return CreateUserDTO(
+def _persist_user_dto(*, username: str) -> PersistUserDTO:
+    return PersistUserDTO(
         username=username,
         email=f"{username}@example.com",
         first_name="Test",

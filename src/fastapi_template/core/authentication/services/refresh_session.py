@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import ClassVar, NamedTuple
 
 from diwire import Injected
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from fastapi_template.core.authentication.dtos.create_refresh_session import (
     CreateRefreshSessionDTO,
@@ -31,6 +31,8 @@ from fastapi_template.foundation.service import BaseService
 
 class RefreshSessionServiceSettings(BaseSettings):
     """Refresh-token generation and lifetime settings."""
+
+    model_config = SettingsConfigDict(env_prefix="REFRESH_SESSION_")
 
     refresh_token_nbytes: int = 32
     refresh_token_ttl_days: int = 30
@@ -155,7 +157,7 @@ class RefreshSessionService(BaseService):
         if session is None:
             raise self.INVALID_REFRESH_TOKEN_ERROR
 
-        if not session.is_active:
+        if not session.is_active_at(now=datetime.now(tz=UTC)):
             raise self.EXPIRED_REFRESH_TOKEN_ERROR
 
         return session

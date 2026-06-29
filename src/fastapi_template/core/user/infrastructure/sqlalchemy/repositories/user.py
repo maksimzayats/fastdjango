@@ -4,13 +4,13 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
 from fastapi_template.core.user.entities.user import User
 from fastapi_template.core.user.infrastructure.sqlalchemy.mappers.user import user_from_model
 from fastapi_template.core.user.infrastructure.sqlalchemy.models.user import UserModel
 from fastapi_template.core.user.repositories.user import UserRepository
 
-POSTGRES_USER_UNIQUE_CONSTRAINT_NAMES = frozenset(("ix_users_email", "ix_users_username"))
+POSTGRES_USER_UNIQUE_CONSTRAINT_NAMES = frozenset(("uq_users_email", "uq_users_username"))
 SQLITE_USER_UNIQUE_MESSAGES = frozenset(
     (
         "unique constraint failed: users.email",
@@ -99,7 +99,7 @@ class SQLAlchemyUserRepository(UserRepository):
 
         return user_from_model(model=model)
 
-    async def create(self, *, data: CreateUserDTO, password_hash: str) -> User:
+    async def create(self, *, data: PersistUserDTO, password_hash: str) -> User:
         """Persist a user and translate duplicate constraints to core errors.
 
         Returns:

@@ -1,14 +1,15 @@
 from dataclasses import dataclass, field
 from types import TracebackType
+from typing import Any
 
 import pytest
 
 from fastapi_template.core.authentication.repositories.refresh_session import (
     RefreshSessionRepository,
 )
-from fastapi_template.core.health.repositories.health import HealthRepository
 from fastapi_template.core.unit_of_work import UnitOfWork
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
+from fastapi_template.core.user.dtos.register_user import RegisterUserDTO
 from fastapi_template.core.user.entities.user import User
 from fastapi_template.core.user.exceptions.user_repository_conflict import (
     UserRepositoryConflictError,
@@ -16,7 +17,7 @@ from fastapi_template.core.user.exceptions.user_repository_conflict import (
 from fastapi_template.core.user.repositories.user import UserRepository
 from fastapi_template.core.user.services.password import PasswordService, PasswordServiceSettings
 from fastapi_template.core.user.services.user_identity import UserIdentityService
-from fastapi_template.core.user.use_cases.create_user import CreateUserUseCase
+from fastapi_template.core.user.use_cases.register_user import RegisterUserUseCase
 
 _STRONG_PASSWORD = "S3cure-test-password-123!"  # noqa: S105
 _WEAK_PASSWORD = "123"  # noqa: S105
@@ -50,7 +51,7 @@ class FakeUserRepository(UserRepository):
             None,
         )
 
-    async def create(self, *, data: CreateUserDTO, password_hash: str) -> User:
+    async def create(self, *, data: PersistUserDTO, password_hash: str) -> User:
         if self.create_error is not None:
             raise self.create_error
 
@@ -94,10 +95,6 @@ class FakeUnitOfWork(UnitOfWork):
     def refresh_session_repository(self) -> RefreshSessionRepository:
         raise UnexpectedRepositoryAccessError
 
-    @property
-    def health_repository(self) -> HealthRepository:
-        raise UnexpectedRepositoryAccessError
-
     async def __aenter__(self) -> UnitOfWork:
         self.entered_count += 1
         return self
@@ -114,29 +111,29 @@ class FakeUnitOfWork(UnitOfWork):
 
 
 @pytest.mark.anyio
-async def test_create_user_rejects_weak_password() -> None:
+async def test_register_user_rejects_weak_password() -> None:
     use_case = _build_use_case()
 
-    with pytest.raises(CreateUserUseCase.WEAK_PASSWORD_ERROR):
-        await use_case.execute(data=_create_user_dto(password=_WEAK_PASSWORD))
+    with pytest.raises(RegisterUserUseCase.WEAK_PASSWORD_ERROR):
+        await use_case.execute(data=_register_user_dto(password=_WEAK_PASSWORD))
 
 
 @pytest.mark.anyio
-async def test_create_user_maps_repository_duplicate_error() -> None:
+async def test_register_user_maps_repository_duplicate_error() -> None:
     use_case = _build_use_case(
         repository=FakeUserRepository(create_error=UserRepositoryConflictError()),
     )
 
-    with pytest.raises(CreateUserUseCase.USER_ALREADY_EXISTS_ERROR):
-        await use_case.execute(data=_create_user_dto())
+    with pytest.raises(RegisterUserUseCase.USER_ALREADY_EXISTS_ERROR):
+        await use_case.execute(data=_register_user_dto())
 
 
 @pytest.mark.anyio
-async def test_create_user_hashes_password_before_persisting() -> None:
+async def test_register_user_hashes_password_before_persisting() -> None:
     repository = FakeUserRepository()
     use_case = _build_use_case(repository=repository)
 
-    user = await use_case.execute(data=_create_user_dto())
+    user = await use_case.execute(data=_register_user_dto())
 
     assert user.username == "new_user"
     assert repository.created_password_hash is not None
@@ -147,12 +144,12 @@ async def test_create_user_hashes_password_before_persisting() -> None:
 
 
 @pytest.mark.anyio
-async def test_create_user_normalizes_identity_before_persisting() -> None:
+async def test_register_user_normalizes_identity_before_persisting() -> None:
     repository = FakeUserRepository()
     use_case = _build_use_case(repository=repository)
 
     user = await use_case.execute(
-        data=_create_user_dto(username=" new_user ", email="new_user@EXAMPLE.COM"),
+        data=_register_user_dto(username=" new_user ", email="new_user@EXAMPLE.COM"),
     )
 
     assert user.username == "new_user"
@@ -160,7 +157,7 @@ async def test_create_user_normalizes_identity_before_persisting() -> None:
 
 
 @pytest.mark.anyio
-async def test_create_user_rejects_existing_normalized_username_or_email() -> None:
+async def test_register_user_rejects_existing_normalized_username_or_email() -> None:
     repository = FakeUserRepository(
         users=[
             User(
@@ -175,27 +172,41 @@ async def test_create_user_rejects_existing_normalized_username_or_email() -> No
     )
     use_case = _build_use_case(repository=repository)
 
-    with pytest.raises(CreateUserUseCase.USER_ALREADY_EXISTS_ERROR):
+    with pytest.raises(RegisterUserUseCase.USER_ALREADY_EXISTS_ERROR):
         await use_case.execute(
-            data=_create_user_dto(username=" existing_user ", email="new@example.com"),
+            data=_register_user_dto(username=" existing_user ", email="new@example.com"),
         )
 
 
-def _build_use_case(repository: FakeUserRepository | None = None) -> CreateUserUseCase:
-    return CreateUserUseCase(
+def test_register_user_dto_does_not_accept_privilege_flags() -> None:
+    payload: dict[str, Any] = {
+        "username": "new_user",
+        "email": "new_user@example.com",
+        "first_name": "New",
+        "last_name": "User",
+        "password": _STRONG_PASSWORD,
+        "is_staff": True,
+    }
+
+    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+        RegisterUserDTO(**payload)
+
+
+def _build_use_case(repository: FakeUserRepository | None = None) -> RegisterUserUseCase:
+    return RegisterUserUseCase(
         _identity_service=UserIdentityService(),
         _password_service=PasswordService(_settings=PasswordServiceSettings()),
         _uow=FakeUnitOfWork(_user_repository=repository or FakeUserRepository()),
     )
 
 
-def _create_user_dto(
+def _register_user_dto(
     *,
     username: str = "new_user",
     email: str = "new_user@example.com",
     password: str = _STRONG_PASSWORD,
-) -> CreateUserDTO:
-    return CreateUserDTO(
+) -> RegisterUserDTO:
+    return RegisterUserDTO(
         username=username,
         email=email,
         first_name="New",

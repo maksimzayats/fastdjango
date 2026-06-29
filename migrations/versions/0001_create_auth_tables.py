@@ -19,10 +19,10 @@ def upgrade() -> None:
         sa.Column("is_active", sa.Boolean(), nullable=False),
         sa.Column("is_staff", sa.Boolean(), nullable=False),
         sa.Column("is_superuser", sa.Boolean(), nullable=False),
-        sa.PrimaryKeyConstraint("id"),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_users")),
+        sa.UniqueConstraint("email", name=op.f("uq_users_email")),
+        sa.UniqueConstraint("username", name=op.f("uq_users_username")),
     )
-    op.create_index("ix_users_email", "users", ["email"], unique=True)
-    op.create_index("ix_users_username", "users", ["username"], unique=True)
 
     op.create_table(
         "refresh_sessions",
@@ -36,22 +36,21 @@ def upgrade() -> None:
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("rotation_counter", sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
-        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name=op.f("fk_refresh_sessions_user_id_users"),
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_refresh_sessions")),
+        sa.UniqueConstraint(
+            "refresh_token_hash",
+            name=op.f("uq_refresh_sessions_refresh_token_hash"),
+        ),
     )
-    op.create_index(
-        "ix_refresh_sessions_refresh_token_hash",
-        "refresh_sessions",
-        ["refresh_token_hash"],
-        unique=True,
-    )
-    op.create_index("ix_refresh_sessions_user_id", "refresh_sessions", ["user_id"])
+    op.create_index(op.f("ix_refresh_sessions_user_id"), "refresh_sessions", ["user_id"])
 
 
 def downgrade() -> None:
     op.drop_index("ix_refresh_sessions_user_id", table_name="refresh_sessions")
-    op.drop_index("ix_refresh_sessions_refresh_token_hash", table_name="refresh_sessions")
     op.drop_table("refresh_sessions")
-    op.drop_index("ix_users_username", table_name="users")
-    op.drop_index("ix_users_email", table_name="users")
     op.drop_table("users")

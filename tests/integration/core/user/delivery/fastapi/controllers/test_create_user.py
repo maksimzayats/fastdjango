@@ -39,6 +39,24 @@ def test_create_user(test_client_factory: TestClientFactory) -> None:
     assert response_data.username == "test_new_user"
 
 
+def test_create_user_rejects_privilege_flags(test_client_factory: TestClientFactory) -> None:
+    with test_client_factory() as test_client:
+        response = test_client.post(
+            "/api/v1/users",
+            json={
+                "username": "test_privilege_flags",
+                "email": "privilege_flags@test.com",
+                "password": _TEST_PASSWORD,
+                "first_name": "Test",
+                "last_name": "User",
+                "is_staff": True,
+                "is_superuser": True,
+            },
+        )
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
 @pytest.mark.parametrize(
     ("field_name", "field_value"),
     [

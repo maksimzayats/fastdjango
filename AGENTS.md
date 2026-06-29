@@ -55,7 +55,7 @@
   normalization, duplicate decisions, token rotation decisions, or permission
   checks.
 - SQLAlchemy query construction and execution must stay inside local SQLAlchemy
-  repository implementations.
+  adapters owned by the business module that needs the query.
 - Repositories may call `flush()`, but only the UoW may commit, roll back, close
   sessions, open transactions, create engines, or create session factories.
 - Delivery schemas stay in delivery layers; DTOs stay near use cases.
@@ -119,9 +119,11 @@
 - Install: `uv sync --locked --all-groups`
 - Start services: `docker compose up -d postgres redis`
 - Run migrations: `make migrate`
+- Check migration drift: `make check-migrations`
 - Run app: `make dev`
 - Format: `make format`
 - Lint/type check: `make lint` (Ruff, WPS/flake8, mypy, and repository checks)
 - Test with coverage: `make test` (100% coverage threshold)
+- Test PostgreSQL repository behavior: `INTEGRATION_DATABASE_URL=... make test-postgres`
 - Test without coverage: `uv run pytest tests/ --no-cov`
 - Docs: `make docs` / `make docs-build`

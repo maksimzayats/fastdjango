@@ -3,6 +3,7 @@ from http import HTTPStatus
 from typing import Any, cast
 
 from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
@@ -40,6 +41,7 @@ from fastapi_template.core.user.delivery.fastapi.controllers.staff_user_lookup i
     StaffUserLookupController,
 )
 from fastapi_template.entrypoints.fastapi.factory import (
+    PRE_BODY_IP_THROTTLED_ROUTES,
     FastAPIFactory,
 )
 from fastapi_template.entrypoints.fastapi.settings.cors import CORSSettings
@@ -47,6 +49,7 @@ from fastapi_template.entrypoints.fastapi.settings.fastapi import FastAPISetting
 from fastapi_template.infrastructure.environment import Environment
 from fastapi_template.infrastructure.logfire.instrumentor import OpenTelemetryInstrumentor
 from fastapi_template.infrastructure.settings import ApplicationSettings
+from fastapi_template.infrastructure.sqlalchemy.session import SQLAlchemySessionFactory
 
 PRE_BODY_THROTTLED_POST_PATHS = (
     "/api/v1/auth/token",
@@ -61,6 +64,13 @@ class FakeTelemetryInstrumentor:
 
     def instrument_fastapi(self, *, app: FastAPI) -> None:
         self.instrumented_app = app
+
+
+class FakeSessionFactory:
+    disposed = False
+
+    async def dispose(self) -> None:
+        self.disposed = True
 
 
 class FakeController:
@@ -206,12 +216,58 @@ def test_fastapi_factory_applies_pre_body_ip_throttling_to_post_routes() -> None
     assert not any(controller.called for controller in post_controllers)
 
 
+def test_fastapi_factory_disposes_session_factory_on_shutdown() -> None:
+    session_factory = FakeSessionFactory()
+    app = _build_factory(
+        application_settings=ApplicationSettings(environment=Environment.DEVELOPMENT),
+        instrumentor=FakeTelemetryInstrumentor(),
+        session_factory=cast(SQLAlchemySessionFactory, session_factory),
+    )(
+        add_trusted_hosts_middleware=False,
+        add_cors_middleware=False,
+    )
+
+    with TestClient(app):
+        assert session_factory.disposed is False
+
+    assert session_factory.disposed is True
+
+
+def test_pre_body_throttling_covers_all_public_post_routes() -> None:
+    post_controllers = _post_controllers()
+    app = _build_factory(
+        application_settings=ApplicationSettings(environment=Environment.DEVELOPMENT),
+        instrumentor=FakeTelemetryInstrumentor(),
+        controllers=[
+            FakeController(),
+            FakeController(),
+            post_controllers[0],
+            post_controllers[1],
+            post_controllers[2],
+            post_controllers[3],
+            FakeController(),
+            FakeController(),
+        ],
+    )(
+        add_trusted_hosts_middleware=False,
+        add_cors_middleware=False,
+    )
+
+    public_post_routes = _public_post_routes(app=app)
+    throttled_post_routes = {
+        path for method, path in PRE_BODY_IP_THROTTLED_ROUTES if method == "POST"
+    }
+
+    assert public_post_routes == throttled_post_routes
+
+
 def _build_factory(
     *,
     application_settings: ApplicationSettings,
     instrumentor: FakeTelemetryInstrumentor,
     controllers: Sequence[FakeController | FakePostController] | None = None,
     ip_throttler_factory: IPThrottlerFactory | None = None,
+    session_factory: SQLAlchemySessionFactory | None = None,
 ) -> FastAPIFactory:
     (
         health_check_controller,
@@ -228,6 +284,7 @@ def _build_factory(
         _fastapi_settings=FastAPISettings(),
         _cors_settings=CORSSettings(),
         _telemetry_instrumentor=cast(OpenTelemetryInstrumentor, instrumentor),
+        _session_factory=session_factory or cast(SQLAlchemySessionFactory, FakeSessionFactory()),
         _ip_throttler_factory=ip_throttler_factory
         or cast(IPThrottlerFactory, PassingIPThrottlerFactory()),
         _health_check_controller=cast(HealthCheckController, health_check_controller),
@@ -249,3 +306,29 @@ def _build_factory(
 
 def _post_controllers() -> list[FakePostController]:
     return [FakePostController(path=path) for path in PRE_BODY_THROTTLED_POST_PATHS]
+
+
+def _public_post_routes(*, app: FastAPI) -> set[str]:
+    routes: set[str] = set()
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            _add_post_route(routes=routes, route=route)
+            continue
+
+        original_router = getattr(route, "original_router", None)
+        if original_router is None:
+            continue
+
+        for included_route in original_router.routes:
+            if isinstance(included_route, APIRoute):
+                _add_post_route(routes=routes, route=included_route)
+
+    return routes
+
+
+def _add_post_route(*, routes: set[str], route: APIRoute) -> None:
+    methods = route.methods or set()
+    if not route.path.startswith("/api/v1") or "POST" not in methods:
+        return
+
+    routes.add(route.path)

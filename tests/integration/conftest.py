@@ -1,3 +1,4 @@
+import os
 from collections.abc import Iterator
 from functools import partial
 from pathlib import Path
@@ -22,8 +23,13 @@ def container(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[Container]:
-    database_path = tmp_path / "test.sqlite3"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{database_path}")
+    if integration_database_url := os.environ.get("INTEGRATION_DATABASE_URL"):
+        monkeypatch.setenv("DATABASE_URL", integration_database_url)
+        _reset_database()
+    else:
+        database_path = tmp_path / "test.sqlite3"
+        monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{database_path}")
+
     _run_migrations()
 
     resolved_container = get_container(configure_logfire=False, instrument_libraries=False)
@@ -52,6 +58,11 @@ def user_factory(container: Container) -> TestUserFactory:
 def _run_migrations() -> None:
     alembic_config = Config("alembic.ini")
     command.upgrade(alembic_config, "head")
+
+
+def _reset_database() -> None:
+    alembic_config = Config("alembic.ini")
+    command.downgrade(alembic_config, "base")
 
 
 async def _dispose_database_engine(*, session_factory: SQLAlchemySessionFactory) -> None:

@@ -5,11 +5,11 @@ from tests.architecture._source import SOURCE_ROOT, SourceModule, iter_imports
 
 
 def test_import_from_records_fully_qualified_alias_modules() -> None:
-    module = _source_module("import fastapi_template.core.user.dtos.create_user\n")
+    module = _source_module("import fastapi_template.core.user.dtos.persist_user\n")
 
     import_names = {import_reference.module_name for import_reference in iter_imports(module)}
 
-    assert "fastapi_template.core.user.dtos.create_user" in import_names
+    assert "fastapi_template.core.user.dtos.persist_user" in import_names
 
 
 def test_import_from_preserves_type_checking_alias_metadata() -> None:

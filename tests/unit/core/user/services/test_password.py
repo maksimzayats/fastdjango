@@ -1,6 +1,6 @@
 import pytest
 
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
 from fastapi_template.core.user.services.password import PasswordService, PasswordServiceSettings
 
 _STRONG_PASSWORD = "S3cure-test-password-123!"  # noqa: S105
@@ -18,7 +18,7 @@ def test_password_service_hashes_and_verifies_password() -> None:
 def test_password_service_rejects_identity_matching_password() -> None:
     service = PasswordService(_settings=PasswordServiceSettings())
 
-    data = CreateUserDTO(
+    data = PersistUserDTO(
         username="new_user",
         email="new_user@example.com",
         first_name="New",

@@ -9,8 +9,8 @@ from fastapi_template.core.user.delivery.fastapi.schemas.create_user_request imp
     CreateUserRequestSchema,
 )
 from fastapi_template.core.user.delivery.fastapi.schemas.user import UserSchema
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
-from fastapi_template.core.user.use_cases.create_user import CreateUserUseCase
+from fastapi_template.core.user.dtos.register_user import RegisterUserDTO
+from fastapi_template.core.user.use_cases.register_user import RegisterUserUseCase
 from fastapi_template.foundation.delivery.controller import BaseAsyncController
 
 
@@ -18,7 +18,7 @@ from fastapi_template.foundation.delivery.controller import BaseAsyncController
 class CreateUserController(BaseAsyncController):
     """HTTP adapter for creating users from public registration input."""
 
-    _create_user_use_case: Injected[CreateUserUseCase]
+    _create_user_use_case: Injected[RegisterUserUseCase]
 
     def register(self, registry: APIRouter) -> None:
         """Attach the user creation endpoint to the FastAPI router."""
@@ -36,7 +36,7 @@ class CreateUserController(BaseAsyncController):
             Serialized user data for the created account.
         """
         user = await self._create_user_use_case.execute(
-            data=CreateUserDTO(
+            data=RegisterUserDTO(
                 email=request_body.email,
                 username=request_body.username,
                 first_name=request_body.first_name,
@@ -53,13 +53,13 @@ class CreateUserController(BaseAsyncController):
         Returns:
             The delegated handler result for unrecognized exceptions.
         """
-        if isinstance(exception, CreateUserUseCase.WEAK_PASSWORD_ERROR):
+        if isinstance(exception, RegisterUserUseCase.WEAK_PASSWORD_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Password does not meet the strength requirements",
             ) from exception
 
-        if isinstance(exception, CreateUserUseCase.USER_ALREADY_EXISTS_ERROR):
+        if isinstance(exception, RegisterUserUseCase.USER_ALREADY_EXISTS_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.CONFLICT,
                 detail="A user with the given username or email already exists",

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import ClassVar
 
-from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
 from fastapi_template.core.user.entities.user import User
 from fastapi_template.core.user.exceptions.user_repository_conflict import (
     UserRepositoryConflictError,
@@ -50,7 +50,7 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def create(self, *, data: CreateUserDTO, password_hash: str) -> User:
+    async def create(self, *, data: PersistUserDTO, password_hash: str) -> User:
         """Persist a user account within the caller's unit of work.
 
         Returns:
