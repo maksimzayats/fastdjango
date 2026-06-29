@@ -64,6 +64,32 @@ def test_jwt_service_rejects_unexpected_token_type() -> None:
         service.decode_token(token=token)
 
 
+@pytest.mark.parametrize("claim_name", ["exp", "iat", "sub", "typ"])
+def test_jwt_service_rejects_tokens_missing_required_claims(claim_name: str) -> None:
+    service = JWTService(
+        _settings=JWTServiceSettings(
+            secret_key=SecretStr(_SECRET_KEY),
+            typ="at+jwt",
+        ),
+    )
+    now = datetime.now(tz=UTC)
+    payload = {
+        "sub": "123",
+        "exp": now + timedelta(minutes=5),
+        "iat": now,
+        "typ": "at+jwt",
+    }
+    del payload[claim_name]
+    token = jwt.encode(
+        payload=payload,
+        key=_SECRET_KEY,
+        algorithm="HS256",
+    )
+
+    with pytest.raises(JWTService.INVALID_TOKEN_ERROR):
+        service.decode_token(token=token)
+
+
 def test_jwt_service_exposes_invalid_token_error_contract() -> None:
     service = JWTService(_settings=JWTServiceSettings(secret_key=SecretStr(_SECRET_KEY)))
 

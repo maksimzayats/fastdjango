@@ -75,6 +75,7 @@ class JWTService(BaseService):
             jwt=token,
             key=self._settings.secret_key.get_secret_value(),
             algorithms=[self._settings.algorithm],
+            options={"require": ["exp", "iat", "sub", "typ"]},
         )
         if payload.get("typ") != self._settings.typ:
             raise self.INVALID_TOKEN_ERROR
