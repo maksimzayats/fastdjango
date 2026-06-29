@@ -134,6 +134,29 @@ async def test_user_repository_finds_user_by_username_or_email(container: Contai
 
 
 @pytest.mark.anyio
+async def test_user_repository_persists_core_supplied_create_state(
+    container: Container,
+) -> None:
+    uow = container.resolve(UnitOfWork)
+
+    async with uow as active_uow:
+        created_user = await active_uow.user_repository.create(
+            data=_create_user_data(
+                username="inactive_staff_user",
+                email="inactive-staff@example.com",
+                is_active=False,
+                is_staff=True,
+                is_superuser=True,
+            ),
+            password_hash=_password_hash(),
+        )
+
+    assert created_user.is_active is False
+    assert created_user.is_staff is True
+    assert created_user.is_superuser is True
+
+
+@pytest.mark.anyio
 async def test_user_repository_duplicate_lookup_accepts_two_matching_rows(
     container: Container,
 ) -> None:
@@ -168,6 +191,9 @@ def _create_user_data(
     *,
     username: str = "repository_user",
     email: str = "repository@example.com",
+    is_active: bool = True,
+    is_staff: bool = False,
+    is_superuser: bool = False,
 ) -> CreateUserDTO:
     return CreateUserDTO(
         username=username,
@@ -175,6 +201,9 @@ def _create_user_data(
         first_name="Repository",
         last_name="User",
         password=_valid_password(),
+        is_active=is_active,
+        is_staff=is_staff,
+        is_superuser=is_superuser,
     )
 
 

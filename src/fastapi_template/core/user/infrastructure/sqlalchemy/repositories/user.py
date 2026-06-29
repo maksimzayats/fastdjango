@@ -111,6 +111,9 @@ class SQLAlchemyUserRepository(UserRepository):
             first_name=data.first_name,
             last_name=data.last_name,
             password_hash=password_hash,
+            is_active=data.is_active,
+            is_staff=data.is_staff,
+            is_superuser=data.is_superuser,
         )
 
         self._session.add(model)

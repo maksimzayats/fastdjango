@@ -43,7 +43,11 @@ class SQLAlchemyRefreshSessionRepository(RefreshSessionRepository):
             user_id=data.user.id,
             user_agent=data.user_agent,
             ip_address_trace=data.ip_address_trace,
+            created_at=data.created_at,
+            last_used_at=data.last_used_at,
             expires_at=data.expires_at,
+            revoked_at=data.revoked_at,
+            rotation_counter=data.rotation_counter,
         )
 
         self._session.add(model)

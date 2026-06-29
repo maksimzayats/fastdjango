@@ -24,19 +24,10 @@ SHARED_SQLALCHEMY_MODULES = {
     "session.py",
     "unit_of_work.py",
 }
-DATABASE_DOMAIN_MODEL_SOURCE_PARTS = {
-    (
-        "core",
-        "authentication",
-        "infrastructure",
-        "sqlalchemy",
-        "models",
-        "refresh_session.py",
-    ),
-    ("core", "user", "infrastructure", "sqlalchemy", "models", "user.py"),
-}
 FRAMEWORK_IMPORT_PREFIXES = ("fastapi", "starlette")
 DATABASE_QUERY_FUNCTION_NAMES = {"delete", "insert", "select", "text", "update"}
+ROUTE_REGISTRY_FUNCTION_NAMES = {"add_api_route", "add_api_websocket_route"}
+ROUTER_PREFIX_FUNCTION_NAMES = {"APIRouter", "include_router"}
 REPOSITORY_TRANSACTION_METHODS = {
     "begin",
     "close",
@@ -110,17 +101,110 @@ def test_local_infrastructure_does_not_use_persistence_nesting() -> None:
 
 
 def test_sqlalchemy_domain_models_live_in_local_sqlalchemy_adapters() -> None:
-    model_modules = {
-        module.source_parts
-        for module in iter_source_modules()
-        if any(
-            node.name.endswith("Model")
-            for node in ast.walk(module.tree)
-            if isinstance(node, ast.ClassDef)
-        )
-    }
+    violations: list[str] = []
+    for module in iter_source_modules():
+        model_class_names = _model_class_names(module=module)
+        if not model_class_names:
+            continue
 
-    assert model_modules == DATABASE_DOMAIN_MODEL_SOURCE_PARTS
+        if not _is_local_sqlalchemy_model_module(module):
+            violations.append(f"{module.relative_path} defines {model_class_names}")
+            continue
+
+        if len(model_class_names) != 1:
+            violations.append(f"{module.relative_path} defines {model_class_names}")
+            continue
+
+        expected_stem = _model_file_stem(model_name=model_class_names[0])
+        if module.path.stem != expected_stem:
+            violations.append(
+                f"{module.relative_path} should be named {expected_stem}.py",
+            )
+
+    assert violations == [], (
+        "SQLAlchemy models must live in scoped local SQLAlchemy model modules, "
+        "one table/domain model per file."
+    )
+
+
+def test_sqlalchemy_model_guardrail_accepts_structural_model_paths() -> None:
+    module = _source_module_from_text(
+        source_parts=(
+            "core",
+            "billing",
+            "infrastructure",
+            "sqlalchemy",
+            "models",
+            "invoice.py",
+        ),
+        source="class InvoiceModel: ...",
+    )
+
+    assert _is_local_sqlalchemy_model_module(module)
+    assert _model_class_names(module=module) == ["InvoiceModel"]
+    assert _model_file_stem(model_name="InvoiceModel") == "invoice"
+
+
+def test_sqlalchemy_model_guardrail_rejects_bucket_model_paths() -> None:
+    module = _source_module_from_text(
+        source_parts=(
+            "core",
+            "billing",
+            "infrastructure",
+            "sqlalchemy",
+            "models.py",
+        ),
+        source="class InvoiceModel: ...",
+    )
+
+    assert not _is_local_sqlalchemy_model_module(module)
+
+
+def test_route_path_guardrail_catches_positional_paths_and_router_prefixes() -> None:
+    legacy_health_path = "/v1/" + "health"
+    positional_route = _call_from_expression(
+        f"registry.add_api_route({legacy_health_path!r}, endpoint=health)",
+    )
+    router_prefix = _call_from_expression("fastapi.APIRouter(prefix='/api/v1')")
+    include_prefix = _call_from_expression("app.include_router(router, prefix='/api/v1')")
+
+    assert _route_path_values(positional_route) == [legacy_health_path]
+    assert _route_prefix_values(router_prefix) == ["/api/v1"]
+    assert _route_prefix_values(include_prefix) == ["/api/v1"]
+
+
+def test_unit_of_work_scope_guardrail_catches_renamed_dependencies() -> None:
+    module = _source_module_from_text(
+        source_parts=("core", "user", "services", "example.py"),
+        source="""
+class ExampleService:
+    _unit_of_work: Injected[UnitOfWork]
+
+    async def run(self) -> None:
+        async with self._unit_of_work as active_uow:
+            pass
+""",
+    )
+
+    assert _service_uow_scope_violations(module=module) == [
+        "src/fastapi_template/core/user/services/example.py:5 opens UnitOfWork scope",
+    ]
+
+
+def test_use_case_scope_guardrail_accepts_renamed_execute_dependency() -> None:
+    module = _source_module_from_text(
+        source_parts=("core", "user", "use_cases", "example.py"),
+        source="""
+class ExampleUseCase(BaseUseCase):
+    _unit_of_work: Injected[UnitOfWork]
+
+    async def execute(self) -> None:
+        async with self._unit_of_work as active_uow:
+            pass
+""",
+    )
+
+    assert _use_case_uow_scope_violations(module=module) == []
 
 
 def test_database_query_execution_stays_in_local_sqlalchemy_repositories() -> None:
@@ -235,13 +319,10 @@ def test_delivery_modules_do_not_import_repositories_or_uow_implementations() ->
 
 def test_services_do_not_open_unit_of_work_scopes() -> None:
     violations = [
-        f"{module.relative_path}:{node.lineno} opens self._uow"
+        violation
         for module in iter_source_modules()
         if _is_service_module(module)
-        for node in ast.walk(module.tree)
-        if isinstance(node, ast.AsyncWith)
-        for item in node.items
-        if name_for_expression(item.context_expr) == "_uow"
+        for violation in _service_uow_scope_violations(module=module)
     ]
 
     assert violations == [], "Services may receive an active UoW, but must not open UoW scopes."
@@ -256,7 +337,7 @@ def test_use_cases_open_at_most_one_unit_of_work_scope_inside_execute() -> None:
     ]
 
     assert violations == [], (
-        "Use cases may open at most one self._uow scope, and only inside execute()."
+        "Use cases may open at most one UnitOfWork scope, and only inside execute()."
     )
 
 
@@ -278,14 +359,25 @@ def test_http_route_paths_are_full_api_v1_paths() -> None:
     violations = [
         f"{module.relative_path}:{node.lineno} path={path!r}"
         for module in iter_source_modules()
-        if _is_fastapi_delivery_module(module)
+        if _is_fastapi_route_module(module)
         for node in ast.walk(module.tree)
         if isinstance(node, ast.Call)
         for path in _route_path_values(node)
         if not path.startswith("/api/v1/")
     ]
+    violations.extend(
+        f"{module.relative_path}:{node.lineno} prefix={prefix!r}"
+        for module in iter_source_modules()
+        if _is_fastapi_route_module(module)
+        for node in ast.walk(module.tree)
+        if isinstance(node, ast.Call)
+        for prefix in _route_prefix_values(node)
+        if prefix
+    )
 
-    assert violations == [], "Public FastAPI route paths must be full /api/v1/... paths."
+    assert violations == [], (
+        "Public FastAPI route paths must be full /api/v1/... paths without router prefixes."
+    )
 
 
 def test_container_access_stays_in_composition_roots() -> None:
@@ -379,6 +471,16 @@ def _is_local_sqlalchemy_adapter_module(module: SourceModule) -> bool:
     return len(parts) >= 5 and parts[0] == "core" and parts[2:4] == ("infrastructure", "sqlalchemy")
 
 
+def _is_local_sqlalchemy_model_module(module: SourceModule) -> bool:
+    parts = module.source_parts
+    return (
+        len(parts) == 6
+        and parts[0] == "core"
+        and parts[2:5] == ("infrastructure", "sqlalchemy", "models")
+        and parts[-1] != "__init__.py"
+    )
+
+
 def _is_local_sqlalchemy_repository_module(module: SourceModule) -> bool:
     return _is_local_sqlalchemy_adapter_module(module) and "repositories" in module.source_parts
 
@@ -432,24 +534,62 @@ def _is_fastapi_delivery_module(module: SourceModule) -> bool:
     return "delivery" in module.source_parts and "fastapi" in module.source_parts
 
 
+def _is_fastapi_route_module(module: SourceModule) -> bool:
+    return _is_fastapi_delivery_module(module) or module.source_parts[0] == "entrypoints"
+
+
 def _route_path_values(node: ast.Call) -> list[str]:
-    route_function_names = {"add_api_route", "add_api_websocket_route"}
-    if not isinstance(node.func, ast.Attribute) or node.func.attr not in route_function_names:
+    if name_for_expression(node.func) not in ROUTE_REGISTRY_FUNCTION_NAMES:
+        return []
+
+    paths = []
+    if node.args:
+        paths.append(_string_value(node.args[0]))
+    paths.extend(_string_value(keyword.value) for keyword in node.keywords if keyword.arg == "path")
+
+    return [path for path in paths if path is not None]
+
+
+def _route_prefix_values(node: ast.Call) -> list[str]:
+    if name_for_expression(node.func) not in ROUTER_PREFIX_FUNCTION_NAMES:
         return []
 
     return [
-        keyword.value.value
+        prefix
         for keyword in node.keywords
-        if (
-            keyword.arg == "path"
-            and isinstance(keyword.value, ast.Constant)
-            and isinstance(keyword.value.value, str)
-        )
+        if keyword.arg == "prefix"
+        if (prefix := _string_value(keyword.value)) is not None
     ]
+
+
+def _string_value(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+
+    return "<dynamic>"
 
 
 def _can_access_container(module: SourceModule) -> bool:
     return module.source_parts[0] in {"entrypoints", "ioc"}
+
+
+def _model_class_names(*, module: SourceModule) -> list[str]:
+    return [
+        node.name
+        for node in ast.walk(module.tree)
+        if isinstance(node, ast.ClassDef) and node.name.endswith("Model")
+    ]
+
+
+def _model_file_stem(*, model_name: str) -> str:
+    base_name = model_name.removesuffix("Model")
+    snake_name = ""
+    for character in base_name:
+        if character.isupper() and snake_name:
+            snake_name = f"{snake_name}_"
+        snake_name = f"{snake_name}{character.lower()}"
+
+    return snake_name
 
 
 def _database_query_call_name(node: ast.Call) -> str | None:
@@ -496,6 +636,25 @@ def _is_service_module(module: SourceModule) -> bool:
     )
 
 
+def _service_uow_scope_violations(*, module: SourceModule) -> list[str]:
+    violations: list[str] = []
+    for class_node in (node for node in ast.walk(module.tree) if isinstance(node, ast.ClassDef)):
+        class_uow_names = _class_unit_of_work_field_names(class_node=class_node)
+        for method_node in _class_methods(class_node=class_node):
+            method_uow_names = class_uow_names | _method_unit_of_work_parameter_names(
+                method_node=method_node,
+            )
+            violations.extend(
+                f"{module.relative_path}:{node.lineno} opens UnitOfWork scope"
+                for node in _method_uow_scope_nodes(
+                    method_node=method_node,
+                    uow_names=method_uow_names,
+                )
+            )
+
+    return violations
+
+
 def _is_use_case_module(module: SourceModule) -> bool:
     return (
         module.source_parts[0] == "core"
@@ -512,14 +671,21 @@ def _use_case_uow_scope_violations(*, module: SourceModule) -> list[str]:
         for node in ast.walk(module.tree)
         if isinstance(node, ast.ClassDef) and has_base(node, USE_CASE_BASES)
     ):
+        class_uow_names = _class_unit_of_work_field_names(class_node=class_node)
         scope_count = 0
         for method_node in _class_methods(class_node=class_node):
-            method_scope_count = _method_uow_scope_count(method_node=method_node)
+            method_uow_names = class_uow_names | _method_unit_of_work_parameter_names(
+                method_node=method_node,
+            )
+            method_scope_count = _method_uow_scope_count(
+                method_node=method_node,
+                uow_names=method_uow_names,
+            )
             scope_count += method_scope_count
             if method_scope_count and method_node.name != "execute":
                 violations.append(
                     f"{module.relative_path}:{method_node.lineno} "
-                    f"{class_node.name}.{method_node.name} opens self._uow",
+                    f"{class_node.name}.{method_node.name} opens UnitOfWork scope",
                 )
 
         if scope_count > 1:
@@ -536,13 +702,54 @@ def _class_methods(*, class_node: ast.ClassDef) -> list[ast.FunctionDef | ast.As
     ]
 
 
-def _method_uow_scope_count(*, method_node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
-    return sum(
-        1
+def _method_uow_scope_count(
+    *,
+    method_node: ast.FunctionDef | ast.AsyncFunctionDef,
+    uow_names: set[str],
+) -> int:
+    return len(_method_uow_scope_nodes(method_node=method_node, uow_names=uow_names))
+
+
+def _method_uow_scope_nodes(
+    *,
+    method_node: ast.FunctionDef | ast.AsyncFunctionDef,
+    uow_names: set[str],
+) -> list[ast.AsyncWith]:
+    return [
+        node
         for node in ast.walk(method_node)
         if isinstance(node, ast.AsyncWith)
         for item in node.items
-        if name_for_expression(item.context_expr) == "_uow"
+        if name_for_expression(item.context_expr) in uow_names
+    ]
+
+
+def _class_unit_of_work_field_names(*, class_node: ast.ClassDef) -> set[str]:
+    return {
+        node.target.id
+        for node in class_node.body
+        if isinstance(node, ast.AnnAssign)
+        if isinstance(node.target, ast.Name)
+        if _is_unit_of_work_annotation(node.annotation)
+    }
+
+
+def _method_unit_of_work_parameter_names(
+    *,
+    method_node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> set[str]:
+    return {
+        argument.arg
+        for argument in (*method_node.args.args, *method_node.args.kwonlyargs)
+        if argument.annotation is not None
+        if _is_unit_of_work_annotation(argument.annotation)
+    }
+
+
+def _is_unit_of_work_annotation(annotation: ast.expr) -> bool:
+    return (
+        name_for_expression(annotation) == "UnitOfWork"
+        or _injected_dependency_name(annotation) == "UnitOfWork"
     )
 
 
@@ -580,3 +787,20 @@ def _injected_dependency_name(annotation: ast.expr) -> str | None:
         return None
 
     return name_for_expression(annotation.slice)
+
+
+def _source_module_from_text(*, source_parts: tuple[str, ...], source: str) -> SourceModule:
+    path = SOURCE_ROOT.joinpath(*source_parts)
+    return SourceModule(
+        path=path,
+        tree=ast.parse(source.lstrip(), filename=str(path)),
+    )
+
+
+def _call_from_expression(source: str) -> ast.Call:
+    module = ast.parse(source)
+    expression = module.body[0]
+    if not isinstance(expression, ast.Expr) or not isinstance(expression.value, ast.Call):
+        raise TypeError(source)
+
+    return expression.value

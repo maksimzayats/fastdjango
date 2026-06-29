@@ -12,6 +12,7 @@ from fastapi_template.core.authentication.dtos.replace_refresh_session_token imp
 )
 from fastapi_template.core.unit_of_work import UnitOfWork
 from fastapi_template.core.user.dtos.create_user import CreateUserDTO
+from fastapi_template.core.user.entities.user import User
 
 
 @pytest.mark.anyio
@@ -58,12 +59,11 @@ async def test_refresh_session_repository_creates_and_updates_session(
             password_hash=_password_hash(),
         )
         session = await active_uow.refresh_session_repository.create(
-            data=CreateRefreshSessionDTO(
+            data=_create_refresh_session_data(
                 user=user,
                 refresh_token_hash=_refresh_hash("old"),
                 user_agent="test-agent",
                 ip_address_trace="127.0.0.1",
-                expires_at=datetime.now(tz=UTC) + timedelta(days=1),
             ),
         )
         updated_session = await active_uow.refresh_session_repository.replace_token_hash(
@@ -103,7 +103,7 @@ async def test_refresh_session_repository_updates_matching_session_without_activ
             password_hash=_password_hash(),
         )
         expired_session = await active_uow.refresh_session_repository.create(
-            data=CreateRefreshSessionDTO(
+            data=_create_refresh_session_data(
                 user=user,
                 refresh_token_hash=_refresh_hash("expired"),
                 user_agent="test-agent",
@@ -112,12 +112,11 @@ async def test_refresh_session_repository_updates_matching_session_without_activ
             ),
         )
         revoked_session = await active_uow.refresh_session_repository.create(
-            data=CreateRefreshSessionDTO(
+            data=_create_refresh_session_data(
                 user=user,
                 refresh_token_hash=_refresh_hash("revoked"),
                 user_agent="test-agent",
                 ip_address_trace="127.0.0.1",
-                expires_at=datetime.now(tz=UTC) + timedelta(days=1),
             ),
         )
         await active_uow.refresh_session_repository.revoke(
@@ -159,6 +158,28 @@ def _create_user_data(
         first_name="Repository",
         last_name="User",
         password=_valid_password(),
+    )
+
+
+def _create_refresh_session_data(
+    *,
+    user: User,
+    refresh_token_hash: str,
+    user_agent: str,
+    ip_address_trace: str,
+    expires_at: datetime | None = None,
+) -> CreateRefreshSessionDTO:
+    created_at = datetime.now(tz=UTC)
+    return CreateRefreshSessionDTO(
+        user=user,
+        refresh_token_hash=refresh_token_hash,
+        user_agent=user_agent,
+        ip_address_trace=ip_address_trace,
+        created_at=created_at,
+        last_used_at=None,
+        expires_at=expires_at or created_at + timedelta(days=1),
+        revoked_at=None,
+        rotation_counter=0,
     )
 
 

@@ -62,6 +62,9 @@ class FakeUserRepository(UserRepository):
             first_name=data.first_name,
             last_name=data.last_name,
             password_hash=password_hash,
+            is_active=data.is_active,
+            is_staff=data.is_staff,
+            is_superuser=data.is_superuser,
         )
         self.users.append(user)
         return user
@@ -138,6 +141,9 @@ async def test_create_user_hashes_password_before_persisting() -> None:
     assert user.username == "new_user"
     assert repository.created_password_hash is not None
     assert repository.created_password_hash != _STRONG_PASSWORD
+    assert user.is_active is True
+    assert user.is_staff is False
+    assert user.is_superuser is False
 
 
 @pytest.mark.anyio

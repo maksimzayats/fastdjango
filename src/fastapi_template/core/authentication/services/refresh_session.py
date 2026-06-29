@@ -67,13 +67,18 @@ class RefreshSessionService(BaseService):
         The operation result.
         """
         refresh_token = self._issue_refresh_token()
+        created_at = datetime.now(tz=UTC)
         session = await uow.refresh_session_repository.create(
             data=CreateRefreshSessionDTO(
                 user=user,
                 refresh_token_hash=self._hash_refresh_token(refresh_token=refresh_token),
                 user_agent=user_agent,
                 ip_address_trace=ip_address_trace or "",
-                expires_at=datetime.now(tz=UTC) + self._settings.refresh_token_ttl,
+                created_at=created_at,
+                last_used_at=None,
+                expires_at=created_at + self._settings.refresh_token_ttl,
+                revoked_at=None,
+                rotation_counter=0,
             ),
         )
         return RefreshSessionResult(refresh_token=refresh_token, session=session)

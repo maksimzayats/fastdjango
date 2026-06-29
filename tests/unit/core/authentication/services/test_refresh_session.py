@@ -46,7 +46,11 @@ class FakeRefreshSessionRepository(RefreshSessionRepository):
         self.session = _build_session(
             user=data.user,
             refresh_token_hash=data.refresh_token_hash,
+            created_at=data.created_at,
+            last_used_at=data.last_used_at,
             expires_at=data.expires_at,
+            revoked_at=data.revoked_at,
+            rotation_counter=data.rotation_counter,
             user_agent=data.user_agent,
             ip_address_trace=data.ip_address_trace,
         )
@@ -195,7 +199,11 @@ async def test_create_refresh_session_uses_active_unit_of_work() -> None:
     assert result.session.user == user
     assert result.refresh_token
     assert repository.session is not None
+    assert repository.session.created_at < repository.session.expires_at
+    assert repository.session.last_used_at is None
     assert repository.session.ip_address_trace == ""
+    assert repository.session.revoked_at is None
+    assert repository.session.rotation_counter == 0
     assert uow.entered_count == 0
     assert uow.exited_count == 0
 
@@ -313,10 +321,12 @@ def _build_session(
     expires_at: datetime | None = None,
     user_agent: str = "test-agent",
     ip_address_trace: str = "127.0.0.1",
+    created_at: datetime | None = None,
     rotation_counter: int = 0,
     last_used_at: datetime | None = None,
     revoked_at: datetime | None = None,
 ) -> RefreshSession:
+    session_created_at = created_at or datetime.now(tz=UTC)
     return RefreshSession(
         id=session_id or uuid.uuid7(),
         refresh_token_hash=refresh_token_hash
@@ -324,9 +334,9 @@ def _build_session(
         user=user or _build_user(),
         user_agent=user_agent,
         ip_address_trace=ip_address_trace,
-        created_at=datetime.now(tz=UTC),
+        created_at=session_created_at,
         last_used_at=last_used_at,
-        expires_at=expires_at or datetime.now(tz=UTC) + timedelta(days=30),
+        expires_at=expires_at or session_created_at + timedelta(days=30),
         revoked_at=revoked_at,
         rotation_counter=rotation_counter,
     )

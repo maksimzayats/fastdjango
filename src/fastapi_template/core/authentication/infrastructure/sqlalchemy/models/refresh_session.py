@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,15 +26,12 @@ class RefreshSessionModel(Base):
         index=True,
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    user_agent: Mapped[str] = mapped_column(Text, default="")
-    ip_address_trace: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(tz=UTC),
-    )
-    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    user_agent: Mapped[str] = mapped_column(Text)
+    ip_address_trace: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
-    rotation_counter: Mapped[int] = mapped_column(Integer, default=0)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rotation_counter: Mapped[int] = mapped_column(Integer)
 
     user: Mapped[UserModel] = relationship()

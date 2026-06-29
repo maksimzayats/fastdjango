@@ -21,6 +21,9 @@ class UserIdentityService(BaseService):
             first_name=data.first_name,
             last_name=data.last_name,
             password=data.password,
+            is_active=data.is_active,
+            is_staff=data.is_staff,
+            is_superuser=data.is_superuser,
         )
 
     def normalize_username(self, *, username: str) -> str:
