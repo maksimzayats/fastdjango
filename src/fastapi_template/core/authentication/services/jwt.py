@@ -52,11 +52,11 @@ class JWTService(BaseService):
         """
         iat = datetime.now(tz=UTC)
         payload = {
+            **payload_kwargs,
             "sub": str(user_id),
             "exp": iat + self._settings.access_token_expire,
             "iat": iat,
             "typ": self._settings.typ,
-            **payload_kwargs,
         }
 
         return jwt.encode(
@@ -71,8 +71,12 @@ class JWTService(BaseService):
         Returns:
             Token payload after signature, expiry, and algorithm validation.
         """
-        return jwt.decode(
+        payload = jwt.decode(
             jwt=token,
             key=self._settings.secret_key.get_secret_value(),
             algorithms=[self._settings.algorithm],
         )
+        if payload.get("typ") != self._settings.typ:
+            raise self.INVALID_TOKEN_ERROR
+
+        return payload

@@ -63,7 +63,6 @@ def _persist_user_data(*, data: RegisterUserDTO) -> PersistUserDTO:
         username=data.username,
         first_name=data.first_name,
         last_name=data.last_name,
-        password=data.password,
         is_active=True,
         is_staff=False,
         is_superuser=False,

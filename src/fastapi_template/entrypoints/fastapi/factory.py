@@ -98,7 +98,11 @@ class FastAPIFactory(BaseFactory):
             title="API",
             docs_url=docs_url,
             redoc_url=None,
-            lifespan=partial(_dispose_session_factory, session_factory=self._session_factory),
+            lifespan=partial(
+                _dispose_runtime_resources,
+                ip_throttler_factory=self._ip_throttler_factory,
+                session_factory=self._session_factory,
+            ),
         )
 
         self._telemetry_instrumentor.instrument_fastapi(app=app)
@@ -179,12 +183,14 @@ class FastAPIFactory(BaseFactory):
 
 
 @asynccontextmanager
-async def _dispose_session_factory(
+async def _dispose_runtime_resources(
     _app: fastapi.FastAPI,
     *,
+    ip_throttler_factory: IPThrottlerFactory,
     session_factory: SQLAlchemySessionFactory,
 ) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        await ip_throttler_factory.dispose()
         await session_factory.dispose()

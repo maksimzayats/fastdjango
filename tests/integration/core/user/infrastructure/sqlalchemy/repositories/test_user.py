@@ -200,7 +200,6 @@ def _persist_user_data(
         email=email,
         first_name="Repository",
         last_name="User",
-        password=_valid_password(),
         is_active=is_active,
         is_staff=is_staff,
         is_superuser=is_superuser,
@@ -209,7 +208,3 @@ def _persist_user_data(
 
 def _password_hash() -> str:
     return "argon2-hash-value"
-
-
-def _valid_password() -> str:
-    return "S3cure-test-value-123!"

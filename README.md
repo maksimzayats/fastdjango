@@ -46,8 +46,12 @@ The API runs at `http://localhost:8000`. Health checks are available at `/api/v1
 | `make migrate` | Apply Alembic migrations |
 | `make check-migrations` | Check Alembic migration drift |
 | `make test` | Run the test suite with a 100% coverage threshold |
-| `make test-postgres` | Run SQLAlchemy integration tests against the required `INTEGRATION_DATABASE_URL` |
+| `make test-postgres` | Run SQLAlchemy integration tests against a disposable PostgreSQL test database |
 | `make lint` | Run Ruff, WPS/flake8, mypy, and repository checks |
 | `make docs` | Serve documentation |
 
 Read the full documentation at [fastapi-template.zayats.dev](https://fastapi-template.zayats.dev), or run `make docs`.
+
+`make test-postgres` resets the target schema before running tests. The
+`INTEGRATION_DATABASE_URL` database name must start with `test_` or end with
+`_test`.

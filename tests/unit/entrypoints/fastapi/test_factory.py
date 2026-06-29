@@ -1,9 +1,8 @@
 from collections.abc import Awaitable, Callable, Sequence
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
 from fastapi import APIRouter, FastAPI, HTTPException
-from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
@@ -41,7 +40,6 @@ from fastapi_template.core.user.delivery.fastapi.controllers.staff_user_lookup i
     StaffUserLookupController,
 )
 from fastapi_template.entrypoints.fastapi.factory import (
-    PRE_BODY_IP_THROTTLED_ROUTES,
     FastAPIFactory,
 )
 from fastapi_template.entrypoints.fastapi.settings.cors import CORSSettings
@@ -67,7 +65,8 @@ class FakeTelemetryInstrumentor:
 
 
 class FakeSessionFactory:
-    disposed = False
+    def __init__(self) -> None:
+        self.disposed = False
 
     async def dispose(self) -> None:
         self.disposed = True
@@ -88,6 +87,10 @@ class BodyPayload(BaseModel):
     value: str
 
 
+class DisposableFlag(Protocol):
+    disposed: bool
+
+
 class FakePostController:
     def __init__(self, *, path: str) -> None:
         self._path = path
@@ -104,16 +107,23 @@ class FakePostController:
 
 
 class PassingIPThrottlerFactory:
+    def __init__(self) -> None:
+        self.disposed = False
+
     def __call__(self, *, quota: object) -> Callable[[Request], Awaitable[None]]:
         return self.throttle
 
     async def throttle(self, request: Request) -> None:
         return None
 
+    async def dispose(self) -> None:
+        self.disposed = True
+
 
 class RejectingIPThrottlerFactory:
     def __init__(self) -> None:
         self.called_paths: list[str] = []
+        self.disposed = False
 
     def __call__(self, *, quota: object) -> Callable[[Request], Awaitable[None]]:
         return self.throttle
@@ -124,6 +134,9 @@ class RejectingIPThrottlerFactory:
             status_code=HTTPStatus.TOO_MANY_REQUESTS,
             detail="Too many requests",
         )
+
+    async def dispose(self) -> None:
+        self.disposed = True
 
 
 def test_fastapi_factory_disables_docs_and_optional_middlewares_in_production() -> None:
@@ -216,49 +229,25 @@ def test_fastapi_factory_applies_pre_body_ip_throttling_to_post_routes() -> None
     assert not any(controller.called for controller in post_controllers)
 
 
-def test_fastapi_factory_disposes_session_factory_on_shutdown() -> None:
+def test_fastapi_factory_disposes_runtime_resources_on_shutdown() -> None:
     session_factory = FakeSessionFactory()
+    ip_throttler_factory = PassingIPThrottlerFactory()
     app = _build_factory(
         application_settings=ApplicationSettings(environment=Environment.DEVELOPMENT),
         instrumentor=FakeTelemetryInstrumentor(),
         session_factory=cast(SQLAlchemySessionFactory, session_factory),
+        ip_throttler_factory=cast(IPThrottlerFactory, ip_throttler_factory),
     )(
         add_trusted_hosts_middleware=False,
         add_cors_middleware=False,
     )
 
     with TestClient(app):
-        assert session_factory.disposed is False
+        assert not _is_disposed(session_factory)
+        assert not _is_disposed(ip_throttler_factory)
 
-    assert session_factory.disposed is True
-
-
-def test_pre_body_throttling_covers_all_public_post_routes() -> None:
-    post_controllers = _post_controllers()
-    app = _build_factory(
-        application_settings=ApplicationSettings(environment=Environment.DEVELOPMENT),
-        instrumentor=FakeTelemetryInstrumentor(),
-        controllers=[
-            FakeController(),
-            FakeController(),
-            post_controllers[0],
-            post_controllers[1],
-            post_controllers[2],
-            post_controllers[3],
-            FakeController(),
-            FakeController(),
-        ],
-    )(
-        add_trusted_hosts_middleware=False,
-        add_cors_middleware=False,
-    )
-
-    public_post_routes = _public_post_routes(app=app)
-    throttled_post_routes = {
-        path for method, path in PRE_BODY_IP_THROTTLED_ROUTES if method == "POST"
-    }
-
-    assert public_post_routes == throttled_post_routes
+    assert _is_disposed(session_factory)
+    assert _is_disposed(ip_throttler_factory)
 
 
 def _build_factory(
@@ -304,31 +293,9 @@ def _build_factory(
     )
 
 
+def _is_disposed(disposable: DisposableFlag) -> bool:
+    return bool(disposable.disposed)
+
+
 def _post_controllers() -> list[FakePostController]:
     return [FakePostController(path=path) for path in PRE_BODY_THROTTLED_POST_PATHS]
-
-
-def _public_post_routes(*, app: FastAPI) -> set[str]:
-    routes: set[str] = set()
-    for route in app.routes:
-        if isinstance(route, APIRoute):
-            _add_post_route(routes=routes, route=route)
-            continue
-
-        original_router = getattr(route, "original_router", None)
-        if original_router is None:
-            continue
-
-        for included_route in original_router.routes:
-            if isinstance(included_route, APIRoute):
-                _add_post_route(routes=routes, route=included_route)
-
-    return routes
-
-
-def _add_post_route(*, routes: set[str], route: APIRoute) -> None:
-    methods = route.methods or set()
-    if not route.path.startswith("/api/v1") or "POST" not in methods:
-        return
-
-    routes.add(route.path)

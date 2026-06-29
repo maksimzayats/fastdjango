@@ -40,3 +40,7 @@ class UserThrottlerFactory(BaseFactory):
             _throttler=throttler,
             _cost=cost,
         ).__call__
+
+    async def dispose(self) -> None:
+        """Release shared throttling resources owned by the inner factory."""
+        await self._throttler_factory.dispose()

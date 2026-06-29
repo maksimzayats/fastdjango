@@ -8,8 +8,6 @@ from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
 from fastapi_template.infrastructure.sqlalchemy.session import SQLAlchemySessionFactory
 from fastapi_template.infrastructure.sqlalchemy.unit_of_work import SQLAlchemyUnitOfWork
 
-_VALID_TEST_PASSWORD = "S3cure-test-password-123!"  # noqa: S105
-
 
 class TransactionFailureError(Exception):
     pass
@@ -154,7 +152,6 @@ def _persist_user_dto(*, username: str) -> PersistUserDTO:
         email=f"{username}@example.com",
         first_name="Test",
         last_name="User",
-        password=_VALID_TEST_PASSWORD,
     )
 
 

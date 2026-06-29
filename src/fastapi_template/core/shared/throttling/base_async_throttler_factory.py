@@ -20,3 +20,8 @@ class BaseAsyncThrottlerFactory(BaseFactory, ABC):
             A configured async throttler.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    async def dispose(self) -> None:
+        """Release shared throttling resources owned by the factory."""
+        raise NotImplementedError

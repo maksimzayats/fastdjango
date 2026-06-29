@@ -27,6 +27,7 @@ test:
 test-postgres:
 	@test -n "$$INTEGRATION_DATABASE_URL" || (echo "INTEGRATION_DATABASE_URL is required for make test-postgres"; exit 1)
 	@case "$$INTEGRATION_DATABASE_URL" in postgres://*|postgresql://*) ;; *) echo "INTEGRATION_DATABASE_URL must be a PostgreSQL URL"; exit 1 ;; esac
+	@uv run python -c 'import os, sys; from urllib.parse import urlparse; database = urlparse(os.environ["INTEGRATION_DATABASE_URL"]).path.strip("/"); sys.exit(0 if database.startswith("test_") or database.endswith("_test") else 1)' || (echo "INTEGRATION_DATABASE_URL database name must start with test_ or end with _test because make test-postgres resets its schema"; exit 1)
 	uv run --all-groups pytest tests/integration/core/user/infrastructure/sqlalchemy/repositories tests/integration/core/authentication/infrastructure/sqlalchemy/repositories tests/integration/core/health/infrastructure/sqlalchemy tests/integration/infrastructure/sqlalchemy --no-cov
 
 docs:

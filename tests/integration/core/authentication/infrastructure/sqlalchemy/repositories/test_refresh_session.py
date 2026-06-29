@@ -157,7 +157,6 @@ def _persist_user_data(
         email=email,
         first_name="Repository",
         last_name="User",
-        password=_valid_password(),
     )
 
 
@@ -194,7 +193,3 @@ def _password_hash() -> str:
 
 def _refresh_hash(value: str) -> str:
     return f"refresh-hash-{value}"
-
-
-def _valid_password() -> str:
-    return "S3cure-test-value-123!"
