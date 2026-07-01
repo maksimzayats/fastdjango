@@ -1,1 +1,0 @@
-"""Setup wizard tests."""

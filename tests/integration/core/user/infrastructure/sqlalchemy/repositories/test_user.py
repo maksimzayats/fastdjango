@@ -1,0 +1,210 @@
+from typing import cast
+
+import pytest
+from diwire import Container
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from fastapi_template.core.unit_of_work import UnitOfWork
+from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
+from fastapi_template.core.user.infrastructure.sqlalchemy.models.user import UserModel
+from fastapi_template.core.user.infrastructure.sqlalchemy.repositories.user import (
+    SQLAlchemyUserRepository,
+)
+
+
+class BrokenSession:
+    def __init__(self, *, error: IntegrityError | None = None) -> None:
+        self._error = error or IntegrityError(
+            statement="insert into users",
+            params={},
+            orig=RuntimeError("foreign key failed"),
+        )
+
+    def add(self, instance: object) -> None:
+        return None
+
+    async def flush(self) -> None:
+        raise self._error
+
+
+class PostgresDiagnostic:
+    constraint_name = "uq_users_email"
+
+
+class PostgresUniqueError(Exception):
+    diag = PostgresDiagnostic()
+
+
+@pytest.mark.anyio
+async def test_user_repository_returns_none_for_missing_users(container: Container) -> None:
+    uow = container.resolve(UnitOfWork)
+
+    async with uow as active_uow:
+        assert await active_uow.user_repository.get_by_id(user_id=404) is None
+        assert await active_uow.user_repository.get_active_by_id(user_id=404) is None
+        assert await active_uow.user_repository.get_by_username(username="missing") is None
+        assert (
+            await active_uow.user_repository.get_by_username_or_email(
+                username="missing",
+                email="missing@example.com",
+            )
+            is None
+        )
+        assert (
+            await active_uow.user_repository.set_access_flags(
+                user_id=404,
+                is_staff=True,
+                is_superuser=True,
+            )
+            is None
+        )
+
+
+@pytest.mark.anyio
+async def test_user_repository_maps_duplicate_create_error(container: Container) -> None:
+    uow = container.resolve(UnitOfWork)
+
+    async with uow as active_uow:
+        user_data = _persist_user_data()
+        duplicate_error = active_uow.user_repository.USER_REPOSITORY_CONFLICT_ERROR
+        await active_uow.user_repository.create(data=user_data, password_hash=_password_hash())
+
+    with pytest.raises(duplicate_error):
+        async with uow as active_uow:
+            await active_uow.user_repository.create(
+                data=user_data,
+                password_hash=_password_hash(),
+            )
+
+
+@pytest.mark.anyio
+async def test_user_repository_reraises_unexpected_integrity_errors() -> None:
+    repository = SQLAlchemyUserRepository(session=cast(AsyncSession, BrokenSession()))
+
+    with pytest.raises(IntegrityError, match="foreign key failed"):
+        await repository.create(data=_persist_user_data(), password_hash=_password_hash())
+
+
+@pytest.mark.anyio
+async def test_user_repository_maps_postgres_unique_constraint_error() -> None:
+    repository = SQLAlchemyUserRepository(
+        session=cast(
+            AsyncSession,
+            BrokenSession(
+                error=IntegrityError(
+                    statement="insert into users",
+                    params={},
+                    orig=PostgresUniqueError(),
+                ),
+            ),
+        ),
+    )
+
+    with pytest.raises(repository.USER_REPOSITORY_CONFLICT_ERROR):
+        await repository.create(data=_persist_user_data(), password_hash=_password_hash())
+
+
+def test_user_model_has_no_refresh_session_back_reference() -> None:
+    assert not hasattr(UserModel, "refresh_sessions")
+
+
+@pytest.mark.anyio
+async def test_user_repository_finds_user_by_username_or_email(container: Container) -> None:
+    uow = container.resolve(UnitOfWork)
+
+    async with uow as active_uow:
+        user_data = _persist_user_data(
+            username="lookup_user",
+            email="lookup-user@example.com",
+        )
+        created_user = await active_uow.user_repository.create(
+            data=user_data,
+            password_hash=_password_hash(),
+        )
+
+    async with uow as active_uow:
+        found_user = await active_uow.user_repository.get_by_username_or_email(
+            username=user_data.username,
+            email="missing@example.com",
+        )
+
+    assert found_user is not None
+    assert found_user.id == created_user.id
+
+
+@pytest.mark.anyio
+async def test_user_repository_persists_core_supplied_create_state(
+    container: Container,
+) -> None:
+    uow = container.resolve(UnitOfWork)
+
+    async with uow as active_uow:
+        created_user = await active_uow.user_repository.create(
+            data=_persist_user_data(
+                username="inactive_staff_user",
+                email="inactive-staff@example.com",
+                is_active=False,
+                is_staff=True,
+                is_superuser=True,
+            ),
+            password_hash=_password_hash(),
+        )
+
+    assert created_user.is_active is False
+    assert created_user.is_staff is True
+    assert created_user.is_superuser is True
+
+
+@pytest.mark.anyio
+async def test_user_repository_duplicate_lookup_accepts_two_matching_rows(
+    container: Container,
+) -> None:
+    uow = container.resolve(UnitOfWork)
+
+    async with uow as active_uow:
+        await active_uow.user_repository.create(
+            data=_persist_user_data(
+                username="duplicate_username",
+                email="first@example.com",
+            ),
+            password_hash=_password_hash(),
+        )
+        await active_uow.user_repository.create(
+            data=_persist_user_data(
+                username="other_username",
+                email="duplicate@example.com",
+            ),
+            password_hash=_password_hash(),
+        )
+
+    async with uow as active_uow:
+        found_user = await active_uow.user_repository.get_by_username_or_email(
+            username="duplicate_username",
+            email="duplicate@example.com",
+        )
+
+    assert found_user is not None
+
+
+def _persist_user_data(
+    *,
+    username: str = "repository_user",
+    email: str = "repository@example.com",
+    is_active: bool = True,
+    is_staff: bool = False,
+    is_superuser: bool = False,
+) -> PersistUserDTO:
+    return PersistUserDTO(
+        username=username,
+        email=email,
+        first_name="Repository",
+        last_name="User",
+        is_active=is_active,
+        is_staff=is_staff,
+        is_superuser=is_superuser,
+    )
+
+
+def _password_hash() -> str:
+    return "argon2-hash-value"

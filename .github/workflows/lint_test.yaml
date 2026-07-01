@@ -14,15 +14,17 @@ jobs:
     env:
       COMPOSE_FILE: docker/docker-compose.yaml:docker/docker-compose.test.yaml
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
 
       - name: "Set up Python"
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version-file: "pyproject.toml"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8.1.0
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
 
@@ -31,30 +33,21 @@ jobs:
 
       - name: Create .env
         run: |
-          cat > .env << 'EOF'
-          DJANGO_SECRET_KEY=test-django-secret-key
-          JWT_SECRET_KEY=test-jwt-secret-key-with-at-least-32-bytes
-          ENVIRONMENT=test
-          DJANGO_DEBUG=true
-          LOGGING_LEVEL=DEBUG
-          ALLOWED_HOSTS='["127.0.0.1", "localhost"]'
-          CSRF_TRUSTED_ORIGINS='["http://localhost"]'
-          POSTGRES_USER=postgres
-          POSTGRES_DB=postgres
-          POSTGRES_PASSWORD=test-postgres-password
-          DATABASE_URL=postgres://postgres:test-postgres-password@localhost:5432/postgres
-          REDIS_PASSWORD=example-redis-password
-          REDIS_URL="redis://default:${REDIS_PASSWORD}@localhost:6379/0"
-          AWS_S3_ENDPOINT_URL=http://localhost:9000
-          AWS_S3_ACCESS_KEY_ID=test-minio-access-key
-          AWS_S3_SECRET_ACCESS_KEY=test-minio-secret-key
-          EOF
+          cp .env.test.example .env
+          {
+            echo 'POSTGRES_USER=postgres'
+            echo 'POSTGRES_DB=modern_python_template_test'
+            echo 'POSTGRES_PASSWORD=test-postgres-password'
+            echo 'POSTGRES_PORT=5432'
+            echo 'REDIS_PASSWORD=example-redis-password'
+            echo 'REDIS_PORT=6379'
+          } >> .env
 
       - name: Run linters
         run: make lint
 
       - name: Set up Docker Compose
-        uses: docker/setup-compose-action@v2
+        uses: docker/setup-compose-action@16feee727cbdc83b6a014e6cc26fec4a79bcf30c # v2
         with:
           version: v5.1.3
 
@@ -63,11 +56,28 @@ jobs:
 
       - name: Start infrastructure
         run: |
-          docker compose up -d postgres pgbouncer minio redis
-          docker compose up minio-create-buckets migrations collectstatic
+          docker compose up -d postgres pgbouncer redis
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgres://postgres:test-postgres-password@localhost:5432/modern_python_template_test
+        run: make migrate
+
+      - name: Check migration drift
+        env:
+          DATABASE_URL: postgres://postgres:test-postgres-password@localhost:5432/modern_python_template_test
+        run: make check-migrations
 
       - name: Run tests
-        run: uv run pytest --cov=src/ --cov-report=xml tests/
+        run: make test
+
+      - name: Run PostgreSQL repository tests
+        env:
+          INTEGRATION_DATABASE_URL: postgres://postgres:test-postgres-password@localhost:5432/modern_python_template_test
+        run: make test-postgres
+
+      - name: Build docs
+        run: make docs-build
 
       - name: Show logs on failure
         if: failure()

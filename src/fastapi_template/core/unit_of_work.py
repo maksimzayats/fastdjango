@@ -1,0 +1,56 @@
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from types import TracebackType
+
+from fastapi_template.core.authentication.repositories.refresh_session import (
+    RefreshSessionRepository,
+)
+from fastapi_template.core.user.repositories.user import UserRepository
+
+
+class UnitOfWork(ABC):
+    """Transaction boundary exposing repositories bound to one active scope."""
+
+    @property
+    @abstractmethod
+    def user_repository(self) -> UserRepository:
+        """User repository bound to the current transaction.
+
+        Returns:
+            The user repository for the current transaction.
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def refresh_session_repository(self) -> RefreshSessionRepository:
+        """Refresh-session repository bound to the current transaction.
+
+        Returns:
+            The refresh-session repository for the current transaction.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def __aenter__(self) -> UnitOfWork:
+        """Enter the unit-of-work transaction.
+
+        Returns:
+            The active unit of work.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
+        """Exit the unit-of-work transaction.
+
+        Returns:
+            Whether the exception was suppressed.
+        """
+        raise NotImplementedError

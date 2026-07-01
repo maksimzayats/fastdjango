@@ -1,0 +1,37 @@
+import uuid
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from fastapi_template.core.user.infrastructure.sqlalchemy.models.user import UserModel
+from fastapi_template.infrastructure.sqlalchemy.base import Base
+
+REFRESH_TOKEN_HASH_LENGTH = 128
+
+
+class RefreshSessionModel(Base):
+    """SQLAlchemy table mapping for refresh-token sessions."""
+
+    __tablename__ = "refresh_sessions"
+    __table_args__ = (
+        UniqueConstraint("refresh_token_hash", name="uq_refresh_sessions_refresh_token_hash"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+    )
+    refresh_token_hash: Mapped[str] = mapped_column(
+        String(length=REFRESH_TOKEN_HASH_LENGTH),
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_agent: Mapped[str] = mapped_column(Text)
+    ip_address_trace: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rotation_counter: Mapped[int] = mapped_column(Integer)
+
+    user: Mapped[UserModel] = relationship()

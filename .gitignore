@@ -55,20 +55,13 @@ cover/
 *.mo
 *.pot
 
-# Django stuff:
+# Local database files
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 test_db.sqlite3
 test_db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
 
 # Sphinx documentation
 docs/_build/
@@ -98,10 +91,6 @@ ipython_config.py
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
 
 # SageMath parsed files
 *.sage.py

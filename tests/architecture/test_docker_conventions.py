@@ -13,12 +13,12 @@ COMPOSE_FILE_NAMES = {
 }
 HEALTHCHECK_REQUIRED_SERVICES = {
     "api",
-    "minio",
     "pgbouncer",
     "postgres",
     "redis",
 }
 HEALTHCHECK_COMMAND_TYPES = {"CMD", "CMD-SHELL", "NONE"}
+REMOVED_PROJECT_CUSTOMIZER_MODULE = "setup_" + "wiz" + "ard"
 EXCLUDED_TOP_LEVEL_DIRS = {
     ".git",
     ".mypy_cache",
@@ -30,6 +30,7 @@ EXCLUDED_TOP_LEVEL_DIRS = {
     "dist",
     "htmlcov",
     "node_modules",
+    "site",
     "venv",
 }
 DOCKERFILE_REQUIRED_IGNORES = {
@@ -42,9 +43,11 @@ DOCKERFILE_REQUIRED_IGNORES = {
     "dist/",
     "docs/",
     "htmlcov/",
-    "management/setup_wizard/",
     "site/",
     "tests/",
+}
+DOCKERFILE_FORBIDDEN_IGNORES = {
+    f"management/{REMOVED_PROJECT_CUSTOMIZER_MODULE}/",
 }
 
 
@@ -89,6 +92,12 @@ def test_dockerfile_ignore_excludes_high_churn_non_runtime_paths() -> None:
     missing_entries = sorted(DOCKERFILE_REQUIRED_IGNORES - dockerignore)
 
     assert missing_entries == []
+
+
+def test_dockerfile_ignore_does_not_keep_removed_project_customizer_paths() -> None:
+    stale_entries = sorted(DOCKERFILE_FORBIDDEN_IGNORES & _dockerignore_entries())
+
+    assert stale_entries == []
 
 
 def test_runtime_compose_services_have_healthchecks() -> None:

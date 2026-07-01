@@ -34,6 +34,57 @@ id = "uv-lock"
 priority = 20
 
 [[repos]]
+repo = "https://github.com/python-jsonschema/check-jsonschema"
+rev = "0.37.3"
+
+[[repos.hooks]]
+id = "check-dependabot"
+priority = 30
+
+[[repos.hooks]]
+id = "check-github-workflows"
+priority = 30
+
+[[repos.hooks]]
+id = "check-github-actions"
+priority = 30
+
+[[repos.hooks]]
+id = "check-compose-spec"
+priority = 30
+
+[[repos]]
+repo = "https://github.com/rhysd/actionlint"
+rev = "v1.7.12"
+
+[[repos.hooks]]
+id = "actionlint"
+additional_dependencies = [
+    "github.com/wasilibs/go-shellcheck/cmd/shellcheck@latest",
+]
+priority = 30
+
+[[repos]]
+repo = "https://github.com/woodruffw/zizmor-pre-commit"
+rev = "v1.26.1"
+
+[[repos.hooks]]
+id = "zizmor"
+args = ["--no-progress"]
+priority = 30
+
+[[repos]]
+repo = "https://github.com/codespell-project/codespell"
+rev = "v2.4.2"
+
+[[repos.hooks]]
+id = "codespell"
+args = [
+    "--skip=uv.lock,htmlcov,.mypy_cache,.pytest_cache,.ruff_cache,.venv,site",
+]
+priority = 30
+
+[[repos]]
 repo = "local"
 
 [[repos.hooks]]
@@ -62,7 +113,7 @@ name = "ruff format check"
 alias = "ruff-format-check"
 language = "system"
 entry = "uv run ruff format --check ."
-files = "^(src|management|tests)/.*\\.py$|^pyproject\\.toml$|^ruff\\.toml$|^prek\\.toml$|^uv\\.lock$"
+files = "^(src|management|tests)/.*\\.py$|^pyproject\\.toml$|^ruff\\.toml$|^setup\\.cfg$|^prek\\.toml$|^uv\\.lock$"
 pass_filenames = false
 priority = 30
 
@@ -71,7 +122,16 @@ id = "ruff-check"
 name = "ruff check"
 language = "system"
 entry = "uv run ruff check ."
-files = "^(src|management|tests)/.*\\.py$|^pyproject\\.toml$|^ruff\\.toml$|^prek\\.toml$|^uv\\.lock$"
+files = "^(src|management|tests)/.*\\.py$|^pyproject\\.toml$|^ruff\\.toml$|^setup\\.cfg$|^prek\\.toml$|^uv\\.lock$"
+pass_filenames = false
+priority = 30
+
+[[repos.hooks]]
+id = "flake8"
+name = "wemake-python-styleguide"
+language = "system"
+entry = "uv run flake8 src management"
+files = "^(src|management)/.*\\.py$|^setup\\.cfg$|^pyproject\\.toml$|^uv\\.lock$"
 pass_filenames = false
 priority = 30
 
@@ -80,6 +140,6 @@ id = "mypy"
 name = "mypy"
 language = "system"
 entry = "uv run --env-file .env.test.example mypy src/ management/ tests/"
-files = "^(src|management|tests)/.*\\.py$|^pyproject\\.toml$|^prek\\.toml$|^uv\\.lock$|^\\.env\\.test\\.example$"
+files = "^(src|management|tests)/.*\\.py$|^pyproject\\.toml$|^setup\\.cfg$|^prek\\.toml$|^uv\\.lock$|^\\.env\\.test\\.example$"
 pass_filenames = false
 priority = 30

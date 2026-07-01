@@ -4,43 +4,12 @@ services:
       - ../src:/app/src:ro
     command:
       - uvicorn
-      - fastdjango.entrypoints.fastapi.app:app
+      - fastapi_template.entrypoints.fastapi.app:app
       - --reload
       - --host
       - 0.0.0.0
       - --port
       - "8000"
-
-  celery-worker:
-    volumes:
-      - ../src:/app/src:ro
-    command:
-      - watchmedo
-      - auto-restart
-      - --directory=/app/src
-      - --pattern=*.py
-      - --recursive
-      - --
-      - celery
-      - --app=fastdjango.entrypoints.celery.app
-      - worker
-      - --loglevel=${LOGGING_LEVEL:-INFO}
-      - --concurrency=2
-
-  celery-beat:
-    volumes:
-      - ../src:/app/src:ro
-    command:
-      - watchmedo
-      - auto-restart
-      - --directory=/app/src
-      - --pattern=*.py
-      - --recursive
-      - --
-      - celery
-      - --app=fastdjango.entrypoints.celery.app
-      - beat
-      - --loglevel=${LOGGING_LEVEL:-INFO}
 
   postgres:
     ports:
@@ -49,8 +18,3 @@ services:
   redis:
     ports:
       - "${REDIS_PORT:-6379}:6379"
-
-  minio:
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"

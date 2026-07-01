@@ -37,7 +37,6 @@ htmlcov/
 tests/
 
 # Linting/Formatting
-.pre-commit-config.yaml
 .ruff_cache/
 .mypy_cache/
 
@@ -64,8 +63,7 @@ site/
 Makefile
 build/
 dist/
-management/dependency_updater.py
-management/setup_wizard/
+management/
 
 # Static files (collected during build)
 staticfiles/

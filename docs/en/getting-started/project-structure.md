@@ -1,249 +1,104 @@
 # Project Structure
 
-Understanding the codebase organization is essential for working effectively with this template.
-
-## Directory Overview
-
-```
-.
-├── src/                    # Application source code
-│   └── fastdjango/         # Application package
-│       ├── core/           # Business logic and domain models
-│       ├── entrypoints/    # FastAPI, Django, and Celery composition roots
-│       ├── foundation/     # Shared base contracts
-│       ├── infrastructure/ # Cross-cutting concerns
-│       └── ioc/            # Dependency injection container
-├── management/             # Repository management commands
-│   ├── manage.py           # Django management entry point
-│   └── setup_wizard/       # One-time template setup wizard
-├── tests/                  # Test suite
-│   ├── integration/        # Integration tests
-│   └── unit/               # Unit tests
-├── docs/                   # Documentation (MkDocs)
-├── docker/                 # Dockerfile and Compose service definitions
-└── Makefile                # Common development commands
-```
-
-## Source Code Structure
-
-### `src/fastdjango/core/` - Business Logic
-
-The core layer contains domain models, use cases, and each component's delivery code.
-This is where application behavior lives.
-
-```
-core/
-├── exceptions.py           # Base application exception
-├── health/                 # Health check domain
-│   ├── exceptions.py       # Health domain exceptions
-│   ├── use_cases.py        # SystemHealthUseCase
-│   └── delivery/           # Health FastAPI/Celery delivery
-│       ├── fastapi/
-│       │   ├── controllers.py
-│       │   └── schemas.py
-│       └── celery/
-│           ├── tasks.py
-│           └── schemas.py
-├── authentication/         # Token/session authentication
-│   ├── models.py           # RefreshSession
-│   ├── dtos.py             # Token use-case DTOs
-│   ├── exceptions.py       # Authentication exceptions
-│   ├── use_cases.py        # TokenUseCase
-│   ├── services/           # Token/session primitives
-│   │   ├── jwt.py          # JWTService
-│   │   └── refresh_session.py  # RefreshSessionService
-│   └── delivery/
-│       └── fastapi/
-│           ├── auth.py         # JWT auth dependency
-│           ├── controllers.py  # Token endpoints
-│           ├── schemas.py      # Token schemas
-│           └── throttling.py   # Authenticated-user throttling
-├── shared/                 # Shared component helpers
-│   └── delivery/
-│       └── fastapi/        # Request info and throttling helpers
-└── user/                   # User domain
-    ├── models.py           # User
-    ├── dtos.py             # User use-case DTOs
-    ├── exceptions.py       # User domain exceptions
-    ├── use_cases.py        # UserUseCase
-    └── delivery/
-        ├── django/
-        │   └── admin.py
-        └── fastapi/
-            ├── controllers.py
-            └── schemas.py
-```
-
-**Key principle**: Use cases encapsulate application behavior. Controllers never access models directly.
-DTOs live beside use cases; delivery schemas have their own independent base and may inherit from DTOs only when the wire shape matches the use-case shape.
-
-### `src/fastdjango/foundation/` - Base Contracts
-
-Foundational marker and base classes live outside `core/`, `infrastructure/`,
-and `entrypoints/` so every layer can depend on them without reversing
-ownership:
-
-```
-foundation/
-├── configurators.py        # BaseConfigurator
-├── delivery/
-│   ├── controllers.py      # BaseAsyncController
-│   ├── celery/
-│   │   └── schemas.py      # BaseCelerySchema
-│   └── fastapi/
-│       └── schemas.py      # BaseFastAPISchema
-├── dtos.py                 # BaseDTO
-├── factories.py            # BaseFactory
-├── services.py             # BaseService
-└── use_cases.py            # BaseUseCase
+```text
+src/fastapi_template/
+  core/
+    unit_of_work.py
+    user/
+      constraints/
+        create_user.py
+      dtos/
+        persist_user.py
+        register_user.py
+      entities/
+        user.py
+      exceptions/
+        user_already_exists.py
+        weak_password.py
+      repositories/
+        user.py
+      services/
+        password.py
+        user_credential.py
+        user_identity.py
+      use_cases/
+        get_active_user_by_id.py
+        register_user.py
+        staff_user_lookup.py
+      infrastructure/sqlalchemy/
+        models/user.py
+        mappers/user.py
+        repositories/user.py
+      delivery/fastapi/
+        schemas/user.py
+        controllers/create_user.py
+        controllers/current_user.py
+        controllers/staff_user_lookup.py
+    authentication/
+      dtos/
+      entities/
+      exceptions/
+      repositories/
+      services/
+      use_cases/
+      infrastructure/sqlalchemy/
+        models/refresh_session.py
+        mappers/refresh_session.py
+        repositories/refresh_session.py
+      delivery/fastapi/
+        auth/
+        schemas/
+        controllers/
+    health/
+      exceptions/
+      services/
+        database_health_checker.py
+      use_cases/
+      infrastructure/sqlalchemy/
+        health_checker.py
+      delivery/fastapi/
+        schemas/health.py
+        controllers/health_check.py
+        controllers/health_check_websocket.py
+  foundation/        # Small base classes and shared primitives
+  infrastructure/    # Shared SQLAlchemy wiring, logging, telemetry, throttling
+    sqlalchemy/
+      base.py
+      metadata.py
+      session.py
+      unit_of_work.py
+  entrypoints/       # FastAPI application construction
+  ioc/               # Dependency injection container and registrations
+migrations/          # Alembic migration environment and versions
+management/          # Maintenance scripts
+tests/               # Unit, integration, architecture, and style tests
 ```
 
-Celery's async task-controller bridge lives in `infrastructure/celery/` because
-it adapts async application handlers to Celery's sync worker API.
+## Core
 
-### `src/fastdjango/entrypoints/` - Composition Roots
+Core is organized as vertical business modules. Inner application code lives
+in scoped packages under each business package: entities, DTOs, repository
+interfaces, services, use cases, and exceptions. A scoped file contains one
+primary public class or function, such as one use case, one repository, one
+DTO shape, or one entity. Those inner modules do not import FastAPI,
+SQLAlchemy, local infrastructure, delivery modules, or the container.
 
-Application bootstrapping, framework factories, route registration, task
-registration, and Django URL configuration live outside `core/`:
+## Local Adapters
 
-```
-entrypoints/
-├── django/
-│   ├── factories.py        # AdminSiteFactory, DjangoWSGIFactory
-│   └── urls.py             # Django URLConf
-├── fastapi/
-│   ├── app.py              # ASGI app object
-│   ├── bootstrap.py        # Container bootstrap
-│   └── factories.py        # FastAPI app factory and route registration
-└── celery/
-    ├── app.py              # Celery app object
-    ├── factories.py        # Celery app and task registration factories
-    └── registry.py         # App task registry
-```
+Delivery schemas and controllers live under each business package's
+`delivery/fastapi` directory. Controllers are endpoint/action scoped. Concrete SQLAlchemy models, mappers, and
+repository implementations and module-owned technical adapters live under each
+business package's `infrastructure/sqlalchemy` directory, with one model,
+repository, or adapter per file.
 
-### Domain Delivery
+## Shared Infrastructure
 
-Delivery code lives inside the core package it exposes. For example, user FastAPI
-controllers live in `core/user/delivery/fastapi/`, and the health ping task lives
-in `core/health/delivery/celery/`.
+`infrastructure/sqlalchemy` builds the SQLAlchemy base, metadata, engine/session
+factory, and unit-of-work transaction wiring. Application decisions stay in
+core use cases and services; SQLAlchemy query work stays in local SQLAlchemy
+adapters owned by the module that needs the query.
 
-Shared delivery helpers stay in `core/shared/delivery/`; reusable base contracts
-stay in `foundation/`; application entry points and registries live in
-`entrypoints/`. This keeps reusable code from importing concrete application
-components.
+## Entrypoints
 
-### `src/fastdjango/infrastructure/` - Cross-Cutting Concerns
-
-Infrastructure code that supports all layers.
-
-```
-infrastructure/
-├── anyio/                  # Thread pool configuration
-├── celery/                 # Celery registry primitives
-├── django/                 # Django setup, settings, middleware, transactions
-├── logfire/                # OpenTelemetry/Logfire
-├── logging/                # Logging configuration
-├── throttled/              # Rate limiting
-└── shared.py               # Base application settings
-```
-
-Key files:
-
-- **`django/settings.py`**: Adapts Pydantic settings to Django's settings format
-- **`django/transactions.py`**: Provides the injectable Django transaction factory
-- **`logging/configurator.py`**: Configures application logging
-
-### `src/fastdjango/ioc/` - Dependency Injection
-
-Container configuration.
-
-```
-ioc/
-├── container.py            # get_container
-└── registry.py             # Explicit dependency registrations
-```
-
-- **`container.py`**: Creates `diwire.Container` and configures Django, logging, Logfire, and instrumentation
-
-## Tests Structure
-
-```
-tests/
-├── conftest.py             # Shared fixtures
-├── architecture/           # Project convention and structure checks
-│   └── test_test_structure.py
-├── foundation/             # Shared test base classes
-│   └── factories.py        # BaseTestFactory, ContainerBasedFactory
-├── integration/            # Integration tests
-│   ├── conftest.py         # Integration fixtures (container, factories)
-│   ├── factories.py        # Test factories
-│   └── core/               # Mirrors src/fastdjango/core
-│       ├── authentication/
-│       │   └── delivery/fastapi/test_controllers.py
-│       ├── health/
-│       │   └── delivery/
-│       │       ├── celery/test_tasks.py
-│       │       └── fastapi/test_controllers.py
-│       └── user/
-│           └── delivery/fastapi/test_controllers.py
-└── unit/                   # Focused tests for reusable behavior
-    ├── core/               # Mirrors src/fastdjango/core
-    └── infrastructure/     # Mirrors src/fastdjango/infrastructure
-```
-
-Key components:
-
-- **`integration/factories.py`**: `TestClientFactory`, `TestUserFactory`, `TestCeleryWorkerFactory`, `TestTasksRegistryFactory`
-- **`integration/conftest.py`**: Function-scoped container fixtures for test isolation
-- **`architecture/`**: Tests that enforce project structure and naming conventions
-
-## Entry Points
-
-The application has multiple entry points:
-
-| Entry Point | File | Purpose |
-|-------------|------|---------|
-| FastAPI App | `src/fastdjango/entrypoints/fastapi/app.py` | HTTP API application |
-| Celery Worker | `src/fastdjango/entrypoints/celery/app.py` | Background task processing |
-| Django Admin | Mounted at `/django/admin/` | Administration interface |
-
-## Data Flow
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Delivery Layer                          │
-│  ┌─────────────────────────┐  ┌─────────────────────────┐  │
-│  │        HTTP API         │  │      Celery Tasks       │  │
-│  │   Domain Controllers    │  │   Domain Controllers    │  │
-│  └───────────┬─────────────┘  └───────────┬─────────────┘  │
-└──────────────┼────────────────────────────┼─────────────────┘
-               │                            │
-               ▼                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Core Layer                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │            DTOs, Services and Use Cases              │   │
-│  │   UserUseCase  │  TokenUseCase │  SystemHealthUseCase│   │
-│  └─────────────────────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                     Models                           │   │
-│  │      User      │ RefreshSession │                   │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `pyproject.toml` | Project dependencies and tool configuration |
-| `Makefile` | Development commands |
-| `docker/docker-compose.yaml` | Base Docker Compose services |
-| `.env.example` | Environment variable template |
-| `ruff.toml` | Ruff linter/formatter configuration |
-
-## Next Steps
-
-- [Development Environment](development-environment.md) - Set up your IDE
-- [Service Layer Concept](../concepts/service-layer.md) - Understand the core pattern
-- [Tutorial](../tutorial/index.md) - Learn by building a feature
+`entrypoints/fastapi` builds the FastAPI application, adds middleware,
+instruments telemetry, and registers domain controllers.

@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   pull_request: { }
 
+permissions:
+  contents: read
+
 jobs:
   integration-health-check:
     runs-on: ubuntu-latest
@@ -20,10 +23,12 @@ jobs:
     env:
       COMPOSE_FILE: ${{ matrix.compose-file }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Compose
-        uses: docker/setup-compose-action@v2
+        uses: docker/setup-compose-action@16feee727cbdc83b6a014e6cc26fec4a79bcf30c # v2
         with:
           version: v5.1.3
 
@@ -39,7 +44,7 @@ jobs:
       - name: Wait for API to be ready
         run: |
           for i in {1..30}; do
-            if curl -sf http://localhost:8009/v1/health; then
+            if curl -sf http://localhost:8009/api/v1/health; then
               echo "Health check passed!"
               exit 0
             fi

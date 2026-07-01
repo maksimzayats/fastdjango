@@ -3,8 +3,10 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import NamedTuple
 
+from tests.architecture._source import SourceModule, iter_imports
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SOURCE_ROOT = REPO_ROOT / "src" / "fastdjango"
+SOURCE_ROOT = REPO_ROOT / "src" / "fastapi_template"
 
 SERVICE_AND_USE_CASE_BASES = {"BaseService", "BaseUseCase"}
 EXCEPTION_NAME_SUFFIXES = ("Error", "Exception", "_ERROR", "_EXCEPTION")
@@ -31,18 +33,24 @@ def test_service_and_use_case_exceptions_are_classvar_contracts() -> None:
 
 def test_delivery_modules_handle_domain_exceptions_through_contracts() -> None:
     violations = [
-        f"{_relative_path(source_file)}:{node.lineno} imports {node.module}"
+        f"{_relative_path(source_file)}:{import_reference.line_number} "
+        f"imports {import_reference.module_name}"
         for source_file, tree in _iter_delivery_source_trees()
-        for node in tree.body
-        if isinstance(node, ast.ImportFrom)
-        and node.module is not None
-        and _is_domain_exception_module(node.module)
+        for import_reference in iter_imports(SourceModule(path=source_file, tree=tree))
+        if _is_domain_exception_module(import_reference.module_name)
     ]
 
     assert violations == [], (
         "Delivery modules must handle domain exceptions through injected service "
         "or use-case exception contracts instead of importing domain exception modules."
     )
+
+
+def test_domain_exception_import_check_catches_package_and_scoped_imports() -> None:
+    assert _is_domain_exception_module("fastapi_template.core.user.exceptions")
+    assert _is_domain_exception_module("fastapi_template.core.user.exceptions.user")
+    assert _is_domain_exception_module("fastapi_template.core.user.exceptions.UserError")
+    assert not _is_domain_exception_module("fastapi_template.core.user.services.permission")
 
 
 def test_exception_contracts_use_bare_classvar_annotations() -> None:
@@ -406,7 +414,12 @@ def _is_exception_name(name: str) -> bool:
 
 
 def _is_domain_exception_module(module_name: str) -> bool:
-    return module_name.startswith("fastdjango.core.") and module_name.endswith(".exceptions")
+    module_parts = module_name.split(".")
+    return (
+        len(module_parts) >= 3
+        and module_parts[:2] == ["fastapi_template", "core"]
+        and "exceptions" in module_parts
+    )
 
 
 class _ExceptionClass(NamedTuple):
@@ -463,13 +476,13 @@ def _inherits_from_application_error(
 
 def _is_core_exception_module(source_file: Path) -> bool:
     relative_parts = source_file.relative_to(SOURCE_ROOT).parts
-    return relative_parts[0] == "core" and source_file.name == "exceptions.py"
+    return relative_parts[0] == "core" and "exceptions" in relative_parts
 
 
 def _is_service_or_use_case_module(source_file: Path) -> bool:
     relative_parts = source_file.relative_to(SOURCE_ROOT).parts
     return relative_parts[0] == "core" and (
-        "services" in relative_parts or source_file.name == "use_cases.py"
+        "services" in relative_parts or "use_cases" in relative_parts
     )
 
 

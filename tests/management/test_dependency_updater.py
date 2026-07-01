@@ -3,17 +3,22 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
+import management.dependency_updater.update_container_image_versions as container_updater
+import management.dependency_updater.update_dependencies as dependency_runner
 import pytest
-from management.dependency_updater import (
-    ProgressReporter,
-    UpdateOptions,
+from management.dependency_updater.dependency_update import DependencyUpdate
+from management.dependency_updater.progress_reporter import ProgressReporter
+from management.dependency_updater.sync_pyproject_dependency_versions import (
     sync_pyproject_dependency_versions,
+)
+from management.dependency_updater.update_container_image_versions import (
     update_container_image_versions,
-    update_dependencies,
+)
+from management.dependency_updater.update_dependencies import update_dependencies
+from management.dependency_updater.update_github_action_versions import (
     update_github_action_versions,
 )
-
-from management import dependency_updater
+from management.dependency_updater.update_options import UpdateOptions
 
 
 def test_update_dependencies_prints_progress(
@@ -21,11 +26,11 @@ def test_update_dependencies_prints_progress(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    def sync_stub(**_: object) -> tuple[dependency_updater.DependencyUpdate, ...]:
+    def sync_stub(**_: object) -> tuple[DependencyUpdate, ...]:
         return ()
 
     monkeypatch.setattr(
-        dependency_updater,
+        dependency_runner,
         "sync_pyproject_dependency_versions",
         sync_stub,
     )
@@ -54,8 +59,8 @@ def test_sync_pyproject_dependency_versions_uses_locked_direct_versions(tmp_path
             """
             [project]
             dependencies = [
-                "django>6",
-                "django-storages[s3]>=1.14.0",
+                "fastapi>0.138",
+                "sqlalchemy[asyncio]>=2.0.40",
             ]
 
             [dependency-groups]
@@ -76,12 +81,12 @@ def test_sync_pyproject_dependency_versions_uses_locked_direct_versions(tmp_path
             version = 1
 
             [[package]]
-            name = "django"
-            version = "6.0.4"
+            name = "fastapi"
+            version = "0.138.1"
 
             [[package]]
-            name = "django-storages"
-            version = "1.14.6"
+            name = "sqlalchemy"
+            version = "2.0.45"
 
             [[package]]
             name = "pytest"
@@ -100,8 +105,8 @@ def test_sync_pyproject_dependency_versions_uses_locked_direct_versions(tmp_path
     )
 
     assert {update.new_requirement for update in updates} == {
-        "django>=6.0.4",
-        "django-storages[s3]>=1.14.6",
+        "fastapi>=0.138.1",
+        "sqlalchemy[asyncio]>=2.0.45",
         "pytest>=9.0.3",
         "uv_build>=0.11.8,<0.12.0",
     }
@@ -109,8 +114,8 @@ def test_sync_pyproject_dependency_versions_uses_locked_direct_versions(tmp_path
         """
         [project]
         dependencies = [
-            "django>=6.0.4",
-            "django-storages[s3]>=1.14.6",
+            "fastapi>=0.138.1",
+            "sqlalchemy[asyncio]>=2.0.45",
         ]
 
         [dependency-groups]
@@ -229,14 +234,14 @@ def test_update_container_image_versions_updates_docker_files_and_docs(tmp_path:
                 image: redis:latest
               pgbouncer:
                 image: edoburu/pgbouncer:latest
-              minio-create-buckets:
-                image: minio/mc
+              image-tool:
+                image: curlimages/curl
             """,
         ).lstrip(),
         encoding="utf-8",
     )
     docker_docs_path.write_text(
-        "Images: postgres:18-alpine, redis:latest, edoburu/pgbouncer, minio/mc.\n",
+        "Images: postgres:18-alpine, redis:latest, edoburu/pgbouncer, curlimages/curl.\n",
         encoding="utf-8",
     )
 
@@ -250,7 +255,7 @@ def test_update_container_image_versions_updates_docker_files_and_docs(tmp_path:
             ("postgres", "18-alpine"): "18.3-alpine",
             ("redis", "latest"): "8.6.2",
             ("edoburu/pgbouncer", "latest"): "v1.25.1-p0",
-            ("minio/mc", None): "RELEASE.2025-08-13T08-35-41Z",
+            ("curlimages/curl", None): "8.16.0",
         }[(repository, current_tag)],
     )
 
@@ -265,7 +270,7 @@ def test_update_container_image_versions_updates_docker_files_and_docs(tmp_path:
     )
     assert "postgres:18.3-alpine" in docker_docs_path.read_text(encoding="utf-8")
     assert "edoburu/pgbouncer:v1.25.1-p0" in docker_docs_path.read_text(encoding="utf-8")
-    assert "minio/mc:RELEASE.2025-08-13T08-35-41Z" in docker_docs_path.read_text(
+    assert "curlimages/curl:8.16.0" in docker_docs_path.read_text(
         encoding="utf-8",
     )
 
@@ -288,14 +293,14 @@ def test_update_container_image_versions_ignores_arch_only_tags_for_latest(
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        dependency_updater,
+        container_updater,
         "_container_registry_tags",
         lambda *, repository: (
             ("32bit-buster", "8.6.2-trixie", "8.6.2") if repository == "redis" else ()
         ),
     )
 
-    updates = dependency_updater.update_container_image_versions(repo_root=tmp_path)
+    updates = container_updater.update_container_image_versions(repo_root=tmp_path)
 
     assert [(update.old_ref, update.new_ref) for update in updates] == [
         ("redis:latest", "redis:8.6.2"),
@@ -315,14 +320,14 @@ def test_update_container_image_versions_does_not_downgrade_dotted_versions(
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        dependency_updater,
+        container_updater,
         "_container_registry_tags",
         lambda *, repository: (
             ("0.11.8", "0.10.1", "0.9.28") if repository == "ghcr.io/astral-sh/uv" else ()
         ),
     )
 
-    updates = dependency_updater.update_container_image_versions(repo_root=tmp_path)
+    updates = container_updater.update_container_image_versions(repo_root=tmp_path)
 
     assert updates == ()
     assert "ghcr.io/astral-sh/uv:0.11.8" in dockerfile_path.read_text(encoding="utf-8")
@@ -351,9 +356,9 @@ def test_update_container_image_versions_uses_library_namespace_for_docker_io(
         requested_paths.append(repository_path)
         return ("3.14.4-slim-bookworm",)
 
-    monkeypatch.setattr(dependency_updater, "_docker_hub_tags", docker_hub_tags_stub)
+    monkeypatch.setattr(container_updater, "_docker_hub_tags", docker_hub_tags_stub)
 
-    updates = dependency_updater.update_container_image_versions(repo_root=tmp_path)
+    updates = container_updater.update_container_image_versions(repo_root=tmp_path)
 
     assert requested_paths == ["library/python"]
     assert [(update.old_ref, update.new_ref) for update in updates] == [
@@ -377,14 +382,17 @@ def test_update_container_image_versions_does_not_rewrite_longer_image_refs(
             services:
               redis:
                 image: redis:latest
-              minio-client:
-                image: minio/mc
+              curl-client:
+                image: curlimages/curl
             """,
         ).lstrip(),
         encoding="utf-8",
     )
     docker_docs_path.write_text(
-        ("Use redis:latest. Do not touch redis:latest-alpine or minio/mc-debug. Use minio/mc.\n"),
+        (
+            "Use redis:latest. Do not touch redis:latest-alpine or "
+            "curlimages/curl-debug. Use curlimages/curl.\n"
+        ),
         encoding="utf-8",
     )
 
@@ -392,12 +400,12 @@ def test_update_container_image_versions_does_not_rewrite_longer_image_refs(
         repo_root=tmp_path,
         latest_tag_resolver=lambda repository, current_tag: {
             ("redis", "latest"): "8.6.2",
-            ("minio/mc", None): "RELEASE.2025-08-13T08-35-41Z",
+            ("curlimages/curl", None): "8.16.0",
         }[(repository, current_tag)],
     )
 
     updated_docs = docker_docs_path.read_text(encoding="utf-8")
     assert "redis:8.6.2." in updated_docs
     assert "redis:latest-alpine" in updated_docs
-    assert "minio/mc-debug" in updated_docs
-    assert "minio/mc:RELEASE.2025-08-13T08-35-41Z." in updated_docs
+    assert "curlimages/curl-debug" in updated_docs
+    assert "curlimages/curl:8.16.0." in updated_docs

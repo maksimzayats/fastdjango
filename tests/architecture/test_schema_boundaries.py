@@ -10,15 +10,12 @@ from tests.architecture._source import (
 )
 
 DELIVERY_SCHEMA_BASES = {
-    "celery": "BaseCelerySchema",
     "fastapi": "BaseFastAPISchema",
 }
 DTO_FORBIDDEN_IMPORT_PREFIXES = (
-    "django",
     "fastapi",
     "starlette",
-    "celery",
-    "fastdjango.infrastructure",
+    "fastapi_template.infrastructure",
 )
 
 
@@ -30,7 +27,9 @@ def test_dtos_live_in_dto_modules_and_inherit_base_dto() -> None:
         for violation in _dto_violations(module=module, class_node=class_node)
     ]
 
-    assert violations == [], "DTO classes must live in dtos.py, inherit BaseDTO, and end with DTO."
+    assert violations == [], (
+        "DTO classes must live in dto modules, inherit BaseDTO, and end with DTO."
+    )
 
 
 def test_delivery_schemas_live_in_schema_modules_and_inherit_delivery_schema_base() -> None:
@@ -53,14 +52,45 @@ def test_non_delivery_code_does_not_import_delivery_schemas() -> None:
         for module in iter_source_modules()
         if "delivery" not in module.source_parts
         for import_reference in iter_imports(module)
-        if not import_reference.is_type_checking
         if _is_delivery_schema_module(import_reference.module_name)
     ]
 
     assert violations == [], "Delivery schemas must not leak into non-delivery modules."
 
 
-def test_dtos_do_not_import_framework_or_infrastructure_modules() -> None:
+def test_delivery_schemas_do_not_import_dtos() -> None:
+    violations = [
+        f"{module.relative_path}:{import_reference.line_number} imports {import_reference.module_name}"
+        for module in iter_source_modules()
+        if _delivery_schema_framework(module) is not None
+        for import_reference in iter_imports(module)
+        if _is_core_dto_import(import_reference.module_name)
+    ]
+
+    assert violations == [], (
+        "Delivery schemas must define delivery shapes directly and must not import DTOs."
+    )
+
+
+def test_schema_import_predicates_catch_scoped_dto_imports() -> None:
+    assert _is_core_dto_import("fastapi_template.core.user.dtos")
+    assert _is_core_dto_import("fastapi_template.core.user.dtos.persist_user")
+
+
+def test_delivery_schemas_do_not_inherit_dtos() -> None:
+    violations = [
+        f"{module.relative_path}:{class_node.lineno} {class_node.name} inherits {base_name}"
+        for module in iter_source_modules()
+        if _delivery_schema_framework(module) is not None
+        for class_node in iter_class_definitions(module)
+        for base_name in base_names(class_node)
+        if base_name.endswith("DTO")
+    ]
+
+    assert violations == [], "Delivery schemas must not inherit DTO classes."
+
+
+def test_dtos_do_not_import_delivery_framework_or_infrastructure_modules() -> None:
     violations = [
         f"{module.relative_path}:{import_reference.line_number} imports {import_reference.module_name}"
         for module in iter_source_modules()
@@ -70,8 +100,8 @@ def test_dtos_do_not_import_framework_or_infrastructure_modules() -> None:
     ]
 
     assert violations == [], (
-        "DTOs must stay framework-neutral and must not import Django, FastAPI, "
-        "Starlette, Celery, or infrastructure modules."
+        "DTOs must stay framework-neutral and must not import FastAPI, Starlette, "
+        "delivery, or infrastructure modules."
     )
 
 
@@ -137,7 +167,7 @@ def _delivery_schema_framework(module: SourceModule) -> str | None:
     if module.source_parts[0] != "core":
         return None
 
-    if module.path.name != "schemas.py":
+    if "schemas" not in module.source_parts or module.path.name == "__init__.py":
         return None
 
     parts = module.source_parts
@@ -149,19 +179,50 @@ def _delivery_schema_framework(module: SourceModule) -> str | None:
 
 
 def _is_dto_module(module: SourceModule) -> bool:
-    return module.source_parts[0] == "core" and module.path.name == "dtos.py"
+    return (
+        module.source_parts[0] == "core"
+        and "dtos" in module.source_parts
+        and module.path.name != "__init__.py"
+    )
 
 
 def _is_forbidden_dto_import(module_name: str) -> bool:
+    if _is_delivery_module(module_name):
+        return True
+
     return any(
-        module_name == prefix or module_name.startswith(f"{prefix}.")
+        _matches_import_prefix(module_name=module_name, prefix=prefix)
         for prefix in DTO_FORBIDDEN_IMPORT_PREFIXES
+    )
+
+
+def _matches_import_prefix(*, module_name: str, prefix: str) -> bool:
+    return module_name == prefix or module_name.startswith(f"{prefix}.")
+
+
+def _is_delivery_module(module_name: str) -> bool:
+    parts = module_name.split(".")
+    return (
+        len(parts) >= 3
+        and parts[0] == "fastapi_template"
+        and parts[1] == "core"
+        and "delivery" in parts[2:]
     )
 
 
 def _is_delivery_schema_module(module_name: str) -> bool:
     parts = module_name.split(".")
-    return "delivery" in parts and parts[-1] == "schemas"
+    return "delivery" in parts and "schemas" in parts
+
+
+def _is_core_dto_import(module_name: str) -> bool:
+    parts = module_name.split(".")
+    return (
+        len(parts) >= 3
+        and parts[0] == "fastapi_template"
+        and parts[1] == "core"
+        and "dtos" in parts[2:]
+    )
 
 
 def _schema_behavior_statement_name(statement: ast.stmt) -> str | None:
