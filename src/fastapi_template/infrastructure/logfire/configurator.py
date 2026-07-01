@@ -18,7 +18,7 @@ class LogfireSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LOGFIRE_")
 
     enabled: bool = False
-    service_name: str = "fastapi_template"
+    service_name: str = "modern-python-template"
     service_version: str = "0.1.0"
     environment: str = "production"
 

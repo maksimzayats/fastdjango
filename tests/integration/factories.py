@@ -5,9 +5,12 @@ import anyio
 from fastapi.testclient import TestClient
 
 from fastapi_template.core.authentication.services.jwt import JWTService
+from fastapi_template.core.authentication.services.refresh_session import RefreshSessionService
 from fastapi_template.core.unit_of_work import UnitOfWork
+from fastapi_template.core.user.dtos.persist_user import PersistUserDTO
 from fastapi_template.core.user.dtos.register_user import RegisterUserDTO
 from fastapi_template.core.user.entities.user import User
+from fastapi_template.core.user.services.password import PasswordService
 from fastapi_template.core.user.use_cases.register_user import RegisterUserUseCase
 from fastapi_template.entrypoints.fastapi.factory import FastAPIFactory
 from tests.foundation.factories import ContainerBasedFactory
@@ -53,6 +56,7 @@ class TestUserFactory(ContainerBasedFactory):
         password: str | None = None,
         email: str | None = None,
         *,
+        is_active: bool = True,
         is_staff: bool = False,
         is_superuser: bool = False,
     ) -> User:
@@ -61,6 +65,7 @@ class TestUserFactory(ContainerBasedFactory):
             username=username,
             password=password or _valid_test_credential(),
             email=email,
+            is_active=is_active,
             is_staff=is_staff,
             is_superuser=is_superuser,
         )
@@ -72,9 +77,20 @@ class TestUserFactory(ContainerBasedFactory):
         username: str,
         password: str,
         email: str | None,
+        is_active: bool,
         is_staff: bool,
         is_superuser: bool,
     ) -> User:
+        if not is_active:
+            return await self._persist_user(
+                username=username,
+                password=password,
+                email=email,
+                is_active=is_active,
+                is_staff=is_staff,
+                is_superuser=is_superuser,
+            )
+
         register_user_use_case = self._container.resolve(RegisterUserUseCase)
         user = await register_user_use_case.execute(
             data=RegisterUserDTO(
@@ -113,6 +129,68 @@ class TestUserFactory(ContainerBasedFactory):
             raise UserPromotionError
 
         return promoted_user
+
+    async def _persist_user(
+        self,
+        *,
+        username: str,
+        password: str,
+        email: str | None,
+        is_active: bool,
+        is_staff: bool,
+        is_superuser: bool,
+    ) -> User:
+        password_service = self._container.resolve(PasswordService)
+        uow = cast(UnitOfWork, self._container.resolve(UnitOfWork))
+        async with uow as active_uow:
+            return await active_uow.user_repository.create(
+                data=PersistUserDTO(
+                    username=username,
+                    email=email or f"{username}@test.com",
+                    first_name="Test",
+                    last_name="User",
+                    is_active=is_active,
+                    is_staff=is_staff,
+                    is_superuser=is_superuser,
+                ),
+                password_hash=password_service.hash_password(password=password),
+            )
+
+
+class TestRefreshSessionFactory(ContainerBasedFactory):
+    def __call__(
+        self,
+        *,
+        user: User,
+        user_agent: str = "test",
+        ip_address_trace: str | None = None,
+    ) -> str:
+        create_refresh_session = partial(
+            self._create_refresh_session,
+            user=user,
+            user_agent=user_agent,
+            ip_address_trace=ip_address_trace,
+        )
+        return anyio.run(create_refresh_session)
+
+    async def _create_refresh_session(
+        self,
+        *,
+        user: User,
+        user_agent: str,
+        ip_address_trace: str | None,
+    ) -> str:
+        refresh_session_service = self._container.resolve(RefreshSessionService)
+        uow = cast(UnitOfWork, self._container.resolve(UnitOfWork))
+        async with uow as active_uow:
+            result = await refresh_session_service.create_refresh_session(
+                uow=active_uow,
+                user=user,
+                user_agent=user_agent,
+                ip_address_trace=ip_address_trace,
+            )
+
+        return result.refresh_token
 
 
 def _valid_test_credential() -> str:

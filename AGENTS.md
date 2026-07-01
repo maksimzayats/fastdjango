@@ -1,4 +1,4 @@
-# FastAPI Template Agent Rules
+# Modern Python Template Agent Rules
 
 ## Work Rules
 
@@ -113,6 +113,25 @@
 - Coverage must remain at 100% for counted source files; omit only genuinely
   configuration-only/import-only modules.
 - Keep docs short, current, and user-friendly.
+
+## Testing DI
+
+- Unit tests may instantiate the subject directly with deterministic fakes when
+  that keeps the behavior under test explicit.
+- Infrastructure adapter tests may instantiate concrete adapters directly when
+  the adapter lifecycle or failure mode is the behavior under test.
+- Integration tests use fixtures from the nearest `conftest.py`; do not rebuild
+  available factory fixtures such as `TestClientFactory`, `TestUserFactory`, or
+  `TestRefreshSessionFactory` inside a test.
+- Override container dependencies before creating the test client. The shared
+  test client factory resolves `FastAPIFactory` only after overrides are in
+  place.
+- Delivery integration tests must not import SQLAlchemy, SQLAlchemy models,
+  shared SQLAlchemy session factories, or local SQLAlchemy adapters. Prepare
+  database state through test factories that use `UnitOfWork` and repositories.
+- Tests that need unreachable domain states, such as inactive users with refresh
+  sessions, should add focused test-factory helpers instead of opening raw
+  sessions or issuing SQL in delivery tests.
 
 ## Commands
 

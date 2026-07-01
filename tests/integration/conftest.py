@@ -16,7 +16,11 @@ from fastapi_template.infrastructure.throttled.async_store_factory import (
     AsyncThrottlerStoreFactory,
 )
 from fastapi_template.ioc.container import get_container
-from tests.integration.factories import TestClientFactory, TestUserFactory
+from tests.integration.factories import (
+    TestClientFactory,
+    TestRefreshSessionFactory,
+    TestUserFactory,
+)
 
 
 @pytest.fixture(scope="function")
@@ -55,6 +59,11 @@ def test_client_factory(container: Container) -> TestClientFactory:
 @pytest.fixture(scope="function")
 def user_factory(container: Container) -> TestUserFactory:
     return TestUserFactory(container=container)
+
+
+@pytest.fixture(scope="function")
+def refresh_session_factory(container: Container) -> TestRefreshSessionFactory:
+    return TestRefreshSessionFactory(container=container)
 
 
 def _run_migrations() -> None:

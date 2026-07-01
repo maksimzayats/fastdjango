@@ -1,7 +1,7 @@
-from unittest.mock import AsyncMock, MagicMock
+from collections.abc import Callable
+from unittest.mock import MagicMock
 
 import pytest
-from diwire import Container
 from starlette import status
 from starlette.websockets import WebSocketDisconnect
 
@@ -10,10 +10,11 @@ from fastapi_template.core.health.use_cases.system_health import SystemHealthUse
 from tests.integration.factories import TestClientFactory
 
 
-def test_health_check_websocket_success(container: Container) -> None:
-    _override_health_use_case(container)
-    test_client_factory = TestClientFactory(container=container)
-
+def test_health_check_websocket_success(
+    test_client_factory: TestClientFactory,
+    health_use_case_override: Callable[..., MagicMock],
+) -> None:
+    health_use_case_override()
     with (
         test_client_factory() as test_client,
         test_client.websocket_connect("/api/v1/health/ws") as websocket,
@@ -25,13 +26,13 @@ def test_health_check_websocket_success(container: Container) -> None:
     assert response_data.status == "ok"
 
 
-def test_health_check_websocket_use_case_unavailable(container: Container) -> None:
-    _override_health_use_case(
-        container,
+def test_health_check_websocket_use_case_unavailable(
+    test_client_factory: TestClientFactory,
+    health_use_case_override: Callable[..., MagicMock],
+) -> None:
+    health_use_case_override(
         error=SystemHealthUseCase.HEALTH_CHECK_ERROR(),
     )
-    test_client_factory = TestClientFactory(container=container)
-
     with (
         test_client_factory() as test_client,
         test_client.websocket_connect("/api/v1/health/ws") as websocket,
@@ -41,15 +42,3 @@ def test_health_check_websocket_use_case_unavailable(container: Container) -> No
             websocket.receive_text()
 
     assert exc_info.value.code == status.WS_1011_INTERNAL_ERROR
-
-
-def _override_health_use_case(
-    container: Container,
-    *,
-    error: Exception | None = None,
-) -> MagicMock:
-    mock_use_case = MagicMock(spec=SystemHealthUseCase)
-    mock_use_case.execute = AsyncMock(side_effect=error)
-    container.add_instance(mock_use_case, provides=SystemHealthUseCase)
-
-    return mock_use_case

@@ -36,7 +36,7 @@ jobs:
           cp .env.test.example .env
           {
             echo 'POSTGRES_USER=postgres'
-            echo 'POSTGRES_DB=fastapi_template_test'
+            echo 'POSTGRES_DB=modern_python_template_test'
             echo 'POSTGRES_PASSWORD=test-postgres-password'
             echo 'POSTGRES_PORT=5432'
             echo 'REDIS_PASSWORD=example-redis-password'
@@ -60,12 +60,12 @@ jobs:
 
       - name: Run migrations
         env:
-          DATABASE_URL: postgres://postgres:test-postgres-password@localhost:5432/fastapi_template_test
+          DATABASE_URL: postgres://postgres:test-postgres-password@localhost:5432/modern_python_template_test
         run: make migrate
 
       - name: Check migration drift
         env:
-          DATABASE_URL: postgres://postgres:test-postgres-password@localhost:5432/fastapi_template_test
+          DATABASE_URL: postgres://postgres:test-postgres-password@localhost:5432/modern_python_template_test
         run: make check-migrations
 
       - name: Run tests
@@ -73,7 +73,7 @@ jobs:
 
       - name: Run PostgreSQL repository tests
         env:
-          INTEGRATION_DATABASE_URL: postgres://postgres:test-postgres-password@localhost:5432/fastapi_template_test
+          INTEGRATION_DATABASE_URL: postgres://postgres:test-postgres-password@localhost:5432/modern_python_template_test
         run: make test-postgres
 
       - name: Build docs

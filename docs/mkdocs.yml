@@ -1,8 +1,8 @@
-site_name: FastAPI Template
-site_url: https://fastapi-template.zayats.dev
-site_description: FastAPI project template with SQLAlchemy, Alembic, dependency injection, and strict quality checks
-repo_url: https://github.com/maksimzayats/fastapi-template
-repo_name: maksimzayats/fastapi-template
+site_name: Modern Python Template
+site_url: https://template.zayats.dev
+site_description: Modern Python service template with FastAPI, SQLAlchemy, Alembic, dependency injection, and strict quality checks
+repo_url: https://github.com/maksimzayats/modern-python-template
+repo_name: maksimzayats/modern-python-template
 
 docs_dir: en
 site_dir: ../site

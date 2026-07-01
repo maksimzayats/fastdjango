@@ -1,57 +1,59 @@
-# fastapi-template
+<picture>
+  <img src="docs/assets/modern-python-template-readme-banner.svg" alt="Modern Python Template service architecture banner" width="100%">
+</picture>
 
-[![CI](https://github.com/maksimzayats/fastapi-template/actions/workflows/lint_test.yaml/badge.svg?branch=main)](https://github.com/maksimzayats/fastapi-template/actions/workflows/lint_test.yaml)
-[![Docs](https://img.shields.io/badge/docs-fastapi--template.zayats.dev-blue)](https://fastapi-template.zayats.dev)
+# Modern Python Template
 
-A FastAPI project template with SQLAlchemy async repositories, Alembic migrations, dependency injection, JWT authentication, Redis-backed rate limiting, and strict quality checks.
+**A FastAPI service template with clean boundaries, async persistence, and strict guardrails.**
 
-## Quick Start
+Modern Python Template gives you a production-shaped starting point for API
+services without carrying old-framework baggage. It combines FastAPI, async
+SQLAlchemy, Alembic, dependency injection, authentication flows, Redis-backed
+rate limiting, and strict checks in a layout that keeps application decisions
+separate from adapters.
 
-```bash
-uv sync --locked --all-groups
-cp .env.example .env
-docker compose up -d postgres redis
-make migrate
-make dev
-```
+[Documentation](https://template.zayats.dev) ·
+[Contribute](CONTRIBUTING.md)
 
-The API runs at `http://localhost:8000`. Health checks are available at `/api/v1/health`.
+## Key Benefits
 
-## What Is Included
+- **Clean boundaries from the first commit.** Use cases, services, DTOs,
+  repository contracts, delivery adapters, and SQLAlchemy adapters live in
+  focused modules with architecture tests that keep those lines visible.
+- **Real API behavior included.** The template ships with user registration,
+  JWT issue/refresh/revoke flows, current-user and staff lookup endpoints,
+  health checks, and rate limiting as working examples.
+- **Async persistence without hidden transactions.** Database work goes through
+  repositories inside unit-of-work scopes, with Alembic migrations and
+  PostgreSQL-ready local infrastructure.
+- **Strict quality checks as guardrails.** Ruff, WPS/flake8, mypy, strict
+  pytest, architecture tests, meaningful docstring checks, and 100% coverage
+  keep the template clear for people and future agents.
 
-- FastAPI delivery with full `/api/v1/...` route paths.
-- SQLAlchemy async repositories, unit-of-work transactions, and Alembic migrations.
-- User creation, JWT issue/refresh/revoke, current-user, staff-user lookup, and health endpoints.
-- `diwire` dependency injection with explicit registrations for core contracts.
-- Pydantic settings and DTO/schema boundaries.
-- Docker Compose for PostgreSQL, PgBouncer, and Redis.
-- Architecture, style, unit, and integration tests.
+## What You Get
 
-## Project Layout
+- A FastAPI-only service foundation with full `/api/v1/...` routes.
+- SQLAlchemy async repositories and explicit unit-of-work transactions.
+- Dependency injection through `diwire` without framework leakage into core
+  code.
+- Docker Compose services for PostgreSQL, PgBouncer, and Redis.
+- Documentation that explains the boundaries, workflows, and operating model.
+- Agent rules that preserve scoped files, repository usage, and test DI
+  discipline.
 
-- `src/fastapi_template/core/` - entities, DTOs, use cases, services, and contracts.
-- `src/fastapi_template/infrastructure/` - SQLAlchemy, logging, telemetry, and throttling adapters.
-- `src/fastapi_template/entrypoints/` - FastAPI app construction.
-- `src/fastapi_template/ioc/` - dependency injection setup.
-- `migrations/` - Alembic migration environment and versions.
-- `management/` - maintenance scripts.
-- `tests/` - unit, integration, architecture, and style tests.
+## Why Modern Python Template
 
-## Commands
+Modern Python services are easiest to evolve when the default path is already
+boring in the right places: clear modules, explicit transactions, small
+controllers, tested adapters, and checks that catch drift before it spreads.
+This template keeps those decisions ready to copy so a new service can start
+with useful structure instead of cleanup work.
 
-| Command | Purpose |
-| --- | --- |
-| `make dev` | Run the FastAPI development server |
-| `make makemigrations` | Create an Alembic migration |
-| `make migrate` | Apply Alembic migrations |
-| `make check-migrations` | Check Alembic migration drift |
-| `make test` | Run the test suite with a 100% coverage threshold |
-| `make test-postgres` | Run SQLAlchemy integration tests against a disposable PostgreSQL test database |
-| `make lint` | Run Ruff, WPS/flake8, mypy, and repository checks |
-| `make docs` | Serve documentation |
+## Contributing
 
-Read the full documentation at [fastapi-template.zayats.dev](https://fastapi-template.zayats.dev), or run `make docs`.
+Developer setup, commands, project layout, architecture rules, and validation
+workflow live in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-`make test-postgres` resets the target schema before running tests. The
-`INTEGRATION_DATABASE_URL` database name must start with `test_` or end with
-`_test`.
+## License
+
+Modern Python Template is released under the [MIT License](LICENSE.md).

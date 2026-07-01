@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc">
+  <title id="title">Modern Python Template service architecture banner</title>
+  <desc id="desc">A composed service blueprint showing FastAPI delivery, core use cases, repositories, SQLAlchemy, and strict checks.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#102033"/>
+      <stop offset="0.55" stop-color="#174046"/>
+      <stop offset="1" stop-color="#f0b85b"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#071018" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="520" fill="url(#background)"/>
+  <g opacity="0.18" stroke="#ffffff" stroke-width="1">
+    <path d="M0 96H1600"/>
+    <path d="M0 192H1600"/>
+    <path d="M0 288H1600"/>
+    <path d="M0 384H1600"/>
+    <path d="M160 0V520"/>
+    <path d="M320 0V520"/>
+    <path d="M480 0V520"/>
+    <path d="M640 0V520"/>
+    <path d="M800 0V520"/>
+    <path d="M960 0V520"/>
+    <path d="M1120 0V520"/>
+    <path d="M1280 0V520"/>
+    <path d="M1440 0V520"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="92" y="108" width="456" height="304" rx="18" fill="#ffffff" opacity="0.95"/>
+    <rect x="628" y="82" width="356" height="356" rx="18" fill="#ffffff" opacity="0.95"/>
+    <rect x="1064" y="108" width="444" height="304" rx="18" fill="#ffffff" opacity="0.95"/>
+  </g>
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="132" y="168" fill="#102033" font-size="34" font-weight="700">FastAPI delivery</text>
+    <text x="132" y="220" fill="#385263" font-size="23">Full /api/v1 routes</text>
+    <text x="132" y="260" fill="#385263" font-size="23">Thin controllers</text>
+    <text x="132" y="300" fill="#385263" font-size="23">Request and response schemas</text>
+    <rect x="132" y="336" width="248" height="44" rx="22" fill="#dff4ee"/>
+    <text x="160" y="365" fill="#14614f" font-size="20" font-weight="700">HTTP boundary</text>
+
+    <text x="668" y="148" fill="#102033" font-size="34" font-weight="700">Core application</text>
+    <text x="668" y="200" fill="#385263" font-size="23">Use cases execute workflows</text>
+    <text x="668" y="240" fill="#385263" font-size="23">Services hold focused rules</text>
+    <text x="668" y="280" fill="#385263" font-size="23">Repositories define contracts</text>
+    <text x="668" y="320" fill="#385263" font-size="23">DTOs and entities stay scoped</text>
+    <rect x="668" y="356" width="214" height="44" rx="22" fill="#fff0cf"/>
+    <text x="696" y="385" fill="#7a4d00" font-size="20" font-weight="700">Clean center</text>
+
+    <text x="1104" y="168" fill="#102033" font-size="34" font-weight="700">Adapters and checks</text>
+    <text x="1104" y="220" fill="#385263" font-size="23">SQLAlchemy + Alembic</text>
+    <text x="1104" y="260" fill="#385263" font-size="23">UoW transactions</text>
+    <text x="1104" y="300" fill="#385263" font-size="23">Ruff, WPS, mypy, pytest</text>
+    <rect x="1104" y="336" width="230" height="44" rx="22" fill="#e4ecff"/>
+    <text x="1132" y="365" fill="#244a99" font-size="20" font-weight="700">Guardrails</text>
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.92">
+    <path d="M556 260H618"/>
+    <path d="M594 236L618 260L594 284"/>
+    <path d="M992 260H1054"/>
+    <path d="M1030 236L1054 260L1030 284"/>
+  </g>
+</svg>

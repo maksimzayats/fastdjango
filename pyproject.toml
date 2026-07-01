@@ -1,5 +1,5 @@
 [project]
-name = "fastapi-template"
+name = "modern-python-template"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
@@ -45,6 +45,9 @@ docs = [
 [build-system]
 requires = ["uv_build>=0.11.24,<0.12.0"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "fastapi_template"
 
 [tool.mypy]
 python_version = "3.14"

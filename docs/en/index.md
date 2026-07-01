@@ -1,6 +1,6 @@
-# FastAPI Template
+# Modern Python Template
 
-FastAPI Template is a Python 3.14 application template for building API services with clean application boundaries.
+Modern Python Template is a Python 3.14 application template for building FastAPI services with clean application boundaries.
 
 It includes:
 

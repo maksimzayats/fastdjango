@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -16,6 +17,13 @@ AGGREGATE_TEST_FILENAMES = {
     "test_throttler.py",
     "test_use_cases.py",
 }
+DIRECT_INTEGRATION_FACTORY_NAMES = frozenset(
+    (
+        "TestClientFactory",
+        "TestRefreshSessionFactory",
+        "TestUserFactory",
+    ),
+)
 
 
 def test_mirrored_test_files_map_to_source_modules() -> None:
@@ -82,6 +90,49 @@ def test_integration_tests_do_not_use_persistence_nesting() -> None:
     ]
 
     assert persistence_paths == []
+
+
+def test_delivery_integration_tests_use_factory_fixtures() -> None:
+    direct_factory_calls = [
+        f"{path.relative_to(REPO_ROOT)}:{node.lineno} calls {call_name}"
+        for path, tree in _iter_delivery_integration_modules()
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        if (call_name := _call_name(node)) in DIRECT_INTEGRATION_FACTORY_NAMES
+    ]
+
+    assert direct_factory_calls == [], (
+        "Delivery integration tests must use factory fixtures from tests/integration/conftest.py."
+    )
+
+
+def test_delivery_integration_tests_do_not_import_sqlalchemy_boundaries() -> None:
+    forbidden_imports = [
+        f"{path.relative_to(REPO_ROOT)}:{line_number} imports {module_name}"
+        for path, tree in _iter_delivery_integration_modules()
+        for module_name, line_number in _iter_imports(tree=tree)
+        if _is_delivery_integration_sqlalchemy_import(module_name=module_name)
+    ]
+
+    assert forbidden_imports == [], (
+        "Delivery integration tests must prepare database state through UoW-backed "
+        "fixtures and factories, not SQLAlchemy models, sessions, or adapters."
+    )
+
+
+def test_delivery_integration_tests_do_not_resolve_container_dependencies() -> None:
+    container_resolves = [
+        f"{path.relative_to(REPO_ROOT)}:{node.lineno} calls container.resolve()"
+        for path, tree in _iter_delivery_integration_modules()
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        if _is_container_resolve_call(node=node)
+    ]
+
+    assert container_resolves == [], (
+        "Delivery integration tests must override dependencies before client creation "
+        "and use shared factories instead of resolving the container directly."
+    )
 
 
 def _iter_mirrored_test_files() -> list[Path]:
@@ -152,3 +203,71 @@ def _is_local_sqlalchemy_adapter(source_relative_path: Path) -> bool:
 
 def _test_module_path_for(source_relative_path: Path) -> Path:
     return source_relative_path.with_name(f"test_{source_relative_path.name}")
+
+
+def _iter_delivery_integration_modules() -> list[tuple[Path, ast.Module]]:
+    delivery_root = TESTS_ROOT / "integration" / "core"
+
+    return [
+        (
+            path,
+            ast.parse(path.read_text(encoding="utf-8"), filename=str(path)),
+        )
+        for path in sorted(delivery_root.glob("*/delivery/**/*.py"))
+        if path.name != "__init__.py"
+    ]
+
+
+def _call_name(node: ast.Call) -> str | None:
+    if isinstance(node.func, ast.Name):
+        return node.func.id
+
+    if isinstance(node.func, ast.Attribute):
+        return node.func.attr
+
+    return None
+
+
+def _iter_imports(*, tree: ast.Module) -> list[tuple[str, int]]:
+    imports: list[tuple[str, int]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.extend((alias.name, node.lineno) for alias in node.names)
+            continue
+
+        if isinstance(node, ast.ImportFrom) and node.module is not None:
+            imports.append((node.module, node.lineno))
+
+    return imports
+
+
+def _is_delivery_integration_sqlalchemy_import(*, module_name: str) -> bool:
+    if module_name.startswith("sqlalchemy"):
+        return True
+
+    if module_name.startswith("fastapi_template.infrastructure.sqlalchemy"):
+        return True
+
+    return (
+        module_name.startswith("fastapi_template.core.")
+        and ".infrastructure.sqlalchemy" in module_name
+    )
+
+
+def _is_container_resolve_call(*, node: ast.Call) -> bool:
+    return (
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr == "resolve"
+        and (receiver_name := _expression_name(node.func.value)) is not None
+        and receiver_name.endswith("container")
+    )
+
+
+def _expression_name(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+
+    if isinstance(node, ast.Attribute):
+        return node.attr
+
+    return None

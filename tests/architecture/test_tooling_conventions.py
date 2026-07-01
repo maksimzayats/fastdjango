@@ -152,8 +152,8 @@ def test_makefile_quality_targets_use_prek() -> None:
 @pytest.mark.parametrize(
     "database_url",
     [
-        "postgres://postgres:password@localhost:5432/test_fastapi_template",
-        "postgresql://postgres:password@localhost:5432/fastapi_template_test",
+        "postgres://postgres:password@localhost:5432/test_modern_python_template",
+        "postgresql://postgres:password@localhost:5432/modern_python_template_test",
     ],
 )
 def test_integration_database_url_guard_accepts_test_database_names(
@@ -166,7 +166,7 @@ def test_integration_database_url_guard_accepts_test_database_names(
     "database_url",
     [
         "sqlite:///tmp/test.sqlite3",
-        "postgres://postgres:password@localhost:5432/fastapi_template",
+        "postgres://postgres:password@localhost:5432/modern_python_template",
     ],
 )
 def test_integration_database_url_guard_rejects_unsafe_targets(database_url: str) -> None:
